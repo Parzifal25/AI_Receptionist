@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Receptionist
 
-## Getting Started
+A multi-tenant SaaS platform where businesses create an AI receptionist and embed it into any
+website with a single script tag. Visitors chat or **speak** naturally with the receptionist; it
+answers from the business's own knowledge base, admits what it doesn't know, and captures leads.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```html
+<script src="https://yourapp.com/widget.js" data-key="YOUR_WIDGET_KEY" async></script>
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features (Phase 1)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Business dashboard** — auth, onboarding, business profile with opening hours
+- **Receptionist configuration** — name, greeting, tone, language, custom instructions, on/off
+- **Knowledge base** — paste documents; automatically chunked and indexed for retrieval
+- **FAQ management** — publish/unpublish, categories; answered word-perfect
+- **Embeddable widget** — 12 KB, shadow-DOM isolated, light/dark/auto themes, brandable, floats
+  bottom-right or bottom-left
+- **Chat + voice** — browser speech recognition & synthesis with a hands-free voice loop
+- **AI conversation** — grounded, anti-hallucination prompting; provider-agnostic LLM layer
+  (Ollama in dev; OpenAI / Anthropic / Gemini / Groq / Mistral by env change alone)
+- **Lead capture** — conversational extraction (regex + LLM) and explicit capture endpoint
+- **Conversation history** — full transcripts with linked leads
+- **Settings** — allowed embed domains, lead notifications
+- **Analytics** — usage event stream + overview stats (charts arrive Phase 2)
+- **Security** — Postgres Row Level Security per tenant, rate limiting, CORS allow-listing,
+  Zod validation on every input, secrets never reach the browser
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Quickstart
 
-## Learn More
+```bash
+git clone <repo> && cd ai-receptionist
+npm install
+cp .env.example .env.local          # fill in Supabase + LLM values
+# apply supabase/migrations/0001_init.sql to your Supabase project
+ollama pull llama3.1                # dev-default LLM
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Full setup instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Document | Contents |
+| --- | --- |
+| [docs/INSTALLATION.md](docs/INSTALLATION.md) | Local setup: Supabase, Ollama, env, migrations |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Clean architecture, provider system, data flow, diagram |
+| [docs/API.md](docs/API.md) | Public widget API reference |
+| [docs/COMPONENTS.md](docs/COMPONENTS.md) | Folder structure, features, UI components |
+| [docs/SECURITY.md](docs/SECURITY.md) | Tenancy model, RLS, widget token design, rate limits |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment (Vercel + Supabase) + checklist |
+| [docs/TESTING.md](docs/TESTING.md) | Automated tests + manual testing checklist |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Phase 2+, known limitations, technical debt |
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js dev server |
+| `npm run build` | Build widget + production app |
+| `npm run build:widget` | Bundle only `public/widget.js` |
+| `npm test` | Run the Vitest suite |
+| `npm run lint` | ESLint |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech stack
+
+Next.js (App Router) · React · TypeScript · Tailwind CSS · Supabase (Postgres, Auth, Storage,
+RLS) · Zod · Vitest · esbuild · Ollama (dev LLM, swappable)
+
+## License
+
+Proprietary — © AI Receptionist.
