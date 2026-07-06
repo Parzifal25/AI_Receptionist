@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Enter a valid email address").max(254),
@@ -35,8 +36,7 @@ export async function signIn(
     return { error: "Invalid email or password" };
   }
 
-  const next = formData.get("next");
-  redirect(typeof next === "string" && next.startsWith("/") ? next : "/dashboard");
+  redirect(safeRedirectPath(formData.get("next")));
 }
 
 export async function signUp(
