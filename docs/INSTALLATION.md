@@ -16,9 +16,14 @@ npm install
 ## 2. Set up Supabase
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Open **SQL Editor** and run the entire contents of
-   [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql).
-   (Or use the CLI: `supabase db push` with a linked project.)
+2. Open **SQL Editor** and run every file in
+   [`supabase/migrations/`](../supabase/migrations/) **in order** (`0001` through `0008`):
+   schema/RLS, then function grants, atomic counters, data retention, retrieval source
+   attribution, lead qualification, unanswered-question tracking, and the appointment-booking
+   tables (staff, scheduling settings, appointments, reminders, calendar connections).
+   Easiest with the CLI: `supabase db push` with a linked project applies all of them.
+   Migration `0008` requires the `btree_gist` extension — the migration creates it itself, but
+   confirm your plan allows extensions if you're on a restricted tier.
 3. In **Authentication → Providers**, ensure Email is enabled.
    - For frictionless local development, disable "Confirm email".
 4. Copy from **Project Settings → API**:
@@ -71,6 +76,15 @@ error instead of a runtime failure.
 | `EMBEDDING_PROVIDER` | no (`none`) | `none` = full-text search; `ollama` = vector search |
 | `EMBEDDING_MODEL` | no | Embedding model (default `nomic-embed-text`) |
 | `LOG_LEVEL` | no (`info`) | `debug` \| `info` \| `warn` \| `error` |
+| `CRON_SECRET` | for cron routes | Authorizes `/api/cron/retention` and `/api/cron/reminders` |
+| `MESSAGING_PROVIDER` | no (`log`) | Booking confirmations/reminders; `log` writes to the app log until an SMS/WhatsApp gateway is wired in |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | only if a tenant connects Google Calendar | OAuth app credentials |
+| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | only if a tenant connects Outlook | OAuth app credentials |
+
+Appointment booking itself needs no env var — it's per-tenant data. A business only gets
+scheduling once it has a `scheduling_settings` row with `booking_enabled = true` and at least one
+active `staff_members` row (there's no dashboard UI for this yet; insert them directly via SQL
+Editor until one ships — see [SCHEDULING.md](SCHEDULING.md#known-limits--next-steps)).
 
 ## 5. Run
 

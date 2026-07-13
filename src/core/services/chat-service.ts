@@ -8,10 +8,20 @@ import { buildRetrievalQuery, isSubstantiveQuestion } from "./retrieval-query";
 import { extractLead, isLeadWorthSaving } from "./lead-extractor";
 import type { BookingOrchestrator } from "./scheduling/booking-orchestrator";
 import { WidgetRepository } from "./widget-repository";
+import { isAppError } from "@/core/errors/app-error";
 import { logger } from "@/lib/logger";
 import { getLLMProvider } from "@/providers/llm/factory";
 import { getKnowledgeProvider } from "@/providers/knowledge/factory";
 import { getNotificationProvider } from "@/providers/notification/log-notification-provider";
+
+/**
+ * Shown when the LLM provider is down or times out. The widget must never
+ * hard-fail a chat turn over an upstream outage — a canned but honest reply
+ * keeps the conversation usable and still gives the visitor a next step.
+ */
+const PROVIDER_FALLBACK_REPLY =
+  "Sorry, I'm having trouble connecting right now. Please try again in a moment, " +
+  "or leave your name and phone/email and the team will follow up.";
 
 const HISTORY_LIMIT = 16;
 /** Run lead extraction every N visitor messages to bound LLM cost. */
@@ -105,18 +115,37 @@ export class ChatService {
 
     // Low temperature keeps a receptionist factual; a touch above the floor
     // stops it repeating identical canned phrasings turn after turn.
-    const result = await this.llm.complete(systemPrompt, messages, {
-      temperature: 0.3,
-      maxTokens: 400,
-    });
+    // A provider outage/timeout degrades to a canned reply instead of
+    // failing the request — the widget must never surface a raw 5xx.
+    let replyContent: string;
+    let providerFailed = false;
+    try {
+      const result = await this.llm.complete(systemPrompt, messages, {
+        temperature: 0.3,
+        maxTokens: 400,
+      });
+      replyContent = result.content;
+    } catch (error) {
+      providerFailed = true;
+      log.error("llm completion failed, degrading to fallback reply", {
+        businessId: business.id,
+        conversationId,
+        provider: this.llm.name,
+        code: isAppError(error) ? error.code : undefined,
+        error,
+      });
+      replyContent = PROVIDER_FALLBACK_REPLY;
+    }
 
     await this.repository.appendMessages(conversationId, business.id, [
       { role: "user", content: userMessage },
-      { role: "assistant", content: result.content },
+      { role: "assistant", content: replyContent },
     ]);
 
-    // Lead capture runs out of the hot path's critical failure domain.
-    if (receptionist.leadCaptureEnabled) {
+    // Lead capture also calls the LLM (extraction pass) — skip it this turn
+    // if the provider just failed, rather than compounding one outage with a
+    // second doomed call.
+    if (receptionist.leadCaptureEnabled && !providerFailed) {
       const visitorMessageCount = messages.filter((m) => m.role === "user").length;
       // A completed booking always captures the lead — the visitor just
       // handed over exactly the details a lead needs.
@@ -127,12 +156,12 @@ export class ChatService {
       ) {
         await this.captureLead(business, conversationId, [
           ...messages,
-          { role: "assistant", content: result.content },
+          { role: "assistant", content: replyContent },
         ]).catch((error) => log.warn("lead capture failed", { error }));
       }
     }
 
-    return { reply: result.content };
+    return { reply: replyContent };
   }
 
   private async captureLead(

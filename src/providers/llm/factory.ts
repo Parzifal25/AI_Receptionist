@@ -24,13 +24,23 @@ export function getLLMProvider(): LLMProvider {
 
   switch (env.LLM_PROVIDER) {
     case "ollama":
-      cached = new OllamaProvider(env.OLLAMA_BASE_URL, env.LLM_MODEL);
+      cached = new OllamaProvider(env.OLLAMA_BASE_URL, env.LLM_MODEL, env.LLM_TIMEOUT_MS);
       break;
     case "anthropic":
-      cached = new AnthropicProvider(requireKey(env.LLM_API_KEY, "anthropic"), env.LLM_MODEL);
+      cached = new AnthropicProvider(
+        requireKey(env.LLM_API_KEY, "anthropic"),
+        env.LLM_MODEL,
+        undefined,
+        env.LLM_TIMEOUT_MS,
+      );
       break;
     case "gemini":
-      cached = new GeminiProvider(requireKey(env.LLM_API_KEY, "gemini"), env.LLM_MODEL);
+      cached = new GeminiProvider(
+        requireKey(env.LLM_API_KEY, "gemini"),
+        env.LLM_MODEL,
+        undefined,
+        env.LLM_TIMEOUT_MS,
+      );
       break;
     case "openai":
     case "groq":
@@ -40,6 +50,7 @@ export function getLLMProvider(): LLMProvider {
         env.LLM_BASE_URL ?? DEFAULT_BASE_URLS[env.LLM_PROVIDER],
         requireKey(env.LLM_API_KEY, env.LLM_PROVIDER),
         env.LLM_MODEL,
+        env.LLM_TIMEOUT_MS,
       );
       break;
   }

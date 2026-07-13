@@ -27,21 +27,29 @@
 ┌──────────────────────────┐          │  ┌────────────────────────────────────────┐  │
 │  Business dashboard      │          │  │ core/services                          │  │
 │  (browser)               │─────────▶│  │  ChatService · WidgetRepository        │  │
-│                          │  cookies │  │  prompt-builder · lead-extractor       │  │
-└──────────────────────────┘          │  │  chunker                               │  │
-                                      │  └───┬──────────┬──────────┬──────────────┘  │
-                                      │      ▼          ▼          ▼                 │
-                                      │  ┌────────┐ ┌─────────┐ ┌──────────────┐     │
-                                      │  │ LLM    │ │Knowledge│ │Notification  │     │
-                                      │  │ port   │ │ port    │ │ port         │     │
-                                      │  └───┬────┘ └────┬────┘ └──────┬───────┘     │
-                                      └──────┼───────────┼─────────────┼─────────────┘
-                                             ▼           ▼             ▼
-                                      Ollama/OpenAI/  Supabase      log (Phase 1)
-                                      Anthropic/      Postgres      email (Phase 2)
-                                      Gemini/Groq/    (FTS or
-                                      Mistral         pgvector)
+│                          │  cookies │  │  prompt-builder · industry-playbooks   │  │
+└──────────────────────────┘          │  │  lead-extractor · lead-scorer          │  │
+                                      │  │  retrieval-query · chunker             │  │
+                                      │  │  scheduling/ (availability, booking-   │  │
+                                      │  │  orchestrator, reminder-service, ...)  │  │
+                                      │  └───┬──────┬──────┬──────┬──────┬───────┘  │
+                                      │      ▼      ▼      ▼      ▼      ▼          │
+                                      │  ┌──────┐┌───────┐┌──────┐┌────────┐┌──────┐│
+                                      │  │ LLM  ││Knowl- ││Notif-││Calendar││Messa-││
+                                      │  │ port ││edge   ││ication││ port  ││ging  ││
+                                      │  │      ││ port  ││ port  ││       ││ port ││
+                                      │  └──┬───┘└───┬───┘└──┬───┘└───┬────┘└──┬───┘│
+                                      └─────┼────────┼───────┼────────┼────────┼────┘
+                                            ▼        ▼       ▼        ▼        ▼
+                                      Ollama/OpenAI/ Supabase log     internal/ log (SMS/
+                                      Anthropic/     Postgres         Google/   WhatsApp
+                                      Gemini/Groq/   (FTS or          Outlook/  pluggable)
+                                      Mistral        pgvector)        CalDAV
 ```
+
+Also wired: `/api/cron/reminders` (Vercel Cron, every 5 min) delivers due
+appointment reminders through `ReminderService` + the messaging port; see
+[SCHEDULING.md](SCHEDULING.md) for the full appointment-booking data flow.
 
 Dashboard reads/writes go straight from Server Components / Server Actions to Supabase **as the
 signed-in user**, so RLS is the enforcement point. The widget path uses the service role but is
@@ -69,6 +77,8 @@ visitor token).
 | `SpeechProvider` | Browser Web Speech APIs (client-side) | implement port (Whisper/Deepgram/ElevenLabs) |
 | `StorageProvider` | Supabase Storage | implement port (S3/GCS/R2) |
 | `NotificationProvider` | Structured log | implement port (Resend/SES) |
+| `CalendarProvider` | Internal, Google, Outlook, CalDAV | set `staff_members.calendar_provider` / `calendar_connections` row |
+| `MessagingProvider` | Structured log | set `MESSAGING_PROVIDER` env, implement port (Twilio SMS/WhatsApp) |
 
 Factories (`src/providers/*/factory.ts`) are the only place adapters are constructed. Services
 receive providers through constructor injection with factory defaults, which is what makes the
@@ -87,20 +97,34 @@ whole conversational pipeline testable with in-memory fakes
 2. Route validates with Zod, rate-limits per token **and** per IP, resolves the conversation by
    its unguessable visitor token, then loads the receptionist + business context.
 3. `ChatService.respond`:
-   - retrieves tenant-scoped knowledge (FAQ + document chunks) for the message,
-   - builds the grounded system prompt (`prompt-builder.ts`) — profile, hours, retrieved
-     snippets, anti-hallucination rules, lead-capture behavior,
+   - fetches recent history, then retrieves tenant-scoped knowledge (FAQ + document chunks) for
+     a **context-rewritten** query (`retrieval-query.ts` expands short/anaphoric follow-ups with
+     recent visitor turns before searching),
+   - runs the `BookingOrchestrator` (if scheduling is enabled for the tenant): detects
+     scheduling intent, fetches real availability, executes any book/reschedule/cancel action
+     the visitor just confirmed, and returns a prompt section describing what actually happened,
+   - builds the grounded system prompt (`prompt-builder.ts`) — identity, tone, profile, hours,
+     retrieved snippets, conversation craft and situation-handling rules, the matched
+     **industry playbook** (`industry-playbooks.ts`), anti-hallucination and prompt-injection
+     rules, lead-capture behavior, plus the booking-orchestrator section when present,
    - calls the configured `LLMProvider`,
    - persists both turns,
-   - periodically runs lead extraction: **regex for email/phone (never hallucinates) + a
-     JSON-mode LLM pass for name/intent**; regex wins conflicts. New leads trigger the
-     `NotificationProvider`.
+   - runs lead extraction (**regex for email/phone (never hallucinates) + a JSON-mode LLM pass
+     for name/intent**; regex wins conflicts) periodically, on trigger phrases, or immediately
+     when a booking just completed. Extracted leads are scored by `lead-scorer.ts` (0-100,
+     temperature, classification, recommended next action) before being persisted. New leads
+     trigger the `NotificationProvider`,
+   - records an `unanswered_question` usage event when a substantive question retrieved no
+     grounding, so the dashboard can surface knowledge gaps.
 4. Reply returns to the widget; in voice mode it is spoken via `SpeechProvider` and the
    microphone re-opens for a hands-free loop.
 
-Failure isolation: knowledge-retrieval errors degrade to profile-only answers; lead-capture
-errors are logged and never break the conversation; only an LLM failure surfaces an error to the
-visitor.
+Failure isolation: knowledge-retrieval, booking-orchestration, and lead-capture errors are all
+logged and degrade to a normal turn without the corresponding enhancement; only an LLM failure
+surfaces an error to the visitor. This is the same design principle used throughout: the AI layer
+composes optional enhancements around a conversation that always works. See
+[AI.md](AI.md) for the conversational/lead-qualification intelligence and
+[SCHEDULING.md](SCHEDULING.md) for the appointment engine.
 
 ## Knowledge retrieval
 

@@ -99,3 +99,28 @@ than each tenant's `data_retention_days`. Requires
 `Authorization: Bearer <CRON_SECRET>`; unauthenticated calls get `401`. Wired to
 a daily Vercel Cron in `vercel.json`. Returns
 `{ "data": { "conversations": <n>, "events": <n> } }`.
+
+---
+
+### `GET /api/cron/reminders` (internal)
+
+Delivers due appointment reminders (booking confirmations are sent inline at
+booking time, not via this route). Claims rows with `FOR UPDATE SKIP LOCKED`
+so overlapping runs never double-send; failed deliveries retry with backoff
+up to 3 attempts. Requires `Authorization: Bearer <CRON_SECRET>`. Wired to a
+5-minute Vercel Cron in `vercel.json`. Returns
+`{ "data": { "sent": <n>, "skipped": <n>, "failed": <n> } }`. See
+[SCHEDULING.md](SCHEDULING.md).
+
+---
+
+## Appointment booking (in-conversation)
+
+There is no separate booking REST API — booking happens *inside* the
+`/api/v1/widget/messages` turn. When a business has enabled scheduling, the
+`BookingOrchestrator` detects scheduling intent, checks live availability,
+and executes book/reschedule/cancel actions before the reply is generated;
+the `reply` field in the existing response narrates the result. See
+[SCHEDULING.md](SCHEDULING.md) for the full flow and the `appointments`,
+`staff_members`, `scheduling_settings`, and `appointment_reminders` tables
+that back it (`supabase/migrations/0008_appointments.sql`).

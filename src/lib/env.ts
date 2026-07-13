@@ -18,6 +18,10 @@ const serverEnvSchema = z.object({
   LLM_BASE_URL: z.string().url().optional(),
 
   OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
+  // CPU-hosted local models (the Ollama default) routinely take longer than
+  // a hosted API to finish a completion — raise this if health checks or
+  // chat turns are timing out against a local model on modest hardware.
+  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
 
   EMBEDDING_PROVIDER: z.enum(["ollama", "openai", "none"]).default("none"),
   EMBEDDING_MODEL: z.string().default("nomic-embed-text"),

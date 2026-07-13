@@ -20,6 +20,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     private readonly baseUrl: string,
     private readonly apiKey: string,
     private readonly model: string,
+    private readonly timeoutMs: number = 60_000,
   ) {
     this.log = logger.child({ provider: name });
   }
@@ -47,7 +48,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
             ...messages.map((m) => ({ role: m.role, content: m.content })),
           ],
         }),
-        signal: options.abortSignal ?? AbortSignal.timeout(60_000),
+        signal: options.abortSignal ?? AbortSignal.timeout(this.timeoutMs),
       });
     } catch (error) {
       this.log.error("llm request failed", { error });

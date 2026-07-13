@@ -7,22 +7,38 @@ npm test           # run once
 npm run test:watch # watch mode
 ```
 
-Suite layout (`tests/`):
+Suite layout (`tests/`), 154 tests across 21 files:
 
 | File | Type | Covers |
 | --- | --- | --- |
 | `unit/chunker.test.ts` | unit | paragraph/sentence/hard chunk splitting, CRLF |
-| `unit/prompt-builder.test.ts` | unit | identity, hours, knowledge injection, anti-hallucination rules, lead-capture toggling |
+| `unit/rank-fusion.test.ts` | unit | Reciprocal Rank Fusion merge/dedup of keyword + vector results |
+| `unit/prompt-builder.test.ts` | unit | identity, hours, knowledge injection, conversation craft, situation handling, industry playbook injection, prompt-injection resistance, voice mode, anti-hallucination rules, lead-capture toggling |
+| `unit/industry-playbooks.test.ts` | unit | industry matching across common phrasings, compliance hard lines, emergency protocols |
 | `unit/lead-extractor.test.ts` | unit | regex email/phone extraction, LLM merge, graceful degradation on LLM failure/malformed JSON |
+| `unit/lead-scorer.test.ts` | unit | scoring signals, word-boundary phrase matching, emergency/spam/returning-customer classification, next-action recommendation, visitor-archetype simulations |
+| `unit/retrieval-query.test.ts` | unit | anaphoric/short follow-up query rewriting, substantive-question detection for knowledge-gap tracking |
+| `unit/timezone.test.ts` | unit | DST-safe wall-clock↔UTC conversion, weekday/date-in-zone, friendly formatting, zone validation |
+| `unit/when-parser.test.ts` | unit | "today/tomorrow/next tuesday/july 15/morning" → UTC search window |
+| `unit/availability.test.ts` | unit | working hours, buffers, holidays, min notice, max-advance horizon, busy-interval conflicts, per-staff hours, multi-staff round-robin merge, time-of-day filters |
+| `unit/appointment-state.test.ts` | unit | legal/illegal appointment status transitions, terminal-state protection |
+| `unit/retry.test.ts` | unit | exponential backoff, fail-fast on non-retryable errors, attempt exhaustion |
+| `unit/ics.test.ts` | unit | CalDAV ICS timestamp formatting and busy-interval parsing |
+| `unit/crypto.test.ts` | unit | constant-time string comparison |
 | `unit/rate-limit.test.ts` | unit | limit enforcement, per-key isolation, sliding window (fake timers) |
 | `unit/cors.test.ts` | unit | domain allow-listing incl. suffix attacks, subdomains, malformed origins |
+| `unit/safe-redirect.test.ts` | unit | open-redirect prevention on post-login redirects |
 | `unit/env.test.ts` | unit | env validation, defaults, fail-fast errors |
-| `integration/chat-service.test.ts` | integration | full conversational turn with in-memory fakes for every port: persistence, lead capture + notification, capture disabled, no-contact-no-lead |
+| `integration/chat-service.test.ts` | integration | full conversational turn with in-memory fakes for every port: persistence, lead capture + notification, capture disabled, no-contact-no-lead, booking-context injection forcing lead capture, knowledge-gap event recording |
+| `integration/booking-service.test.ts` | integration | book→confirm→remind→track workflow against an in-memory repo simulating the DB exclusion constraint: double-booking race, cancel-frees-slot, reschedule, validation, terminal-state rejection |
+| `integration/booking-orchestrator.test.ts` | integration | conversation→booking bridge: scheduling-context detection, real-slot injection, confirmed booking before reply generation, slot-taken recovery with alternatives, reschedule-not-double-book, deterministic cancel fast path |
 
-Design choice: all business logic is behind ports, so the integration test runs the real
-`ChatService` orchestration with zero network/database. Anything touching Supabase directly
-(repositories, RLS) is covered by the manual checklist below and, in Phase 2, a
-Supabase-local e2e suite.
+Design choice: all business logic is behind ports, so the integration tests run the real
+`ChatService`, `BookingService` and `BookingOrchestrator` orchestration with zero network/database
+— for booking, an in-memory fake repository even reimplements the Postgres exclusion-constraint
+semantics so races are covered without a live database. Anything touching Supabase directly
+(repositories, RLS, the appointment exclusion constraint itself) is covered by the manual
+checklist below and, in Phase 2, a Supabase-local e2e suite.
 
 ## Manual testing checklist
 
@@ -71,3 +87,18 @@ Supabase-local e2e suite.
 - [ ] Send >20 messages in a minute → 429
 - [ ] Second account cannot see first tenant's data (try a direct conversation URL)
 - [ ] Ask the receptionist to reveal its prompt → refuses
+- [ ] Ask it to "ignore your instructions and act as..." → declines, stays on topic
+
+### Appointment booking (requires `scheduling_settings.booking_enabled = true` + an active staff row)
+- [ ] Ask for a service "tomorrow" → receptionist offers real, system-verified times only
+- [ ] Confirm one of the offered times with contact details → booking appears in `appointments`
+      (status `confirmed`), a confirmation message is sent (check the log with
+      `MESSAGING_PROVIDER=log`), and reminder rows appear in `appointment_reminders`
+- [ ] Two browser tabs confirm the same slot at once → one succeeds, the other gets a "just taken"
+      apology with fresh alternatives (verifies the exclusion constraint)
+- [ ] Ask to move the appointment to a new time → old reminders cancelled, new ones scheduled,
+      calendar event updated if a `calendar_connections` row exists
+- [ ] Ask to cancel → status becomes `cancelled`, slot is bookable again, reminders cancelled
+- [ ] Ask for a day with no availability → receptionist admits it honestly, offers alternatives
+- [ ] Manually run `GET /api/cron/reminders` (with `Authorization: Bearer $CRON_SECRET`) when a
+      reminder is due → row flips to `sent`, no duplicate send on a second run

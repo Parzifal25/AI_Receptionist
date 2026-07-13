@@ -17,6 +17,7 @@ export class AnthropicProvider implements LLMProvider {
     private readonly apiKey: string,
     private readonly model: string,
     private readonly baseUrl = "https://api.anthropic.com",
+    private readonly timeoutMs: number = 60_000,
   ) {}
 
   async complete(
@@ -45,7 +46,7 @@ export class AnthropicProvider implements LLMProvider {
           system,
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
         }),
-        signal: options.abortSignal ?? AbortSignal.timeout(60_000),
+        signal: options.abortSignal ?? AbortSignal.timeout(this.timeoutMs),
       });
     } catch (error) {
       this.log.error("anthropic request failed", { error });

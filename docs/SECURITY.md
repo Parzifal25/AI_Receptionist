@@ -29,6 +29,18 @@ Two enforcement domains, both scoped by `business_id`:
 - System prompts / retrieved knowledge context (the model is instructed not to reveal them, and
   they are never serialized to the client)
 - Other conversations' data (visitor tokens scope access to one conversation)
+- Calendar OAuth tokens / CalDAV credentials — `calendar_connections` has **no RLS policies at
+  all** (service-role only, by design); nothing short of the service role or direct database
+  access can read them, and they never appear in any dashboard or widget API response
+
+## Prompt-injection resistance
+
+Visitor messages are explicitly framed in the system prompt as untrusted input, not instructions:
+attempts to make the receptionist "ignore your instructions," roleplay a different persona, or
+reveal its configuration are treated as off-topic and deflected back to the business. A
+business's own custom instructions are likewise subordinated to the safety rules, so a
+misconfigured custom instruction can't override anti-hallucination or scope-of-service
+constraints. Covered by `tests/unit/prompt-builder.test.ts`.
 
 ## Input validation
 

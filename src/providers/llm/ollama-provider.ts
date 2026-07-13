@@ -17,6 +17,7 @@ export class OllamaProvider implements LLMProvider {
   constructor(
     private readonly baseUrl: string,
     private readonly model: string,
+    private readonly timeoutMs: number = 60_000,
   ) {}
 
   async complete(
@@ -38,28 +39,58 @@ export class OllamaProvider implements LLMProvider {
       ],
     };
 
+    // Diagnostic context for slow/timed-out CPU inference: prompt size and
+    // wall-clock duration are the two levers that actually explain a stall
+    // (model size and host CPU are fixed at request time).
+    const promptChars = systemPrompt.length + messages.reduce((n, m) => n + m.content.length, 0);
+    const startedAt = Date.now();
+
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: options.abortSignal ?? AbortSignal.timeout(60_000),
+        signal: options.abortSignal ?? AbortSignal.timeout(this.timeoutMs),
       });
     } catch (error) {
-      this.log.error("ollama request failed", { error });
-      throw AppError.provider("AI service is unreachable");
+      const elapsedMs = Date.now() - startedAt;
+      const timedOut = error instanceof Error && error.name === "TimeoutError";
+      this.log.error(timedOut ? "ollama request timed out" : "ollama request failed", {
+        error: error instanceof Error ? error.message : error,
+        elapsedMs,
+        timeoutMs: this.timeoutMs,
+        model: this.model,
+        promptChars,
+        maxTokens: options.maxTokens ?? 512,
+      });
+      throw AppError.provider(
+        timedOut
+          ? "AI service took too long to respond"
+          : "AI service is unreachable",
+      );
     }
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      this.log.error("ollama returned error", { status: response.status, body: text.slice(0, 500) });
+      this.log.error("ollama returned error", {
+        status: response.status,
+        body: text.slice(0, 500),
+        elapsedMs: Date.now() - startedAt,
+      });
       throw AppError.provider("AI service returned an error");
     }
 
     const data = (await response.json()) as OllamaChatResponse;
     const content = data.message?.content?.trim();
     if (!content) throw AppError.provider("AI service returned an empty response");
+
+    const elapsedMs = Date.now() - startedAt;
+    if (elapsedMs > this.timeoutMs * 0.5) {
+      // Didn't time out, but close enough to warn — the next slightly
+      // longer prompt or a busier host will tip this into a hard timeout.
+      this.log.warn("ollama response was slow", { elapsedMs, timeoutMs: this.timeoutMs, promptChars });
+    }
 
     return {
       content,

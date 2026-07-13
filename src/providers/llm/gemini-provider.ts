@@ -17,6 +17,7 @@ export class GeminiProvider implements LLMProvider {
     private readonly apiKey: string,
     private readonly model: string,
     private readonly baseUrl = "https://generativelanguage.googleapis.com",
+    private readonly timeoutMs: number = 60_000,
   ) {}
 
   async complete(
@@ -46,7 +47,7 @@ export class GeminiProvider implements LLMProvider {
               responseMimeType: options.jsonMode ? "application/json" : "text/plain",
             },
           }),
-          signal: options.abortSignal ?? AbortSignal.timeout(60_000),
+          signal: options.abortSignal ?? AbortSignal.timeout(this.timeoutMs),
         },
       );
     } catch (error) {
