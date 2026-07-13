@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { AppError } from "@/core/errors/app-error";
 import { ChatService } from "@/core/services/chat-service";
+import { BookingOrchestrator } from "@/core/services/scheduling/booking-orchestrator";
 import { WidgetRepository } from "@/core/services/widget-repository";
-import { corsHeaders, preflightResponse } from "@/lib/api/cors";
+import { corsHeaders, isOriginAllowed, preflightResponse } from "@/lib/api/cors";
 import { clientIp, fail, withErrorHandling } from "@/lib/api/respond";
 import { widgetMessageLimiter } from "@/lib/rate-limit";
 
@@ -11,6 +12,13 @@ const bodySchema = z.object({
   visitorToken: z.string().min(16).max(128),
   message: z.string().trim().min(1).max(2000),
 });
+
+/**
+ * Hard per-conversation ceiling (user + assistant rows combined). Bounds the
+ * worst-case LLM spend a single visitor token can generate; real
+ * receptionist chats stay far below it.
+ */
+const MAX_MESSAGES_PER_CONVERSATION = 200;
 
 export const OPTIONS = (request: NextRequest) =>
   preflightResponse(request.headers.get("origin"));
@@ -41,16 +49,31 @@ export const POST = withErrorHandling("widget.messages", async (request: NextReq
     return fail(AppError.conflict("This conversation has ended"), headers);
   }
 
-  const { receptionist, business } = await repository.getReceptionistById(
+  const { receptionist, business, allowedDomains } = await repository.getReceptionistById(
     conversation.receptionistId,
   );
 
-  const chat = new ChatService(undefined, undefined, undefined, repository);
+  // Same embed-domain policy as conversation start — a stolen visitor token
+  // is useless from a site the business hasn't allowed.
+  if (!isOriginAllowed(origin, allowedDomains)) {
+    return fail(AppError.forbidden("This domain is not allowed to use this widget"), headers);
+  }
+
+  if (conversation.messageCount >= MAX_MESSAGES_PER_CONVERSATION) {
+    await repository.endConversation(conversation.id);
+    return fail(
+      AppError.conflict("This conversation has reached its limit — please start a new one"),
+      headers,
+    );
+  }
+
+  const chat = new ChatService(undefined, undefined, undefined, repository, new BookingOrchestrator());
   const { reply } = await chat.respond({
     business,
     receptionist,
     conversationId: conversation.id,
     userMessage: body.message,
+    channel: conversation.channel,
   });
 
   await repository.trackEvent(business.id, "message_sent");

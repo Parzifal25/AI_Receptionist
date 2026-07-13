@@ -10,6 +10,7 @@ import type {
   WidgetBranding,
 } from "@/core/domain/types";
 import { DEFAULT_BRANDING } from "@/core/domain/types";
+import { scoreLead } from "./lead-scorer";
 import { AppError } from "@/core/errors/app-error";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
@@ -188,30 +189,33 @@ export class WidgetRepository {
       log.error("message insert failed", { error: error.message });
       throw AppError.internal();
     }
+    // conversations.message_count / last_message_at are maintained by the
+    // messages_bump_conversation trigger — no read-modify-write here.
+  }
 
-    const { data: convo } = await this.db
+  /** Marks a conversation ended; subsequent messages are rejected. */
+  async endConversation(conversationId: string): Promise<void> {
+    const { error } = await this.db
       .from("conversations")
-      .select("message_count")
-      .eq("id", conversationId)
-      .single();
-
-    await this.db
-      .from("conversations")
-      .update({
-        message_count: (convo?.message_count ?? 0) + messages.length,
-        last_message_at: new Date().toISOString(),
-      })
+      .update({ status: "ended", ended_at: new Date().toISOString() })
       .eq("id", conversationId);
+    if (error) {
+      log.error("conversation end failed", { error: error.message });
+      throw AppError.internal();
+    }
   }
 
   /**
    * Creates or updates the lead attached to a conversation. One lead per
-   * conversation; new details merge into existing ones.
+   * conversation; new details merge into existing ones. The merged record is
+   * re-qualified on every write so the score always reflects everything known
+   * so far — passing the transcript sharpens intent/urgency signals.
    */
   async upsertConversationLead(
     businessId: string,
     conversationId: string,
     draft: LeadDraft,
+    transcript: ChatMessage[] = [],
   ): Promise<{ isNew: boolean }> {
     const { data: existing, error: fetchError } = await this.db
       .from("leads")
@@ -224,14 +228,25 @@ export class WidgetRepository {
       throw AppError.internal();
     }
 
+    const merged: LeadDraft = {
+      name: draft.name || existing?.name || "",
+      email: draft.email || existing?.email || "",
+      phone: draft.phone || existing?.phone || "",
+      intent: draft.intent || existing?.intent || "",
+    };
+    const qualification = scoreLead(merged, transcript);
+
     if (existing) {
       const { error } = await this.db
         .from("leads")
         .update({
-          name: draft.name || existing.name,
-          email: draft.email || existing.email,
-          phone: draft.phone || existing.phone,
-          intent: draft.intent || existing.intent,
+          name: merged.name,
+          email: merged.email,
+          phone: merged.phone,
+          intent: merged.intent,
+          score: qualification.score,
+          temperature: qualification.temperature,
+          qualification,
         })
         .eq("id", existing.id);
       if (error) {
@@ -244,10 +259,13 @@ export class WidgetRepository {
     const { error } = await this.db.from("leads").insert({
       business_id: businessId,
       conversation_id: conversationId,
-      name: draft.name ?? "",
-      email: draft.email ?? "",
-      phone: draft.phone ?? "",
-      intent: draft.intent ?? "",
+      name: merged.name,
+      email: merged.email,
+      phone: merged.phone,
+      intent: merged.intent,
+      score: qualification.score,
+      temperature: qualification.temperature,
+      qualification,
     });
     if (error) {
       log.error("lead insert failed", { error: error.message });
@@ -267,6 +285,25 @@ export class WidgetRepository {
     return {
       notifyOnLead: data?.notify_on_lead ?? false,
       notificationEmail: data?.notification_email ?? "",
+    };
+  }
+
+  /**
+   * Deletes conversations + usage events past each tenant's retention window.
+   * Invoked by the scheduled retention job on the service role.
+   */
+  async purgeExpiredData(): Promise<{ conversations: number; events: number }> {
+    const { data, error } = await this.db.rpc("purge_expired_data").single<{
+      deleted_conversations: number;
+      deleted_events: number;
+    }>();
+    if (error) {
+      log.error("data purge failed", { error: error.message });
+      throw AppError.internal();
+    }
+    return {
+      conversations: data?.deleted_conversations ?? 0,
+      events: data?.deleted_events ?? 0,
     };
   }
 

@@ -121,6 +121,8 @@ export interface LeadDraft {
 export interface KnowledgeSnippet {
   source: "chunk" | "faq";
   refId: string;
+  /** Human-readable source label (document title or FAQ category). */
+  title: string;
   content: string;
   score: number;
 }
@@ -130,4 +132,9 @@ export type UsageEventType =
   | "conversation_started"
   | "message_sent"
   | "lead_captured"
-  | "voice_used";
+  | "voice_used"
+  /** A substantive visitor question retrieval found no knowledge for. */
+  | "unanswered_question"
+  | "appointment_booked"
+  | "appointment_rescheduled"
+  | "appointment_cancelled";

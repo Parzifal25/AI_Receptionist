@@ -22,6 +22,20 @@ const serverEnvSchema = z.object({
   EMBEDDING_PROVIDER: z.enum(["ollama", "openai", "none"]).default("none"),
   EMBEDDING_MODEL: z.string().default("nomic-embed-text"),
 
+  // Shared secret authorizing scheduled jobs (e.g. the data-retention cron).
+  CRON_SECRET: z.string().min(16).optional(),
+
+  // Outbound messaging (booking confirmations, reminders). "log" delivers to
+  // the application log; real gateways (Twilio, ...) plug in via the factory.
+  MESSAGING_PROVIDER: z.enum(["log"]).default("log"),
+
+  // OAuth app credentials for tenant calendar connections (optional until a
+  // tenant connects the corresponding provider).
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_CLIENT_ID: z.string().optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().optional(),
+
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 });

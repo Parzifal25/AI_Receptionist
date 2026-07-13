@@ -82,5 +82,20 @@ Explicit lead submission (requires email **or** phone). Merges into the conversa
 
 ### `GET /api/health`
 
-Liveness + LLM connectivity probe. `200` healthy, `503` degraded:
+Liveness by default — no outbound calls, always `200` while the process is up:
+`{ "data": { "status": "ok", "time": "…" } }`
+
+Add `?deep=1` for a readiness probe that also checks LLM connectivity (`200`
+healthy, `503` degraded). The deep probe is rate limited (6/min per IP) to
+prevent amplification against the AI provider:
 `{ "data": { "status": "ok", "llm": { "provider": "ollama", "healthy": true }, "time": "…" } }`
+
+---
+
+### `GET /api/cron/retention` (internal)
+
+Scheduled data-retention purge. Deletes conversations and usage events older
+than each tenant's `data_retention_days`. Requires
+`Authorization: Bearer <CRON_SECRET>`; unauthenticated calls get `401`. Wired to
+a daily Vercel Cron in `vercel.json`. Returns
+`{ "data": { "conversations": <n>, "events": <n> } }`.

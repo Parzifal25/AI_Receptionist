@@ -53,7 +53,7 @@ Supabase-local e2e suite.
 - [ ] Send message → typing indicator → reply; transcript in dashboard
 - [ ] Reload page → same conversation continues (sessionStorage token)
 - [ ] Widget renders correctly on mobile viewport, light and dark themes
-- [ ] Kill the LLM (stop Ollama) → friendly error bubble, page unaffected; `/api/health` → 503
+- [ ] Kill the LLM (stop Ollama) → friendly error bubble, page unaffected; `/api/health?deep=1` → 503
 
 ### Voice
 - [ ] Mic button appears (Chrome/Edge); denied permission → typed fallback message

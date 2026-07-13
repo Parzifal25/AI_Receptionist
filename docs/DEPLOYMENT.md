@@ -42,10 +42,16 @@ Notes:
 - The in-memory rate limiter is per-instance. Under Fluid Compute this is acceptable at launch;
   swap in a Redis-backed `RateLimiter` (Upstash via Vercel Marketplace) when you scale out —
   the interface in `src/lib/rate-limit.ts` is already async for exactly this.
+- **Data retention**: `vercel.json` registers a daily cron hitting
+  `/api/cron/retention`, which deletes conversations and analytics events past
+  each tenant's `data_retention_days`. Set `CRON_SECRET` (`openssl rand -hex 32`)
+  in production — the route rejects any call without it, and Vercel Cron sends it
+  automatically. On non-Vercel hosts, schedule the same authenticated GET yourself.
 
 ## 4. Post-deploy verification
 
-1. `curl https://yourdomain.com/api/health` → `{"status":"ok"}`.
+1. `curl https://yourdomain.com/api/health` → `{"status":"ok"}` (liveness).
+   Use `/api/health?deep=1` to also verify LLM connectivity.
 2. Register → onboard → configure receptionist → add an FAQ.
 3. Open the install page, load the demo, exchange a message and a voice turn.
 4. Confirm the conversation and (if you shared contact info) the lead in the dashboard.
@@ -58,9 +64,10 @@ Notes:
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` present **only** as a server-side secret
 - [ ] Hosted LLM provider configured with billing alerts
 - [ ] `NEXT_PUBLIC_APP_URL` = production URL (drives embed snippets + auth emails)
-- [ ] `/api/health` wired to uptime monitoring
+- [ ] `/api/health` wired to uptime monitoring (use `?deep=1` for LLM readiness alerts)
 - [ ] Log drain configured (structured JSON logs are aggregator-ready)
 - [ ] Error tracking (Sentry or similar) added to `error.tsx` handlers
 - [ ] Custom domain + HTTPS
 - [ ] Backup policy confirmed on Supabase (PITR on paid tiers)
 - [ ] Rate limiter upgraded to Redis if running multiple instances
+- [ ] `CRON_SECRET` set so the daily data-retention purge runs and is authenticated

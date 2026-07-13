@@ -105,10 +105,22 @@ visitor.
 ## Knowledge retrieval
 
 Default is Postgres full-text search (`search_knowledge` SQL function — zero extra
-infrastructure, works on day one). When `EMBEDDING_PROVIDER=ollama` is set, documents are
-embedded at index time and retrieval uses pgvector cosine similarity (`match_knowledge_chunks`),
-falling back to FTS when vectors return nothing. Both functions are `SECURITY DEFINER` and
-tenant-scoped by parameter.
+infrastructure, works on day one), which spans both document chunks and published FAQs.
+When `EMBEDDING_PROVIDER=ollama` is set, documents are embedded at index time and retrieval
+becomes **hybrid**: full-text search and pgvector cosine similarity (`match_knowledge_chunks`)
+run in parallel and merge via Reciprocal Rank Fusion (`fuseByReciprocalRank`). Fusion is
+rank-based, so the incomparable `ts_rank` and cosine scales combine fairly; it also keeps FAQ
+matches (which are not embedded) that a vector-only path would silently drop. A vector-search
+failure degrades to keyword-only rather than failing the turn. Both SQL functions are
+`SECURITY DEFINER`, tenant-scoped by parameter, and executable only by the service role.
+
+Visitor messages are normalized before retrieval (`normalizeQuery`: whitespace collapse,
+control-character stripping, 400-char cap) so pathological input can't distort ranking or the
+embedding request. Each retrieved snippet carries a **source label** — the parent document's
+title, or the FAQ's category — which is rendered into the grounded prompt (`[n] (Source)`) so
+the receptionist can attribute answers and the dashboard can show which source responded. The
+system-prompt template is versioned (`PROMPT_VERSION`); every turn logs its prompt version and
+grounding-source count for answer-quality analysis.
 
 ## Multi-tenancy & auth
 

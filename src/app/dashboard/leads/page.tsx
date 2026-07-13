@@ -25,8 +25,10 @@ export default async function LeadsPage({
   const supabase = await createSupabaseServerClient();
   let query = supabase
     .from("leads")
-    .select("id, conversation_id, name, email, phone, intent, status, created_at")
+    .select("id, conversation_id, name, email, phone, intent, status, score, temperature, created_at")
     .eq("business_id", businessId)
+    // Hottest first — the whole point is telling the owner who to call now.
+    .order("score", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(200);
   if (statusFilter) query = query.eq("status", statusFilter);
@@ -64,6 +66,7 @@ export default async function LeadsPage({
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                  <th className="px-6 py-3 font-medium">Priority</th>
                   <th className="px-6 py-3 font-medium">Contact</th>
                   <th className="px-6 py-3 font-medium">Intent</th>
                   <th className="px-6 py-3 font-medium">Captured</th>
@@ -74,6 +77,12 @@ export default async function LeadsPage({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {leads!.map((lead) => (
                   <tr key={lead.id}>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <TemperatureBadge
+                        temperature={lead.temperature as "hot" | "warm" | "cold"}
+                        score={lead.score ?? 0}
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <p className="font-medium text-slate-900 dark:text-slate-100">
                         {lead.name || "Unknown visitor"}
@@ -131,6 +140,30 @@ export default async function LeadsPage({
         )}
       </Card>
     </div>
+  );
+}
+
+function TemperatureBadge({
+  temperature,
+  score,
+}: {
+  temperature: "hot" | "warm" | "cold";
+  score: number;
+}) {
+  const styles: Record<typeof temperature, string> = {
+    hot: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+    warm: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    cold: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  };
+  const label = { hot: "🔥 Hot", warm: "Warm", cold: "Cold" }[temperature];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${styles[temperature]}`}
+      title={`Qualification score ${score}/100`}
+    >
+      {label}
+      <span className="opacity-60">{score}</span>
+    </span>
   );
 }
 

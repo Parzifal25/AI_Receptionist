@@ -6,6 +6,55 @@ import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/lib/logger";
 
 const DEFAULT_LIMIT = 6;
+// Standard RRF damping constant; larger values flatten the influence of top
+// ranks. 60 is the widely-used default from the original RRF paper.
+const RRF_K = 60;
+// Retrieval queries are visitor messages; cap length so a pathological wall of
+// text can't blow up tsquery parsing or the embedding request.
+const MAX_QUERY_LENGTH = 400;
+
+/**
+ * Normalizes a raw visitor message into a retrieval query: collapses
+ * whitespace, strips control characters, and caps length. Pure function.
+ */
+export function normalizeQuery(raw: string): string {
+  return raw
+    // Strip control characters; normal whitespace is collapsed on the next line.
+    .replace(/[\u0000-\u001F\u007F]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_QUERY_LENGTH);
+}
+
+/**
+ * Reciprocal Rank Fusion: merges several ranked result lists into one using
+ * only each item's rank, so lists with incomparable score scales (BM25/ts_rank
+ * vs cosine similarity) combine fairly. Items appearing in multiple lists are
+ * reinforced. De-duplicates by refId, preserving the highest-scoring content.
+ */
+export function fuseByReciprocalRank(
+  lists: KnowledgeSnippet[][],
+  limit: number,
+): KnowledgeSnippet[] {
+  const fused = new Map<string, { snippet: KnowledgeSnippet; score: number }>();
+
+  for (const list of lists) {
+    list.forEach((snippet, index) => {
+      const contribution = 1 / (RRF_K + index + 1);
+      const existing = fused.get(snippet.refId);
+      if (existing) {
+        existing.score += contribution;
+      } else {
+        fused.set(snippet.refId, { snippet: { ...snippet, score: contribution }, score: contribution });
+      }
+    });
+  }
+
+  return [...fused.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((entry) => ({ ...entry.snippet, score: entry.score }));
+}
 
 /**
  * Knowledge retrieval backed by Postgres. Uses vector similarity when an
@@ -22,15 +71,28 @@ export class SupabaseKnowledgeProvider implements KnowledgeProvider {
   ) {}
 
   async search(businessId: string, query: string, limit = DEFAULT_LIMIT): Promise<KnowledgeSnippet[]> {
-    const trimmed = query.trim();
-    if (!trimmed) return [];
+    const normalized = normalizeQuery(query);
+    if (!normalized) return [];
 
-    if (this.embeddings) {
-      const snippets = await this.vectorSearch(businessId, trimmed, limit);
-      // Vector search can miss exact-keyword matches in FAQs; blend both.
-      if (snippets.length > 0) return snippets;
+    // Keyword search covers both chunks and FAQs; vector search covers chunks
+    // semantically. Without embeddings, keyword alone is the whole story.
+    if (!this.embeddings) {
+      return this.keywordSearch(businessId, normalized, limit);
     }
-    return this.keywordSearch(businessId, trimmed, limit);
+
+    // Hybrid: run both and fuse. Vector-only would drop FAQs entirely (they
+    // aren't embedded), and keyword-only misses paraphrases — fusion keeps
+    // exact FAQ hits and semantic chunk hits in one ranked list. Vector
+    // failures degrade to keyword-only rather than failing the turn.
+    const [keyword, vector] = await Promise.all([
+      this.keywordSearch(businessId, normalized, limit),
+      this.vectorSearch(businessId, normalized, limit).catch((error) => {
+        this.log.warn("vector search failed, using keyword only", { error });
+        return [] as KnowledgeSnippet[];
+      }),
+    ]);
+
+    return fuseByReciprocalRank([keyword, vector], limit);
   }
 
   private async keywordSearch(businessId: string, query: string, limit: number): Promise<KnowledgeSnippet[]> {
@@ -44,9 +106,10 @@ export class SupabaseKnowledgeProvider implements KnowledgeProvider {
       throw AppError.provider("Knowledge search failed");
     }
     return (data ?? []).map(
-      (row: { source: string; ref_id: string; content: string; rank: number }) => ({
+      (row: { source: string; ref_id: string; title: string; content: string; rank: number }) => ({
         source: row.source as "chunk" | "faq",
         refId: row.ref_id,
+        title: row.title,
         content: row.content,
         score: row.rank,
       }),
@@ -65,9 +128,10 @@ export class SupabaseKnowledgeProvider implements KnowledgeProvider {
       throw AppError.provider("Knowledge search failed");
     }
     return (data ?? []).map(
-      (row: { ref_id: string; content: string; similarity: number }) => ({
+      (row: { ref_id: string; title: string; content: string; similarity: number }) => ({
         source: "chunk" as const,
         refId: row.ref_id,
+        title: row.title,
         content: row.content,
         score: row.similarity,
       }),

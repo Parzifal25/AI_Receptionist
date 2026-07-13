@@ -1,6 +1,6 @@
 import type { SpeechProvider, SpeechRecognitionSession } from "@/core/ports/speech-provider";
 import { BrowserSpeechProvider } from "@/providers/speech/browser-speech-provider";
-import { WidgetApi, type WidgetConfig } from "./api";
+import { WidgetApi, WidgetApiError, type WidgetConfig } from "./api";
 import { WIDGET_CSS } from "./styles";
 
 const CHAT_ICON =
@@ -19,6 +19,7 @@ export class ReceptionistWidget {
   private readonly speech: SpeechProvider = new BrowserSpeechProvider();
   private shadow!: ShadowRoot;
   private panel!: HTMLDivElement;
+  private launcher!: HTMLButtonElement;
   private messagesEl!: HTMLDivElement;
   private inputEl!: HTMLTextAreaElement;
   private micBtn: HTMLButtonElement | null = null;
@@ -65,20 +66,30 @@ export class ReceptionistWidget {
   }
 
   private buildLauncher(): HTMLButtonElement {
-    const launcher = document.createElement("button");
-    launcher.className = "launcher";
-    launcher.type = "button";
-    launcher.setAttribute("aria-label", this.config.branding.launcherLabel);
-    launcher.innerHTML = `${CHAT_ICON}<span>${escapeHtml(this.config.branding.launcherLabel)}</span>`;
-    launcher.addEventListener("click", () => this.togglePanel());
-    return launcher;
+    this.launcher = document.createElement("button");
+    this.launcher.className = "launcher";
+    this.launcher.type = "button";
+    this.launcher.setAttribute("aria-label", this.config.branding.launcherLabel);
+    this.launcher.setAttribute("aria-expanded", "false");
+    this.launcher.setAttribute("aria-haspopup", "dialog");
+    this.launcher.innerHTML = `${CHAT_ICON}<span>${escapeHtml(this.config.branding.launcherLabel)}</span>`;
+    this.launcher.addEventListener("click", () => this.togglePanel());
+    return this.launcher;
   }
 
   private buildPanel(): HTMLDivElement {
     this.panel = document.createElement("div");
     this.panel.className = "panel";
     this.panel.setAttribute("role", "dialog");
+    this.panel.setAttribute("aria-modal", "false");
     this.panel.setAttribute("aria-label", `Chat with ${this.config.receptionistName}`);
+    // Escape closes the panel, matching native dialog expectations.
+    this.panel.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        if (this.panel.classList.contains("open")) this.togglePanel();
+      }
+    });
 
     const header = document.createElement("div");
     header.className = "header";
@@ -144,13 +155,24 @@ export class ReceptionistWidget {
 
   private togglePanel(): void {
     const open = this.panel.classList.toggle("open");
-    if (open && this.messagesEl.childElementCount === 0) {
-      this.addMessage("bot", this.config.greeting);
-    }
-    if (!open) {
+    this.launcher.setAttribute("aria-expanded", String(open));
+    if (open) {
+      if (this.messagesEl.childElementCount === 0) {
+        this.addMessage("bot", this.config.greeting);
+      }
+      // Move focus into the dialog for keyboard and screen-reader users.
+      this.inputEl.focus();
+    } else {
       this.stopVoice();
       this.speech.cancelSpeech();
+      // Return focus to the launcher that opened the dialog.
+      this.launcher.focus();
     }
+  }
+
+  private resetConversation(): void {
+    this.visitorToken = null;
+    sessionStorage.removeItem(this.storageKey);
   }
 
   private async ensureConversation(channel: "chat" | "voice"): Promise<string> {
@@ -174,8 +196,24 @@ export class ReceptionistWidget {
     const typing = this.addMessage("bot typing", "…");
 
     try {
-      const token = await this.ensureConversation(channel);
-      const { reply } = await this.api.sendMessage(token, text);
+      let reply: string;
+      try {
+        const token = await this.ensureConversation(channel);
+        ({ reply } = await this.api.sendMessage(token, text));
+      } catch (error) {
+        // A stored token can go stale (conversation ended, hit its message
+        // limit, or was purged). Start fresh once instead of failing forever.
+        if (
+          error instanceof WidgetApiError &&
+          (error.code === "CONFLICT" || error.code === "NOT_FOUND")
+        ) {
+          this.resetConversation();
+          const token = await this.ensureConversation(channel);
+          ({ reply } = await this.api.sendMessage(token, text));
+        } else {
+          throw error;
+        }
+      }
       typing.remove();
       this.addMessage("bot", reply);
       if (this.voiceMode) {

@@ -86,7 +86,8 @@ npm run dev
 ## 6. Verify
 
 ```bash
-npm test          # 41 unit + integration tests
+npm test          # unit + integration tests
 npm run lint
-curl localhost:3000/api/health   # {"data":{"status":"ok",...}} when Ollama is up
+curl localhost:3000/api/health          # liveness → {"data":{"status":"ok",...}}
+curl "localhost:3000/api/health?deep=1" # readiness → includes LLM health when Ollama is up
 ```

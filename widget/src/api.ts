@@ -20,6 +20,17 @@ interface ApiEnvelope<T> {
   error?: { code: string; message: string };
 }
 
+/** API failure carrying the server's machine-readable error code. */
+export class WidgetApiError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
+    super(message);
+    this.name = "WidgetApiError";
+  }
+}
+
 export class WidgetApi {
   constructor(
     private readonly baseUrl: string,
@@ -33,7 +44,10 @@ export class WidgetApi {
     });
     const body = (await response.json().catch(() => ({}))) as ApiEnvelope<T>;
     if (!response.ok || body.error || body.data === undefined) {
-      throw new Error(body.error?.message ?? "Something went wrong");
+      throw new WidgetApiError(
+        body.error?.message ?? "Something went wrong",
+        body.error?.code ?? "UNKNOWN",
+      );
     }
     return body.data;
   }

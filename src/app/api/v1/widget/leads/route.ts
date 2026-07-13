@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AppError } from "@/core/errors/app-error";
 import { WidgetRepository } from "@/core/services/widget-repository";
 import { getNotificationProvider } from "@/providers/notification/log-notification-provider";
-import { corsHeaders, preflightResponse } from "@/lib/api/cors";
+import { corsHeaders, isOriginAllowed, preflightResponse } from "@/lib/api/cors";
 import { clientIp, fail, withErrorHandling } from "@/lib/api/respond";
 import { widgetSessionLimiter } from "@/lib/rate-limit";
 
@@ -39,6 +39,13 @@ export const POST = withErrorHandling("widget.leads", async (request: NextReques
   const repository = new WidgetRepository();
   const conversation = await repository.getConversationByToken(body.visitorToken);
 
+  const { business, allowedDomains } = await repository.getReceptionistById(
+    conversation.receptionistId,
+  );
+  if (!isOriginAllowed(origin, allowedDomains)) {
+    return fail(AppError.forbidden("This domain is not allowed to use this widget"), headers);
+  }
+
   const { isNew } = await repository.upsertConversationLead(
     conversation.businessId,
     conversation.id,
@@ -49,7 +56,6 @@ export const POST = withErrorHandling("widget.leads", async (request: NextReques
     await repository.trackEvent(conversation.businessId, "lead_captured", { source: "form" });
     const settings = await repository.getBusinessNotificationSettings(conversation.businessId);
     if (settings.notifyOnLead) {
-      const { business } = await repository.getReceptionistById(conversation.receptionistId);
       await getNotificationProvider().notifyNewLead({
         businessId: conversation.businessId,
         businessName: business.name,
