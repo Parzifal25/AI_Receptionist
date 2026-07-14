@@ -13,6 +13,7 @@ import { logger } from "@/lib/logger";
 import { getLLMProvider } from "@/providers/llm/factory";
 import { getKnowledgeProvider } from "@/providers/knowledge/factory";
 import { getNotificationProvider } from "@/providers/notification/log-notification-provider";
+import { emitBusinessEvent, type EmitInput } from "./workflows/event-bus";
 
 /**
  * Shown when the LLM provider is down or times out. The widget must never
@@ -49,6 +50,8 @@ export class ChatService {
     private readonly repository: WidgetRepository = new WidgetRepository(),
     /** Appointment intelligence; null disables booking (e.g. in tests). */
     private readonly booking: BookingOrchestrator | null = null,
+    /** Workflow/CRM automation feed; failures are logged, never propagated. */
+    private readonly emitEvent: (input: EmitInput) => Promise<void> = emitBusinessEvent,
   ) {}
 
   async respond(params: {
@@ -178,6 +181,21 @@ export class ChatService {
       draft,
       transcript,
     );
+
+    // Feed the automation platform: CRM sync + tenant workflows react to
+    // every captured/updated lead. Fire-and-forget — never blocks the turn.
+    void this.emitEvent({
+      businessId: business.id,
+      type: isNew ? "lead.created" : "lead.updated",
+      correlationId: conversationId,
+      payload: {
+        conversationId,
+        name: draft.name ?? "",
+        email: draft.email ?? "",
+        phone: draft.phone ?? "",
+        intent: draft.intent ?? "",
+      },
+    }).catch((error) => log.warn("business event emit failed", { error }));
 
     if (isNew) {
       await this.repository.trackEvent(business.id, "lead_captured");

@@ -5,6 +5,10 @@ import { WidgetRepository } from "@/core/services/widget-repository";
 import { corsHeaders, isOriginAllowed, preflightResponse } from "@/lib/api/cors";
 import { clientIp, fail, withErrorHandling } from "@/lib/api/respond";
 import { widgetSessionLimiter } from "@/lib/rate-limit";
+import { emitBusinessEvent } from "@/core/services/workflows/event-bus";
+import { logger } from "@/lib/logger";
+
+const log = logger.child({ route: "widget.conversations" });
 
 const bodySchema = z.object({
   widgetKey: z.string().min(8).max(64),
@@ -52,6 +56,13 @@ export const POST = withErrorHandling("widget.conversations", async (request: Ne
   if (body.channel === "voice") {
     await repository.trackEvent(business.id, "voice_used");
   }
+  // Workflow trigger — fire-and-forget, never delays the visitor.
+  void emitBusinessEvent({
+    businessId: business.id,
+    type: "conversation.started",
+    correlationId: conversation.id,
+    payload: { conversationId: conversation.id, channel: body.channel, pageUrl: body.pageUrl },
+  }).catch((error) => log.warn("business event emit failed", { error }));
 
   return NextResponse.json(
     {

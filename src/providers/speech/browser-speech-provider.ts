@@ -1,4 +1,5 @@
 import type {
+  MicAccessResult,
   SpeechProvider,
   SpeechRecognitionCallbacks,
   SpeechRecognitionSession,
@@ -43,11 +44,36 @@ export class BrowserSpeechProvider implements SpeechProvider {
   readonly name = "browser";
 
   isRecognitionSupported(): boolean {
+    // Browsers hard-fail recognition on insecure origins (http:// embeds get
+    // an instant "not-allowed") — treat that as unsupported so the widget
+    // stays chat-only instead of showing a mic that can never work.
+    // localhost counts as a secure context, so development is unaffected.
+    if (typeof window !== "undefined" && window.isSecureContext === false) return false;
     return getRecognitionCtor() !== null;
   }
 
   isSynthesisSupported(): boolean {
     return typeof window !== "undefined" && "speechSynthesis" in window;
+  }
+
+  async requestMicAccess(): Promise<MicAccessResult> {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      return "unavailable";
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Only the permission mattered — release the device immediately so
+      // recognition can claim it.
+      for (const track of stream.getTracks()) track.stop();
+      return "granted";
+    } catch (error) {
+      const name = error instanceof Error ? error.name : "";
+      if (name === "NotAllowedError" || name === "SecurityError") return "denied";
+      if (name === "NotFoundError" || name === "OverconstrainedError" || name === "NotReadableError") {
+        return "no-mic";
+      }
+      return "unavailable";
+    }
   }
 
   startRecognition(
@@ -84,7 +110,7 @@ export class BrowserSpeechProvider implements SpeechProvider {
   }
 
   speak(text: string, language: string, onEnd?: () => void): void {
-    if (!this.isSynthesisSupported()) {
+    if (!this.isSynthesisSupported() || !text.trim()) {
       onEnd?.();
       return;
     }
@@ -92,8 +118,24 @@ export class BrowserSpeechProvider implements SpeechProvider {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = language;
     utterance.rate = 1.0;
-    if (onEnd) utterance.onend = onEnd;
+    if (onEnd) {
+      // onEnd must fire exactly once whatever happens — the voice loop's
+      // "listen again after speaking" depends on it. Errors (including the
+      // "interrupted" error a cancel() raises) count as the end of speech.
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        onEnd();
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
+    }
     window.speechSynthesis.speak(utterance);
+    // Chrome quirk: the synthesis queue can be left paused (e.g. after a
+    // cancel() or tab visibility change) and speak() then never starts.
+    // resume() is a no-op when not paused, so always nudge it.
+    window.speechSynthesis.resume();
   }
 
   cancelSpeech(): void {

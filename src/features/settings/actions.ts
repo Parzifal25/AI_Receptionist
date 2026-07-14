@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBusiness } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import type { ActionState } from "@/features/business/actions";
 
@@ -66,4 +67,25 @@ export async function updateSettings(
 
   revalidatePath("/dashboard/settings");
   return { error: null, message: "Settings saved." };
+}
+
+/**
+ * Removes the business-level Google Calendar connection. Goes through the
+ * service role because calendar_connections holds OAuth tokens and has no
+ * RLS policies by design — tenant scoping happens here.
+ */
+export async function disconnectGoogleCalendar(): Promise<void> {
+  const { businessId, role } = await requireBusiness();
+  if (role === "member") return;
+
+  const { error } = await getAdminClient()
+    .from("calendar_connections")
+    .delete()
+    .eq("business_id", businessId)
+    .eq("provider", "google")
+    .is("staff_id", null);
+  if (error) {
+    log.error("calendar disconnect failed", { error: error.message });
+  }
+  revalidatePath("/dashboard/settings");
 }

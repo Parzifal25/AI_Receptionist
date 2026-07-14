@@ -152,6 +152,34 @@ describe("BookingOrchestrator.prepareTurn", () => {
     expect(context?.promptSection).toContain("NO open slots");
   });
 
+  it("offers the next real openings when the exact requested time is booked", async () => {
+    const { orchestrator, booking } = buildFakes({});
+    // The 10 AM search comes back empty; the widened re-search finds slots.
+    (booking.getAvailability as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      settings: { bookingEnabled: true, timezone: "America/New_York" },
+      staff: [],
+      slots: [],
+    });
+    const context = await orchestrator.prepareTurn({
+      business,
+      conversationId: "c1",
+      history: [],
+      userMessage: "I want an appointment tomorrow at 10 AM",
+      now: NOW,
+    });
+
+    const calls = (booking.getAvailability as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0][0].window?.label).toBe("tomorrow at 10 am");
+    expect(calls[0][0].window?.localHourRange).toEqual({ startHour: 10, endHour: 11 });
+    expect(calls[1][0].window?.localHourRange).toBeUndefined();
+    expect(calls[1][0].limit).toBe(3);
+
+    expect(context?.promptSection).toContain("is NOT available");
+    expect(context?.promptSection).toContain("Tuesday, July 14 at 9:00 AM");
+    expect(context?.promptSection).toContain("ONLY offer times from this list");
+  });
+
   it("books when the visitor confirms a slot, before the reply is written", async () => {
     const { orchestrator, booking } = buildFakes({
       actionJson: {

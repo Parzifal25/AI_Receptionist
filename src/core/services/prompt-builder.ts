@@ -11,7 +11,7 @@ import { matchIndustryPlaybook } from "./industry-playbooks";
  * Version of the system-prompt template. Bump on any behavioural change so
  * conversation logs and A/B analyses can be attributed to a prompt revision.
  */
-export const PROMPT_VERSION = "2026-07-13.2";
+export const PROMPT_VERSION = "2026-07-14.1";
 
 const TONE_DESCRIPTIONS: Record<string, string> = {
   friendly: "Warm, approachable and upbeat. Use natural conversational language.",

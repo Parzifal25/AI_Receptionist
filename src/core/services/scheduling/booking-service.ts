@@ -17,6 +17,7 @@ import type { WhenWindow } from "./when-parser";
 import { SchedulingRepository, SlotTakenError } from "./scheduling-repository";
 import { createCalendarProvider } from "@/providers/calendar/factory";
 import { getMessagingProvider } from "@/providers/messaging/factory";
+import { emitBusinessEvent, type EmitInput } from "@/core/services/workflows/event-bus";
 import { logger } from "@/lib/logger";
 
 const log = logger.child({ service: "booking" });
@@ -44,7 +45,31 @@ export class BookingService {
     private readonly repository: SchedulingRepository = new SchedulingRepository(),
     private readonly messaging: MessagingProvider = getMessagingProvider(),
     private readonly calendarFactory: typeof createCalendarProvider = createCalendarProvider,
+    /** Workflow/CRM automation feed; failures are logged, never propagated. */
+    private readonly emitEvent: (input: EmitInput) => Promise<void> = emitBusinessEvent,
   ) {}
+
+  /** Fire-and-forget: automation must never break a booking flow. */
+  private emit(input: EmitInput): void {
+    void this.emitEvent(input).catch((error) =>
+      log.warn("business event emit failed", { type: input.type, error }),
+    );
+  }
+
+  private appointmentPayload(appointment: Appointment): Record<string, unknown> {
+    return {
+      appointmentId: appointment.id,
+      serviceName: appointment.serviceName,
+      startsAt: appointment.startsAt,
+      endsAt: appointment.endsAt,
+      timezone: appointment.timezone,
+      staffId: appointment.staffId,
+      visitorName: appointment.visitorName,
+      visitorPhone: appointment.visitorPhone,
+      visitorEmail: appointment.visitorEmail,
+      conversationId: appointment.conversationId,
+    };
+  }
 
   /** Open slots for a business, optionally narrowed to a parsed time window. */
   async getAvailability(params: {
@@ -160,6 +185,12 @@ export class BookingService {
       appointmentId: appointment.id,
       startsAt: appointment.startsAt,
     });
+    this.emit({
+      businessId: business.id,
+      type: "appointment.created",
+      correlationId: appointment.conversationId ?? appointment.id,
+      payload: this.appointmentPayload(appointment),
+    });
 
     return { ok: true, appointment };
   }
@@ -220,6 +251,12 @@ export class BookingService {
     await this.repository.trackEvent(business.id, "appointment_rescheduled", {
       appointmentId: appointment.id,
     });
+    this.emit({
+      businessId: business.id,
+      type: "appointment.rescheduled",
+      correlationId: updated.conversationId ?? updated.id,
+      payload: this.appointmentPayload(updated),
+    });
 
     return { ok: true, appointment: updated };
   }
@@ -250,6 +287,12 @@ export class BookingService {
     ).catch(() => {});
     await this.repository.trackEvent(business.id, "appointment_cancelled", {
       appointmentId: appointment.id,
+    });
+    this.emit({
+      businessId: business.id,
+      type: "appointment.cancelled",
+      correlationId: appointment.conversationId ?? appointment.id,
+      payload: this.appointmentPayload(appointment),
     });
     return { ok: true };
   }

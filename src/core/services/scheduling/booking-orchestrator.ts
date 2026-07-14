@@ -84,12 +84,26 @@ export class BookingOrchestrator {
 
     const existing = await this.repository.findLiveAppointmentByConversation(conversationId);
     if (!inSchedulingContext && !existing) return null;
-    const { slots } = await this.booking.getAvailability({
+    let { slots } = await this.booking.getAvailability({
       business,
       window,
       limit: SLOT_LIMIT,
       now,
     });
+
+    // The visitor asked for a specific clock time that's fully booked:
+    // re-search from the same moment without the hour filter so the model
+    // can offer the next few genuinely open times instead of a dead end.
+    let requestedTimeUnavailable = false;
+    if (slots.length === 0 && window?.exactTime) {
+      requestedTimeUnavailable = true;
+      ({ slots } = await this.booking.getAvailability({
+        business,
+        window: { fromISO: window.fromISO, toISO: horizonEnd(window.fromISO), label: "alternatives" },
+        limit: 3,
+        now,
+      }));
+    }
 
     // What does the visitor want us to DO right now?
     const action = await this.extractAction({ history, userMessage, slots, existing });
@@ -112,7 +126,13 @@ export class BookingOrchestrator {
 
     // No executable action yet — hand the model real slots to offer.
     return {
-      promptSection: this.availabilitySection({ slots, existing, timezone: settings.timezone, window: window?.label }),
+      promptSection: this.availabilitySection({
+        slots,
+        existing,
+        timezone: settings.timezone,
+        window: window?.label,
+        requestedTimeUnavailable,
+      }),
       bookedNow: false,
     };
   }
@@ -185,6 +205,8 @@ export class BookingOrchestrator {
     existing: Appointment | null;
     timezone: string;
     window?: string;
+    /** The visitor's exact requested time is booked; slots are alternatives. */
+    requestedTimeUnavailable?: boolean;
   }): string {
     const { slots, existing, timezone } = params;
     const lines: string[] = ["## Live scheduling (system-verified, this moment)"];
@@ -193,6 +215,13 @@ export class BookingOrchestrator {
       lines.push(
         `The visitor already has an appointment: ${describe(existing)}. ` +
           `If they want to change or cancel it, help with that.`,
+      );
+    }
+
+    if (params.requestedTimeUnavailable) {
+      lines.push(
+        `The exact time the visitor asked for (${params.window ?? "their requested time"}) is NOT available — ` +
+          `say so honestly and never pretend otherwise.`,
       );
     }
 
@@ -257,6 +286,11 @@ export class BookingOrchestrator {
       return none;
     }
   }
+}
+
+/** Alternatives search horizon: a week from the requested moment. */
+function horizonEnd(fromISO: string): string {
+  return new Date(Date.parse(fromISO) + 7 * 86_400_000).toISOString();
 }
 
 function describe(appointment: Appointment): string {

@@ -7,7 +7,7 @@ npm test           # run once
 npm run test:watch # watch mode
 ```
 
-Suite layout (`tests/`), 154 tests across 21 files:
+Suite layout (`tests/`), 229 tests across 27 files:
 
 | File | Type | Covers |
 | --- | --- | --- |
@@ -19,7 +19,12 @@ Suite layout (`tests/`), 154 tests across 21 files:
 | `unit/lead-scorer.test.ts` | unit | scoring signals, word-boundary phrase matching, emergency/spam/returning-customer classification, next-action recommendation, visitor-archetype simulations |
 | `unit/retrieval-query.test.ts` | unit | anaphoric/short follow-up query rewriting, substantive-question detection for knowledge-gap tracking |
 | `unit/timezone.test.ts` | unit | DST-safe wall-clock↔UTC conversion, weekday/date-in-zone, friendly formatting, zone validation |
-| `unit/when-parser.test.ts` | unit | "today/tomorrow/next tuesday/july 15/morning" → UTC search window |
+| `unit/when-parser.test.ts` | unit | "today/tomorrow/next tuesday/july 15/morning" → UTC search window; exact clock times (am/pm, 24h, noon, ambiguous-hour resolution) |
+| `unit/oauth-state.test.ts` | unit | signed OAuth state: round-trip, tamper/forgery rejection, TTL expiry, future-issue rejection |
+| `unit/voice-session.test.ts` | unit | hands-free loop, silence auto-pause, watchdog, mic permission pre-flight (granted/denied/no-mic/stale), spaced error retries, network-specific fallback, interruption, stale-callback protection |
+| `unit/workflow-interpolate.test.ts` | unit | {{event.…}} template resolution (types preserved), dot paths, every condition operator |
+| `unit/workflow-actions.test.ts` | unit | action registry: messaging delivery + channel guards, webhook envelope/headers, Slack/Discord formats, non-2xx = retryable failure, https-only, follow-up timers |
+| `unit/crm-service.test.ts` | unit | email/phone normalization, upsert dedupe, duplicate merge with history consolidation, forward-only pipeline stage, appointment counters, revenue attribution |
 | `unit/availability.test.ts` | unit | working hours, buffers, holidays, min notice, max-advance horizon, busy-interval conflicts, per-staff hours, multi-staff round-robin merge, time-of-day filters |
 | `unit/appointment-state.test.ts` | unit | legal/illegal appointment status transitions, terminal-state protection |
 | `unit/retry.test.ts` | unit | exponential backoff, fail-fast on non-retryable errors, attempt exhaustion |
@@ -31,7 +36,8 @@ Suite layout (`tests/`), 154 tests across 21 files:
 | `unit/env.test.ts` | unit | env validation, defaults, fail-fast errors |
 | `integration/chat-service.test.ts` | integration | full conversational turn with in-memory fakes for every port: persistence, lead capture + notification, capture disabled, no-contact-no-lead, booking-context injection forcing lead capture, knowledge-gap event recording |
 | `integration/booking-service.test.ts` | integration | book→confirm→remind→track workflow against an in-memory repo simulating the DB exclusion constraint: double-booking race, cancel-frees-slot, reschedule, validation, terminal-state rejection |
-| `integration/booking-orchestrator.test.ts` | integration | conversation→booking bridge: scheduling-context detection, real-slot injection, confirmed booking before reply generation, slot-taken recovery with alternatives, reschedule-not-double-book, deterministic cancel fast path |
+| `integration/booking-orchestrator.test.ts` | integration | conversation→booking bridge: scheduling-context detection, real-slot injection, confirmed booking before reply generation, slot-taken recovery with alternatives, reschedule-not-double-book, deterministic cancel fast path, next-3-openings when an exact requested time is booked |
+| `integration/workflow-engine.test.ts` | integration | engine against an in-memory store reproducing DB constraints: ordered execution + interpolation, condition skip/match, duplicate-event idempotency, in-run step retries, run-level retry resuming from the failed step, dead-letter after max attempts, step timeout, unregistered action, timer firing, tenant/trigger isolation |
 
 Design choice: all business logic is behind ports, so the integration tests run the real
 `ChatService`, `BookingService` and `BookingOrchestrator` orchestration with zero network/database

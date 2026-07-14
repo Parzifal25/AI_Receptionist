@@ -15,10 +15,23 @@ export interface SpeechRecognitionCallbacks {
   onError(error: string): void;
 }
 
+/**
+ * Outcome of an explicit microphone permission request. "unavailable" means
+ * the environment can't answer (no getUserMedia) — callers should proceed
+ * and let recognition itself surface any real failure.
+ */
+export type MicAccessResult = "granted" | "denied" | "no-mic" | "unavailable";
+
 export interface SpeechProvider {
   readonly name: string;
   isRecognitionSupported(): boolean;
   isSynthesisSupported(): boolean;
+  /**
+   * Optional pre-flight permission request (getUserMedia in the browser).
+   * Distinguishes "blocked" from "no device" before recognition starts, and
+   * surfaces the permission prompt at a predictable moment (the mic tap).
+   */
+  requestMicAccess?(): Promise<MicAccessResult>;
   startRecognition(language: string, callbacks: SpeechRecognitionCallbacks): SpeechRecognitionSession;
   speak(text: string, language: string, onEnd?: () => void): void;
   cancelSpeech(): void;

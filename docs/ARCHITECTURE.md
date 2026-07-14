@@ -51,6 +51,17 @@ Also wired: `/api/cron/reminders` (Vercel Cron, every 5 min) delivers due
 appointment reminders through `ReminderService` + the messaging port; see
 [SCHEDULING.md](SCHEDULING.md) for the full appointment-booking data flow.
 
+**Workflow automation layer** (`core/services/workflows/` + `core/services/crm/`): bookings,
+leads, and conversation starts emit `BusinessEvent`s through an event bus (fire-and-forget —
+automation can never break the emitting flow). Events are recorded as an audit trail, feed an
+always-on CRM sync (`customers` + `customer_timeline`, deduped and merged by email/phone), and
+trigger tenant-defined workflows executed by `WorkflowEngine`: conditions, templated actions
+(messaging port, HTTPS webhooks, CRM, timers), per-step timeouts/retries, run-level backoff
+retries via `/api/cron/workflows`, a dead-letter state, and database-enforced idempotency
+(unique run per workflow+event). Inbound triggers: `POST /api/hooks/:businessId` (per-tenant
+secret) and `POST /api/workflows/:id/run` (admin manual). Full reference:
+[WORKFLOWS.md](WORKFLOWS.md).
+
 Dashboard reads/writes go straight from Server Components / Server Actions to Supabase **as the
 signed-in user**, so RLS is the enforcement point. The widget path uses the service role but is
 confined to `WidgetRepository`, whose every method requires proof of tenant (widget key or

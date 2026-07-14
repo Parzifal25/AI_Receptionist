@@ -114,6 +114,36 @@ up to 3 attempts. Requires `Authorization: Bearer <CRON_SECRET>`. Wired to a
 
 ---
 
+### `GET /api/cron/workflows` (internal)
+
+Fires due workflow timers (scheduled follow-ups) and retries failed workflow
+runs whose backoff has elapsed. `FOR UPDATE SKIP LOCKED` claiming makes
+overlapping runs safe. Requires `Authorization: Bearer <CRON_SECRET>`. Wired
+to a 5-minute Vercel Cron in `vercel.json`. Returns
+`{ "data": { "timersFired": <n>, "runsRetried": <n> } }`. See
+[WORKFLOWS.md](WORKFLOWS.md).
+
+---
+
+### `POST /api/hooks/:businessId`
+
+Inbound workflow trigger for external systems (Zapier, n8n, Make, custom).
+Auth: `x-webhook-token` header (or `?token=`) matching the tenant's
+`business_settings.workflow_webhook_secret`; an empty secret disables the
+route (`401`). JSON body (≤ 32 KB) becomes the `webhook.received` event
+payload. Returns **200** `{ "data": { "accepted": true } }`.
+
+---
+
+### `POST /api/workflows/:workflowId/run`
+
+Manual workflow trigger. Dashboard session required, admin role only; the
+workflow must belong to the caller's business. Optional JSON body becomes
+the payload of a synthetic `manual` event. Returns **200**
+`{ "data": { "started": true } }`.
+
+---
+
 ## Appointment booking (in-conversation)
 
 There is no separate booking REST API — booking happens *inside* the

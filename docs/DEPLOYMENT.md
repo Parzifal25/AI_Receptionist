@@ -6,10 +6,11 @@ reference deployment is **Vercel + Supabase**.
 ## 1. Supabase (production project)
 
 1. Create a dedicated production project (never share the dev project).
-2. Run every file in `supabase/migrations/` in order, `0001` through `0008` (or `supabase db push`).
+2. Run every file in `supabase/migrations/` in order, `0001` through `0009` (or `supabase db push`).
    `0008_appointments.sql` adds the appointment-booking schema, including a GiST exclusion
    constraint that prevents double-booking — requires the `btree_gist` extension, which the
-   migration enables itself.
+   migration enables itself. `0009_workflows.sql` adds the workflow automation platform
+   (workflows, events, runs, logs, timers) and the built-in CRM (customers, timeline).
    - **Verify before assuming this is done.** `supabase migration list` compares local
      migration files against `supabase_migrations.schema_migrations` in the target database —
      a mismatch there (fewer rows than files) means some migrations were never applied, even if
@@ -88,9 +89,19 @@ Notes:
   the application log, so reminders "work" in the sense of being tracked, but nothing is
   actually sent to visitors until a real provider is wired in). See
   [SCHEDULING.md](SCHEDULING.md).
+- **Workflow automation**: `vercel.json` registers a third 5-minute cron hitting
+  `/api/cron/workflows`, which fires due workflow timers (scheduled follow-ups) and retries
+  failed workflow runs (same `CRON_SECRET`). Inbound webhook triggers
+  (`POST /api/hooks/:businessId`) stay disabled per tenant until
+  `business_settings.workflow_webhook_secret` is set. See [WORKFLOWS.md](WORKFLOWS.md).
 - **Calendar connections**: if any tenant will connect Google Calendar or Outlook, set
   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and/or `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET`
   (OAuth app credentials from each platform's developer console) before they try to connect.
+  For Google, register `<NEXT_PUBLIC_APP_URL>/api/oauth/google-calendar/callback` as an
+  authorized redirect URI and enable the Google Calendar API on the project; tenants then
+  connect from Dashboard → Settings → "Connect Google Calendar". Until the credentials are
+  set, that Settings card shows admins a step-by-step setup wizard (including the exact
+  redirect URI to register) instead of a connect button.
 
 ## 4. Post-deploy verification
 
@@ -114,7 +125,7 @@ Notes:
 - [ ] Custom domain + HTTPS
 - [ ] Backup policy confirmed on Supabase (PITR on paid tiers)
 - [ ] Rate limiter upgraded to Redis if running multiple instances
-- [ ] `CRON_SECRET` set so the daily data-retention purge and 5-min reminder delivery run and are authenticated
+- [ ] `CRON_SECRET` set so the data-retention purge, reminder delivery, and workflow processing crons run and are authenticated
 - [ ] `MESSAGING_PROVIDER` set to a real gateway if appointment reminders/confirmations must reach visitors (default `log` does not send anything)
 - [ ] Migration `0008` applied and the `appointments_no_overlap` exclusion constraint verified present, if scheduling is in use
 - [ ] `supabase migration list` (or `psql`'s `supabase_migrations.schema_migrations`) shows every file in `supabase/migrations/` as applied — not just the ones a partial `db push` happened to reach

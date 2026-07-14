@@ -156,10 +156,28 @@ export const WIDGET_CSS = `
   color: #fff;
   animation: ar-pulse 1.2s ease-in-out infinite;
 }
+.iconbtn.mic.speaking {
+  background: var(--ar-primary);
+  color: #fff;
+  animation: ar-pulse-soft 1.6s ease-in-out infinite;
+}
 .iconbtn svg { width: 18px; height: 18px; }
+.voicestatus {
+  display: none;
+  padding: 6px 16px 0;
+  font-size: 12px;
+  color: var(--ar-muted);
+  text-align: center;
+  background: var(--ar-bg);
+}
+.voicestatus.visible { display: block; }
 @keyframes ar-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
   50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+}
+@keyframes ar-pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
 }
 .hint {
   padding: 0 16px 10px;

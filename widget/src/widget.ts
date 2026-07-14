@@ -1,7 +1,8 @@
-import type { SpeechProvider, SpeechRecognitionSession } from "@/core/ports/speech-provider";
+import type { SpeechProvider } from "@/core/ports/speech-provider";
 import { BrowserSpeechProvider } from "@/providers/speech/browser-speech-provider";
 import { WidgetApi, WidgetApiError, type WidgetConfig } from "./api";
 import { WIDGET_CSS } from "./styles";
+import { VoiceSession, type VoiceFallbackReason, type VoiceState } from "./voice-session";
 
 const CHAT_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
@@ -9,6 +10,24 @@ const SEND_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
 const MIC_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+
+const VOICE_STATUS_TEXT: Record<VoiceState, string> = {
+  idle: "",
+  listening: "Listening… speak whenever you're ready.",
+  processing: "One moment…",
+  speaking: "Speaking — tap the mic to interrupt.",
+};
+
+const FALLBACK_MESSAGES: Record<VoiceFallbackReason, string> = {
+  unsupported: "Voice isn't supported in this browser — you can keep typing instead.",
+  "mic-blocked":
+    "Microphone access was blocked. Allow the microphone in your browser's site settings and tap the mic to try again — or keep typing.",
+  "no-mic": "I couldn't find a working microphone — you can keep typing instead.",
+  network:
+    "Speech recognition couldn't reach its service — check your connection and tap the mic to retry, or keep typing.",
+  failed:
+    "Voice hit a snag after several tries — tap the mic to try again, or keep typing.",
+};
 
 /**
  * The embeddable receptionist widget. Renders inside a shadow root so it is
@@ -23,10 +42,10 @@ export class ReceptionistWidget {
   private messagesEl!: HTMLDivElement;
   private inputEl!: HTMLTextAreaElement;
   private micBtn: HTMLButtonElement | null = null;
+  private voiceStatusEl: HTMLDivElement | null = null;
 
   private visitorToken: string | null = null;
-  private recognition: SpeechRecognitionSession | null = null;
-  private voiceMode = false;
+  private voice: VoiceSession | null = null;
   private sending = false;
 
   constructor(
@@ -131,16 +150,24 @@ export class ReceptionistWidget {
     sendBtn.addEventListener("click", () => void this.sendTyped());
 
     composer.appendChild(this.inputEl);
+    // Voice is progressive enhancement: no Web Speech support (or voice
+    // disabled by the business) simply means no mic button — chat always works.
     if (this.config.voiceEnabled && this.speech.isRecognitionSupported()) {
+      this.voice = this.createVoiceSession();
       this.micBtn = document.createElement("button");
       this.micBtn.className = "iconbtn mic";
       this.micBtn.type = "button";
       this.micBtn.setAttribute("aria-label", "Talk to the receptionist");
+      this.micBtn.setAttribute("aria-pressed", "false");
       this.micBtn.innerHTML = MIC_ICON;
-      this.micBtn.addEventListener("click", () => this.toggleVoice());
+      this.micBtn.addEventListener("click", () => this.voice?.handleTap());
       composer.appendChild(this.micBtn);
     }
     composer.appendChild(sendBtn);
+
+    this.voiceStatusEl = document.createElement("div");
+    this.voiceStatusEl.className = "voicestatus";
+    this.voiceStatusEl.setAttribute("aria-live", "polite");
 
     const hint = document.createElement("div");
     hint.className = "hint";
@@ -148,9 +175,42 @@ export class ReceptionistWidget {
 
     this.panel.appendChild(header);
     this.panel.appendChild(this.messagesEl);
+    this.panel.appendChild(this.voiceStatusEl);
     this.panel.appendChild(composer);
     this.panel.appendChild(hint);
     return this.panel;
+  }
+
+  private createVoiceSession(): VoiceSession {
+    return new VoiceSession(this.speech, {
+      language: this.config.language,
+      onStateChange: (state) => this.renderVoiceState(state),
+      onTranscript: (text, isFinal) => {
+        this.inputEl.value = isFinal ? "" : text;
+      },
+      onUserUtterance: (text) => void this.send(text, "voice"),
+      onAutoPause: () => {
+        this.setVoiceStatus("Voice paused — tap the mic when you're ready.");
+      },
+      onFallbackToChat: (reason) => {
+        this.addMessage("bot error", FALLBACK_MESSAGES[reason]);
+      },
+    });
+  }
+
+  private renderVoiceState(state: VoiceState): void {
+    if (!this.micBtn) return;
+    this.micBtn.classList.toggle("listening", state === "listening");
+    this.micBtn.classList.toggle("speaking", state === "speaking" || state === "processing");
+    this.micBtn.setAttribute("aria-pressed", String(state !== "idle"));
+    this.inputEl.placeholder = state === "listening" ? "Listening…" : "Type your message…";
+    this.setVoiceStatus(VOICE_STATUS_TEXT[state]);
+  }
+
+  private setVoiceStatus(text: string): void {
+    if (!this.voiceStatusEl) return;
+    this.voiceStatusEl.textContent = text;
+    this.voiceStatusEl.classList.toggle("visible", text.length > 0);
   }
 
   private togglePanel(): void {
@@ -163,8 +223,7 @@ export class ReceptionistWidget {
       // Move focus into the dialog for keyboard and screen-reader users.
       this.inputEl.focus();
     } else {
-      this.stopVoice();
-      this.speech.cancelSpeech();
+      this.voice?.stop();
       // Return focus to the launcher that opened the dialog.
       this.launcher.focus();
     }
@@ -186,6 +245,8 @@ export class ReceptionistWidget {
   private async sendTyped(): Promise<void> {
     const text = this.inputEl.value.trim();
     if (!text || this.sending) return;
+    // Reaching for the keyboard is an implicit switch back to chat.
+    this.voice?.stop();
     this.inputEl.value = "";
     await this.send(text, "chat");
   }
@@ -216,66 +277,19 @@ export class ReceptionistWidget {
       }
       typing.remove();
       this.addMessage("bot", reply);
-      if (this.voiceMode) {
-        this.speech.speak(reply, this.config.language, () => {
-          // Hands-free loop: listen again after the receptionist finishes.
-          if (this.voiceMode) this.startListening();
-        });
-      }
+      // Hands-free loop: the session speaks the reply, then listens again.
+      if (this.voice?.isActive()) this.voice.speakReply(reply);
     } catch (error) {
       typing.remove();
-      this.addMessage(
-        "bot error",
-        error instanceof Error ? error.message : "Something went wrong — please try again.",
-      );
+      const message =
+        error instanceof Error ? error.message : "Something went wrong — please try again.";
+      this.addMessage("bot error", message);
+      // Keep the voice conversation alive through an API hiccup: say the
+      // problem out loud and go back to listening instead of going mute.
+      if (this.voice?.isActive()) this.voice.speakReply(message);
     } finally {
       this.sending = false;
     }
-  }
-
-  private toggleVoice(): void {
-    if (this.voiceMode) {
-      this.stopVoice();
-    } else {
-      this.voiceMode = true;
-      this.startListening();
-    }
-  }
-
-  private startListening(): void {
-    if (!this.micBtn) return;
-    this.micBtn.classList.add("listening");
-    this.inputEl.placeholder = "Listening…";
-
-    this.recognition = this.speech.startRecognition(this.config.language, {
-      onResult: (transcript, isFinal) => {
-        this.inputEl.value = transcript;
-        if (isFinal && transcript) {
-          this.inputEl.value = "";
-          void this.send(transcript, "voice");
-        }
-      },
-      onEnd: () => {
-        this.micBtn?.classList.remove("listening");
-        this.inputEl.placeholder = "Type your message…";
-      },
-      onError: (error) => {
-        this.micBtn?.classList.remove("listening");
-        this.inputEl.placeholder = "Type your message…";
-        if (error === "not-allowed" || error === "service-not-allowed") {
-          this.addMessage("bot error", "Microphone access was blocked — you can keep typing instead.");
-          this.stopVoice();
-        }
-      },
-    });
-  }
-
-  private stopVoice(): void {
-    this.voiceMode = false;
-    this.recognition?.stop();
-    this.recognition = null;
-    this.micBtn?.classList.remove("listening");
-    this.inputEl.placeholder = "Type your message…";
   }
 
   private addMessage(kind: string, text: string): HTMLDivElement {

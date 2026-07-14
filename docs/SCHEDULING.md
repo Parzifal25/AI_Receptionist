@@ -29,7 +29,10 @@ Failures anywhere degrade to a normal, booking-free turn (`chat-service.ts`
 catches everything from the orchestrator).
 
 A completed booking also force-runs lead extraction on that turn, so every
-appointment produces a scored lead.
+appointment produces a scored lead. Booking, rescheduling, and cancelling
+additionally emit `appointment.*` business events into the workflow/CRM
+platform (fire-and-forget — automation can never break a booking); see
+[WORKFLOWS.md](WORKFLOWS.md).
 
 ## Architecture
 
@@ -84,8 +87,17 @@ event create/update/delete after bookings. Two invariants:
   with minted UIDs. All calls go through `withRetry` (backoff on 429/5xx,
   fail-fast on other 4xx).
 
-What's not built yet: the dashboard OAuth connect flow that populates
-`calendar_connections` (the engine reads whatever is there).
+Google Calendar connects from Settings → "Connect Google Calendar":
+`/api/oauth/google-calendar/start` sends an admin to Google consent
+(calendar.events + calendar.freebusy scopes, offline access) with an
+HMAC-signed state bound to the business and a CSRF nonce cookie;
+`/api/oauth/google-calendar/callback` verifies both plus the signed-in
+user's tenancy, exchanges the code, and stores the business-level row in
+`calendar_connections` (staff-level rows can be layered on later). Requires
+`GOOGLE_CLIENT_ID/SECRET` and the callback URL registered in Google Cloud
+Console as `<NEXT_PUBLIC_APP_URL>/api/oauth/google-calendar/callback`.
+Outlook/CalDAV connect flows aren't built yet (the engine reads whatever
+rows exist).
 
 ## Reminders
 
@@ -118,7 +130,8 @@ provider), `CRON_SECRET` (authorizes `/api/cron/reminders`).
 
 - `timezone.test.ts` — DST conversions, date-line, formatting.
 - `availability.test.ts` — hours, buffers, holidays, notice, horizon, busy conflicts, per-staff hours, round-robin, time-of-day filters.
-- `when-parser.test.ts` — today/tomorrow/weekday/next week/explicit dates/time-of-day.
+- `when-parser.test.ts` — today/tomorrow/weekday/next week/explicit dates/time-of-day/exact clock times (am-pm, 24h, ambiguous-hour resolution).
+- `oauth-state.test.ts` — signed OAuth state: round-trip, tamper/forgery rejection, TTL expiry.
 - `appointment-state.test.ts` — legal and illegal transitions.
 - `retry.test.ts`, `ics.test.ts` — retry policy, CalDAV ICS parsing.
 - `booking-service.test.ts` — end-to-end workflow against an in-memory repo that simulates the exclusion constraint: book/confirm/remind, double-book race, cancel-frees-slot, reschedule, validation.
@@ -127,7 +140,7 @@ provider), `CRON_SECRET` (authorizes `/api/cron/reminders`).
 
 ## Known limits / next steps
 
-1. No dashboard UI for staff, settings, appointments, or calendar OAuth connect — the engine is API/data complete, the management surface isn't.
-2. `parseWhen` handles dates and day-parts, not exact clock times ("at 2:30pm"); the slot list makes that mostly moot, but exact-time matching would sharpen the extractor.
+1. No dashboard UI for staff, scheduling settings, or appointments — the engine is API/data complete, the management surface isn't. (Google Calendar connect IS built, on the Settings page; Outlook/CalDAV connect flows are not.)
+2. ~~Exact clock times~~ solved: `parseWhen` parses "tomorrow at 10 AM", "2:30pm", "14:00", "noon" into a one-hour slot filter (`exactTime`), and the orchestrator answers a fully-booked exact time with the next three real openings instead of a dead end.
 3. Reminder copy is fixed English; per-tenant templates and the visitor's language are a natural extension.
 4. No per-service durations — one slot length per business today (`services` catalog is the schema-level next step).

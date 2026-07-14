@@ -17,10 +17,12 @@ npm install
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
 2. Open **SQL Editor** and run every file in
-   [`supabase/migrations/`](../supabase/migrations/) **in order** (`0001` through `0008`):
+   [`supabase/migrations/`](../supabase/migrations/) **in order** (`0001` through `0009`):
    schema/RLS, then function grants, atomic counters, data retention, retrieval source
-   attribution, lead qualification, unanswered-question tracking, and the appointment-booking
-   tables (staff, scheduling settings, appointments, reminders, calendar connections).
+   attribution, lead qualification, unanswered-question tracking, the appointment-booking
+   tables (staff, scheduling settings, appointments, reminders, calendar connections), and the
+   workflow-automation + CRM tables (workflows, events, runs, logs, timers, customers,
+   timeline).
    Easiest with the CLI: `supabase db push` with a linked project applies all of them.
    Migration `0008` requires the `btree_gist` extension — the migration creates it itself, but
    confirm your plan allows extensions if you're on a restricted tier.
@@ -76,10 +78,16 @@ error instead of a runtime failure.
 | `EMBEDDING_PROVIDER` | no (`none`) | `none` = full-text search; `ollama` = vector search |
 | `EMBEDDING_MODEL` | no | Embedding model (default `nomic-embed-text`) |
 | `LOG_LEVEL` | no (`info`) | `debug` \| `info` \| `warn` \| `error` |
-| `CRON_SECRET` | for cron routes | Authorizes `/api/cron/retention` and `/api/cron/reminders` |
+| `CRON_SECRET` | for cron routes | Authorizes `/api/cron/retention`, `/api/cron/reminders`, and `/api/cron/workflows` |
 | `MESSAGING_PROVIDER` | no (`log`) | Booking confirmations/reminders; `log` writes to the app log until an SMS/WhatsApp gateway is wired in |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | only if a tenant connects Google Calendar | OAuth app credentials |
 | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | only if a tenant connects Outlook | OAuth app credentials |
+
+Without `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, Dashboard → Settings shows admins a
+step-by-step setup wizard (with the exact redirect URI to register in Google Cloud Console)
+instead of the Connect button. Workflow automation needs no env var beyond `CRON_SECRET` —
+workflows are per-tenant rows (see [WORKFLOWS.md](WORKFLOWS.md)); the per-tenant inbound
+webhook trigger stays disabled until `business_settings.workflow_webhook_secret` is set.
 
 Appointment booking itself needs no env var — it's per-tenant data. A business only gets
 scheduling once it has a `scheduling_settings` row with `booking_enabled = true` and at least one

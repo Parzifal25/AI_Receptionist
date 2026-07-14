@@ -25,8 +25,11 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // Next.js injects inline bootstrap/runtime scripts and styles.
-      "script-src 'self' 'unsafe-inline'",
+      // Next.js injects inline bootstrap/runtime scripts and styles. Dev-mode
+      // Turbopack/Fast Refresh needs 'unsafe-eval' for HMR and stack-trace
+      // reconstruction — React never calls eval() in production, so this is
+      // only added outside production to keep the deployed CSP strict.
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",

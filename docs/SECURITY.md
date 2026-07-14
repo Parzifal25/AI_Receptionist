@@ -76,6 +76,21 @@ first-party from the app's own origin (not a third-party CDN), so the trust boun
 same as the API the widget talks to. If a separate CDN origin is introduced later, revisit with
 versioned, hash-pinned bundles as an opt-in for enterprise customers.
 
+## Workflow automation surface
+
+- **Inbound webhook trigger** (`POST /api/hooks/:businessId`): disabled until the tenant sets
+  `business_settings.workflow_webhook_secret`; the token is compared timing-safely; bodies are
+  capped at 32 KB and must be JSON. The event only fires that tenant's `webhook.received`
+  workflows — payloads are data, never instructions.
+- **Outbound webhooks** (`call_webhook` action): HTTPS-only (plain `http://` targets are
+  rejected, which also blocks most SSRF-style internal targets), 30 s default timeout,
+  correlation headers instead of secrets in the body.
+- **OAuth connect flow** (Google Calendar): HMAC-signed state bound to the business + CSRF
+  nonce cookie, 10-minute TTL, admin-only; tokens live in `calendar_connections`, a table with
+  **no** RLS policies (service-role only) so they can never reach a browser session.
+- **Workflow tables**: dashboard users get read-only RLS access (observability); all writes go
+  through the service role with tenant scoping in code.
+
 ## Secrets & configuration
 
 All secrets flow through environment variables validated by `src/lib/env.ts`. `.env*` files are

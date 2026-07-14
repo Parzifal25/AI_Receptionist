@@ -7,14 +7,25 @@
   unanswered-question knowledge-gap tracking. See [AI.md](AI.md).
 - **Appointment booking + calendar integration** — availability engine, booking workflow
   (book/reschedule/cancel), state machine, race-safe double-booking prevention, Google/Outlook/
-  CalDAV/internal calendar adapters, reminder queue + cron delivery. The AI now completes
-  bookings inside the conversation, not just talks about them. See [SCHEDULING.md](SCHEDULING.md).
+  CalDAV/internal calendar adapters, reminder queue + cron delivery, exact clock-time parsing,
+  Google Calendar OAuth connect flow (Settings card with an operator setup wizard). The AI now
+  completes bookings inside the conversation, not just talks about them. See
+  [SCHEDULING.md](SCHEDULING.md).
+- **Workflow automation platform + built-in CRM** — business events trigger tenant-defined
+  workflows (conditions, templated actions, retries, dead-letter queue, execution history,
+  timers, inbound webhook + manual triggers) and an always-on CRM (customer dedupe/merge,
+  pipeline stages, timeline, revenue attribution). See [WORKFLOWS.md](WORKFLOWS.md).
+- **Voice reliability** — microphone permission pre-flight, spaced recognition retries,
+  network-specific and secure-context-aware fallbacks, Chrome synthesis workarounds.
 
 ## Phase 2 (next)
 
-- **Scheduling dashboard UI** — staff management, scheduling-settings form, calendar OAuth
-  connect flow, appointments calendar view (the booking *engine* is done; the *management
-  surface* isn't — see [SCHEDULING.md](SCHEDULING.md#known-limits--next-steps))
+- **Scheduling dashboard UI** — staff management, scheduling-settings form, appointments
+  calendar view (the booking *engine* and the Google Calendar connect flow are done; the rest
+  of the *management surface* isn't — see [SCHEDULING.md](SCHEDULING.md#known-limits--next-steps))
+- **Workflow & CRM dashboard UI** — workflow builder, run history browser, customers view
+  (the platform is API/data complete with read RLS in place; no UI yet — see
+  [WORKFLOWS.md](WORKFLOWS.md#known-limits--next-steps))
 - **Real SMS/WhatsApp delivery** — implement `MessagingProvider` for Twilio (ports/factory
   already in place; only the adapter is missing)
 - **Email notifications** — Resend/SES adapter for `NotificationProvider` (port already exists)
@@ -31,7 +42,8 @@
   port — removes browser-support constraints and enables consistent voices
 - Telephony (Twilio) voice channel
 - Payments & subscriptions (Stripe), usage-based plans
-- CRM integrations (HubSpot, Salesforce) fed from leads
+- Native CRM adapters (HubSpot, Salesforce) as first-class workflow actions (both already
+  reachable today via `call_webhook`)
 - Per-service appointment durations (a `services` catalog, vs. one slot length per business today)
 - LLM-judged conversation-quality eval harness (scripted visitor personas replayed per
   `PROMPT_VERSION`)

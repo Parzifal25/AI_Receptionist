@@ -106,12 +106,20 @@ conversation length to lead capture.
 
 ## Future AI roadmap
 
-1. ~~**Calendar-aware booking**~~ — shipped (`docs/SCHEDULING.md`); remaining: dashboard UI for staff/settings/calendar connect.
+1. ~~**Calendar-aware booking**~~ — shipped (`docs/SCHEDULING.md`), including exact clock-time
+   understanding and the Google Calendar OAuth connect flow; remaining: dashboard UI for
+   staff/settings.
+1b. ~~**Downstream automation**~~ — shipped (`docs/WORKFLOWS.md`): every AI-completed action
+   (booking, lead) emits business events into a workflow engine + built-in CRM, so the AI's
+   work triggers confirmations, follow-ups, webhooks, and customer-record upkeep automatically.
 2. **LLM qualification pass** for budget/timeline/sentiment on hot leads only, merged into the deterministic score.
 3. **Rolling conversation summaries** for long chats and cross-visit memory of returning visitors.
 4. **LLM-judged eval harness**: scripted visitor personas replayed against each `PROMPT_VERSION`, scored on grounding, empathy, and capture rate.
 5. **Owner-facing knowledge-gap digest** (weekly email of top unanswered questions with one-click FAQ creation).
-6. **Voice channel activation** (STT/TTS providers already stubbed via `speech-provider` port).
+6. ~~**Voice channel activation**~~ — shipped: the widget's `VoiceSession` state machine runs a
+   hands-free loop on the free browser Web Speech APIs (silence auto-pause, error retries,
+   tap-to-interrupt, chat fallback); remaining: server-side STT/TTS providers behind the same
+   `speech-provider` port for consistent voices across browsers.
 
 ## Commercial advantage
 

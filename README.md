@@ -2,7 +2,10 @@
 
 A multi-tenant SaaS platform where businesses create an AI receptionist and embed it into any
 website with a single script tag. Visitors chat or **speak** naturally with the receptionist; it
-answers from the business's own knowledge base, admits what it doesn't know, and captures leads.
+answers from the business's own knowledge base, admits what it doesn't know, captures leads,
+books real appointments against real calendars, and feeds a built-in CRM and workflow
+automation platform — every booking and lead can trigger emails, SMS, webhooks (Slack, Zapier,
+n8n, Make, …), follow-ups, and CRM updates.
 
 ```html
 <script src="https://yourapp.com/widget.js" data-key="YOUR_WIDGET_KEY" async></script>
@@ -20,6 +23,13 @@ answers from the business's own knowledge base, admits what it doesn't know, and
 - **AI conversation** — grounded, anti-hallucination prompting; provider-agnostic LLM layer
   (Ollama in dev; OpenAI / Anthropic / Gemini / Groq / Mistral by env change alone)
 - **Lead capture** — conversational extraction (regex + LLM) and explicit capture endpoint
+- **Appointment booking** — real availability, Google Calendar sync (OAuth connect from
+  Settings), double-booking-proof, reminders, exact-time understanding ("tomorrow at 10 AM")
+- **Workflow automation** — business events trigger tenant-defined workflows: conditions,
+  templated actions (email/SMS/WhatsApp/webhooks), retries, dead-letter queue, execution
+  history, scheduled follow-ups, inbound webhook + manual triggers
+- **Built-in CRM** — automatic customer records from every lead/booking, dedupe + merge,
+  pipeline stages, activity timeline, revenue attribution
 - **Conversation history** — full transcripts with linked leads
 - **Settings** — allowed embed domains, lead notifications
 - **Analytics** — usage event stream + overview stats (charts arrive Phase 2)
@@ -32,7 +42,7 @@ answers from the business's own knowledge base, admits what it doesn't know, and
 git clone <repo> && cd ai-receptionist
 npm install
 cp .env.example .env.local          # fill in Supabase + LLM values
-# apply supabase/migrations/0001_init.sql to your Supabase project
+# apply every file in supabase/migrations/ (0001 → 0009), in order
 ollama pull llama3.1                # dev-default LLM
 npm run dev
 ```
@@ -49,8 +59,14 @@ Full setup instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 | [docs/COMPONENTS.md](docs/COMPONENTS.md) | Folder structure, features, UI components |
 | [docs/SECURITY.md](docs/SECURITY.md) | Tenancy model, RLS, widget token design, rate limits |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment (Vercel + Supabase) + checklist |
+| [docs/SCHEDULING.md](docs/SCHEDULING.md) | Appointment intelligence: booking engine, calendars, reminders |
+| [docs/WORKFLOWS.md](docs/WORKFLOWS.md) | Workflow automation platform + built-in CRM |
+| [docs/AI.md](docs/AI.md) | AI intelligence: prompting, retrieval, lead extraction |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Day-2 runbook: cron jobs, queues, monitoring |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Symptom-first diagnosis (calendar, voice, booking, workflows) |
 | [docs/TESTING.md](docs/TESTING.md) | Automated tests + manual testing checklist |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phase 2+, known limitations, technical debt |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Release history |
 
 ## Scripts
 

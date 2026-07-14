@@ -178,8 +178,12 @@ function buildFakes(options: { bookingEnabled?: boolean } = {}) {
     },
   };
 
-  const service = new BookingService(repository, messaging);
-  return { service, appointments, reminders, sent, events, repository };
+  // Recorded business events — bookings feed the workflow/CRM platform.
+  const emitted: Array<{ type: string; payload: Record<string, unknown> }> = [];
+  const service = new BookingService(repository, messaging, undefined, async (input) => {
+    emitted.push({ type: input.type, payload: input.payload });
+  });
+  return { service, appointments, reminders, sent, events, emitted, repository };
 }
 
 const visitor = {
@@ -202,7 +206,7 @@ describe("BookingService", () => {
   });
 
   it("books a slot, schedules reminders, sends confirmation, tracks the event", async () => {
-    const { service, appointments, reminders, sent, events } = buildFakes();
+    const { service, appointments, reminders, sent, events, emitted } = buildFakes();
 
     const result = await service.book({
       business,
@@ -221,6 +225,9 @@ describe("BookingService", () => {
     expect(sent[0].channel).toBe("sms");
     expect(sent[0].body).toContain("Tuesday, July 14 at 9:00 AM");
     expect(events).toContain("appointment_booked");
+    // The workflow/CRM platform hears about the booking.
+    expect(emitted.map((e) => e.type)).toEqual(["appointment.created"]);
+    expect(emitted[0].payload.visitorPhone).toBe("+1 555 0100");
   });
 
   it("loses the race gracefully: slot_taken with fresh alternatives", async () => {

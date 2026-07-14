@@ -59,7 +59,8 @@ ai-receptionist/
 └── widget/src/                  # embeddable widget source (bundled by esbuild)
     ├── index.ts                 #   bootstrap from <script data-key>
     ├── api.ts                   #   fetch client for the widget API
-    ├── widget.ts                #   shadow-DOM UI, chat + voice loop
+    ├── widget.ts                #   shadow-DOM UI, chat + voice wiring
+    ├── voice-session.ts         #   voice state machine (silence, retries, barge-in)
     └── styles.ts                #   isolated CSS with branding variables
 ```
 
@@ -103,5 +104,8 @@ implementation, one port. The widget:
 - reads `data-key` from its own script tag and derives the API origin from `script.src`
 - fetches config, renders launcher + panel in a **closed shadow root**
 - persists the visitor token in `sessionStorage` (conversation survives reloads)
-- voice mode: recognition → send transcript → speak reply → re-listen (hands-free loop)
+- voice mode: `VoiceSession` state machine (`idle → listening → processing → speaking → listening`)
+  drives the hands-free loop — silence detection with auto-pause, transient-error retries,
+  tap-to-interrupt while speaking, and graceful fallback to chat when the mic is blocked,
+  missing, or the browser lacks Web Speech support (fully unit-tested against a fake provider)
 - fails silently if misconfigured — it can never break a customer's page
