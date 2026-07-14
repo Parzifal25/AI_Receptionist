@@ -82,9 +82,13 @@ versioned, hash-pinned bundles as an opt-in for enterprise customers.
   `business_settings.workflow_webhook_secret`; the token is compared timing-safely; bodies are
   capped at 32 KB and must be JSON. The event only fires that tenant's `webhook.received`
   workflows — payloads are data, never instructions.
-- **Outbound webhooks** (`call_webhook` action): HTTPS-only (plain `http://` targets are
-  rejected, which also blocks most SSRF-style internal targets), 30 s default timeout,
-  correlation headers instead of secrets in the body.
+- **Outbound webhooks** (`call_webhook` action): full SSRF guard (`src/lib/ssrf.ts`) —
+  HTTPS-only, and the hostname is DNS-resolved with every answer checked against
+  loopback/private/link-local (incl. cloud metadata)/CGNAT/unspecified ranges before any
+  request is made; redirects are never followed (a 3xx is a failed delivery), so a public host
+  can't bounce the request into a private one. 30 s default timeout; correlation headers
+  instead of secrets in the body. Residual: DNS rebinding between check and fetch — pin the
+  resolved IP with a custom agent if tenant threat models ever warrant it.
 - **OAuth connect flow** (Google Calendar): HMAC-signed state bound to the business + CSRF
   nonce cookie, 10-minute TTL, admin-only; tokens live in `calendar_connections`, a table with
   **no** RLS policies (service-role only) so they can never reach a browser session.

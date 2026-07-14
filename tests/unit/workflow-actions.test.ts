@@ -43,12 +43,23 @@ const stubCrm = new CrmService({
   appendTimeline: async () => undefined,
 } satisfies CrmStore);
 
+/** DNS stub: every host resolves to a public IP unless listed here. */
+const RESOLVED: Record<string, string> = {
+  "internal.corp": "10.0.0.5",
+  "metadata.cloud": "169.254.169.254",
+  "rebind.example.com": "127.0.0.1",
+};
+const publicLookup = async (hostname: string, _options: { all: true }) => [
+  { address: RESOLVED[hostname] ?? "93.184.216.34", family: 4 },
+];
+
 function registry(overrides: { fetchImpl?: typeof fetch; messaging?: MessagingProvider } = {}) {
   return createActionRegistry({
     messaging: overrides.messaging ?? fakeMessaging(),
     crm: stubCrm,
     store: new InMemoryWorkflowStore(),
     fetchImpl: overrides.fetchImpl,
+    lookupImpl: publicLookup,
   });
 }
 
@@ -123,6 +134,31 @@ describe("call_webhook", () => {
     await expect(
       actions.call_webhook!({ url: "http://internal.host/steal" }, ctx),
     ).rejects.toThrow(/https/);
+  });
+
+  it("refuses hosts that resolve to private/internal addresses (SSRF guard)", async () => {
+    const fetchImpl = vi.fn(async () => new Response("ok", { status: 200 }));
+    const actions = registry({ fetchImpl: fetchImpl as unknown as typeof fetch });
+    for (const url of [
+      "https://internal.corp/hook",
+      "https://metadata.cloud/latest",
+      "https://rebind.example.com/x",
+    ]) {
+      await expect(actions.call_webhook!({ url }, ctx)).rejects.toThrow(/private or internal/);
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("does not follow redirects (a 3xx is a failed delivery)", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(null, { status: 302, headers: { location: "https://internal.corp/" } }),
+    );
+    const actions = registry({ fetchImpl: fetchImpl as unknown as typeof fetch });
+    await expect(actions.call_webhook!({ url: "https://x.example.com" }, ctx)).rejects.toThrow(
+      /302/,
+    );
+    const init = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(init.redirect).toBe("manual");
   });
 });
 

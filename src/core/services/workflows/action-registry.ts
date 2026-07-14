@@ -3,6 +3,7 @@ import type { MessageChannel, MessagingProvider } from "@/core/ports/messaging-p
 import type { ActionContext, ActionRegistry, WorkflowStore } from "./types";
 import type { CrmService, CustomerStage } from "@/core/services/crm/crm-service";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { assertPublicHttpsUrl } from "@/lib/ssrf";
 
 /**
  * The built-in workflow actions. Every action talks to a port (messaging),
@@ -65,6 +66,8 @@ export function createActionRegistry(deps: {
   crm: CrmService;
   store: WorkflowStore;
   fetchImpl?: typeof fetch;
+  /** DNS resolution override for tests; production uses dns.promises.lookup. */
+  lookupImpl?: Parameters<typeof assertPublicHttpsUrl>[1];
 }): ActionRegistry {
   const { messaging, crm, store } = deps;
   const doFetch = deps.fetchImpl ?? fetch;
@@ -75,10 +78,11 @@ export function createActionRegistry(deps: {
     send_whatsapp: messagingAction(messaging, "whatsapp"),
 
     call_webhook: async (params, ctx) => {
-      const url = requireParam(params, "url");
-      if (!/^https:\/\//i.test(url)) throw new Error("webhook url must be https");
+      // SSRF guard: tenant-supplied URL must be https and resolve only to
+      // publicly routable addresses (no loopback/private/link-local/metadata).
+      const target = await assertPublicHttpsUrl(requireParam(params, "url"), deps.lookupImpl);
       const format = str(params.format) || "json";
-      const response = await doFetch(url, {
+      const response = await doFetch(target.toString(), {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -86,9 +90,12 @@ export function createActionRegistry(deps: {
           "x-correlation-id": ctx.correlationId,
         },
         body: JSON.stringify(webhookBody(format, params, ctx)),
+        // Never follow redirects — a public host could 302 into a private
+        // one. A 3xx counts as a failed delivery (not response.ok).
+        redirect: "manual",
       });
       if (!response.ok) throw new Error(`webhook responded ${response.status}`);
-      return { url, status: response.status, format };
+      return { url: target.toString(), status: response.status, format };
     },
 
     crm_upsert_customer: async (params, ctx) => {

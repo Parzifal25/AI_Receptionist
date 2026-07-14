@@ -26,7 +26,10 @@ export class SupabaseCrmStore implements CrmStore {
       .from("customers")
       .select("*")
       .eq("business_id", businessId)
-      .ilike("email", email)
+      // Exact match: callers pass normalizeEmail() output (lowercased), and
+      // ilike would let %/_ wildcards in visitor-supplied emails match other
+      // customers' records.
+      .eq("email", email)
       .is("merged_into", null)
       .limit(1)
       .maybeSingle();
