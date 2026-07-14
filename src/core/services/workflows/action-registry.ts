@@ -1,5 +1,7 @@
 import "server-only";
 import type { MessageChannel, MessagingProvider } from "@/core/ports/messaging-provider";
+import type { OpsProvider, OpsRecordKind } from "@/core/ports/ops-provider";
+import { OPS_RECORD_KINDS } from "@/core/ports/ops-provider";
 import type { ActionContext, ActionRegistry, WorkflowStore } from "./types";
 import type { CrmService, CustomerStage } from "@/core/services/crm/crm-service";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -65,11 +67,30 @@ export function createActionRegistry(deps: {
   messaging: MessagingProvider;
   crm: CrmService;
   store: WorkflowStore;
+  /** Back-office operations back-end for the ops_create action. */
+  ops?: OpsProvider;
+  /** usage_events writer override for tests; production inserts via admin. */
+  trackUsage?: (
+    businessId: string,
+    eventType: string,
+    metadata: Record<string, unknown>,
+  ) => Promise<void>;
   fetchImpl?: typeof fetch;
   /** DNS resolution override for tests; production uses dns.promises.lookup. */
   lookupImpl?: Parameters<typeof assertPublicHttpsUrl>[1];
 }): ActionRegistry {
   const { messaging, crm, store } = deps;
+  // Lazy so tests without env never construct the default provider.
+  const getOps = async (): Promise<OpsProvider> =>
+    deps.ops ?? (await import("@/providers/ops/factory")).getOpsProvider();
+  const trackUsage =
+    deps.trackUsage ??
+    (async (businessId: string, eventType: string, metadata: Record<string, unknown>) => {
+      const { error } = await getAdminClient()
+        .from("usage_events")
+        .insert({ business_id: businessId, event_type: eventType, metadata });
+      if (error) throw new Error(`track ${eventType}: ${error.message}`);
+    });
   const doFetch = deps.fetchImpl ?? fetch;
 
   return {
@@ -162,13 +183,72 @@ export function createActionRegistry(deps: {
       return { fireAt };
     },
 
-    track_analytics: async (params, ctx) => {
-      const { error } = await getAdminClient().from("usage_events").insert({
-        business_id: ctx.businessId,
-        event_type: "workflow_custom",
-        metadata: { name: str(params.name) || ctx.event.type, correlationId: ctx.correlationId },
+    /**
+     * Review request: messages the visitor a link to the business's public
+     * review destination and records the ask so review rate is measurable.
+     * to/reviewUrl usually interpolate from the event payload / settings.
+     */
+    request_review: async (params, ctx) => {
+      const reviewUrl = requireParam(params, "reviewUrl");
+      const to = requireParam(params, "to");
+      const channel = (str(params.channel) || "email") as MessageChannel;
+      if (!messaging.supports(channel)) {
+        throw new Error(`messaging provider "${messaging.name}" does not support ${channel}`);
+      }
+      const body =
+        str(params.body) ||
+        `Thanks for your visit! If you have a moment, a quick review means the world to us: ${reviewUrl}`;
+      await messaging.send({
+        channel,
+        to,
+        body,
+        subject: str(params.subject) || "How did we do?",
       });
-      if (error) throw new Error(`track analytics: ${error.message}`);
+      await trackUsage(ctx.businessId, "review_requested", {
+        correlationId: ctx.correlationId,
+        channel,
+      });
+      return { channel, to, reviewUrl };
+    },
+
+    /**
+     * Creates one back-office record (FSM ticket, technician job, quote,
+     * invoice, inventory reservation, payment) through the OpsProvider port.
+     */
+    ops_create: async (params, ctx) => {
+      const kind = str(params.kind) as OpsRecordKind;
+      if (!OPS_RECORD_KINDS.includes(kind)) {
+        throw new Error(
+          `ops_create "kind" must be one of ${OPS_RECORD_KINDS.join(", ")} (got "${kind || "nothing"}")`,
+        );
+      }
+      const ops = await getOps();
+      if (!ops.supports(kind)) {
+        throw new Error(`ops provider "${ops.name}" does not support ${kind}`);
+      }
+      const data =
+        params.data && typeof params.data === "object" && !Array.isArray(params.data)
+          ? (params.data as Record<string, unknown>)
+          : {};
+      const result = await ops.createRecord({
+        kind,
+        businessId: ctx.businessId,
+        correlationId: ctx.correlationId,
+        customer: {
+          name: str(params.name) || undefined,
+          email: str(params.email) || undefined,
+          phone: str(params.phone) || undefined,
+        },
+        data,
+      });
+      return { kind, externalId: result.externalId, provider: ops.name };
+    },
+
+    track_analytics: async (params, ctx) => {
+      await trackUsage(ctx.businessId, "workflow_custom", {
+        name: str(params.name) || ctx.event.type,
+        correlationId: ctx.correlationId,
+      });
     },
   };
 }

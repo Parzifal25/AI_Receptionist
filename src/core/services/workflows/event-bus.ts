@@ -7,6 +7,7 @@ import { createActionRegistry } from "./action-registry";
 import { CrmService } from "@/core/services/crm/crm-service";
 import { SupabaseCrmStore } from "@/core/services/crm/supabase-crm-store";
 import { getMessagingProvider } from "@/providers/messaging/factory";
+import { getOpsProvider } from "@/providers/ops/factory";
 import { logger } from "@/lib/logger";
 
 const log = logger.child({ service: "event-bus" });
@@ -19,7 +20,12 @@ export function getWorkflowEngine(): WorkflowEngine {
     const store = new SupabaseWorkflowStore();
     engine = new WorkflowEngine(
       store,
-      createActionRegistry({ messaging: getMessagingProvider(), crm: getCrmService(), store }),
+      createActionRegistry({
+        messaging: getMessagingProvider(),
+        crm: getCrmService(),
+        store,
+        ops: getOpsProvider(),
+      }),
     );
   }
   return engine;
@@ -82,6 +88,8 @@ async function syncCrm(event: BusinessEvent): Promise<void> {
     serviceName: string;
     startsAt: string;
     intent: string;
+    rating: number;
+    comment: string;
   }>;
 
   const identity = {
@@ -122,6 +130,45 @@ async function syncCrm(event: BusinessEvent): Promise<void> {
             ? `Cancelled ${p.serviceName || "an appointment"}`
             : `Rescheduled ${p.serviceName || "an appointment"}${p.startsAt ? ` to ${p.startsAt}` : ""}`,
         detail: { eventId: event.id, correlationId: event.correlationId },
+        occurredAt: event.occurredAt,
+      });
+      break;
+    }
+    case "appointment.checked_in":
+    case "appointment.no_show": {
+      const { customer } = await service.upsertCustomer(event.businessId, identity);
+      await service.recordTimeline(event.businessId, customer.id, {
+        kind: "appointment",
+        title:
+          event.type === "appointment.checked_in"
+            ? `Checked in for ${p.serviceName || "an appointment"}`
+            : `No-show for ${p.serviceName || "an appointment"}`,
+        detail: { eventId: event.id, correlationId: event.correlationId },
+        occurredAt: event.occurredAt,
+      });
+      break;
+    }
+    case "appointment.completed": {
+      // A completed visit makes this person a customer, funnel-wise.
+      const { customer } = await service.upsertCustomer(event.businessId, {
+        ...identity,
+        stage: "customer",
+        source: "receptionist",
+      });
+      await service.recordTimeline(event.businessId, customer.id, {
+        kind: "appointment",
+        title: `Completed ${p.serviceName || "an appointment"}`,
+        detail: { eventId: event.id, correlationId: event.correlationId },
+        occurredAt: event.occurredAt,
+      });
+      break;
+    }
+    case "feedback.received": {
+      const { customer } = await service.upsertCustomer(event.businessId, identity);
+      await service.recordTimeline(event.businessId, customer.id, {
+        kind: "review",
+        title: `Left feedback: ${p.rating ?? "?"}/5${p.comment ? ` — “${String(p.comment).slice(0, 120)}”` : ""}`,
+        detail: { eventId: event.id, correlationId: event.correlationId, rating: p.rating },
         occurredAt: event.occurredAt,
       });
       break;

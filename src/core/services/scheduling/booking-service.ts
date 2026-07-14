@@ -15,6 +15,7 @@ import { assertTransition, isLive } from "./appointment-state";
 import { formatInTz } from "./timezone";
 import type { WhenWindow } from "./when-parser";
 import { SchedulingRepository, SlotTakenError } from "./scheduling-repository";
+import { ConfirmationService } from "@/core/services/lifecycle/confirmation-service";
 import { createCalendarProvider } from "@/providers/calendar/factory";
 import { getMessagingProvider } from "@/providers/messaging/factory";
 import { emitBusinessEvent, type EmitInput } from "@/core/services/workflows/event-bus";
@@ -47,7 +48,20 @@ export class BookingService {
     private readonly calendarFactory: typeof createCalendarProvider = createCalendarProvider,
     /** Workflow/CRM automation feed; failures are logged, never propagated. */
     private readonly emitEvent: (input: EmitInput) => Promise<void> = emitBusinessEvent,
-  ) {}
+    confirmations?: ConfirmationService,
+  ) {
+    this.confirmationsOverride = confirmations ?? null;
+  }
+
+  private confirmationsOverride: ConfirmationService | null;
+
+  /** Lazy so tests injecting fakes never touch env-dependent defaults. */
+  private get confirmations(): ConfirmationService {
+    if (!this.confirmationsOverride) {
+      this.confirmationsOverride = new ConfirmationService(this.messaging);
+    }
+    return this.confirmationsOverride;
+  }
 
   /** Fire-and-forget: automation must never break a booking flow. */
   private emit(input: EmitInput): void {
@@ -178,9 +192,11 @@ export class BookingService {
         log.warn("reminder scheduling failed", { appointmentId: appointment.id, error }),
       );
     }
-    await this.sendConfirmation(business, appointment).catch((error) =>
-      log.warn("confirmation send failed", { appointmentId: appointment.id, error }),
-    );
+    await this.confirmations
+      .sendBookingConfirmation(business, appointment, settings, "created")
+      .catch((error) =>
+        log.warn("confirmation send failed", { appointmentId: appointment.id, error }),
+      );
     await this.repository.trackEvent(business.id, "appointment_booked", {
       appointmentId: appointment.id,
       startsAt: appointment.startsAt,
@@ -242,12 +258,9 @@ export class BookingService {
     if (settings.remindersEnabled) {
       await this.scheduleReminders(updated, settings, now).catch(() => {});
     }
-    await this.sendNotification(
-      business,
-      updated,
-      `Your ${updated.serviceName || "appointment"} with ${business.name} has been moved to ${formatInTz(updated.startsAt, updated.timezone)}.`,
-      "Appointment rescheduled",
-    ).catch(() => {});
+    await this.confirmations
+      .sendBookingConfirmation(business, updated, settings, "rescheduled")
+      .catch(() => {});
     await this.repository.trackEvent(business.id, "appointment_rescheduled", {
       appointmentId: appointment.id,
     });
@@ -269,6 +282,7 @@ export class BookingService {
   }): Promise<{ ok: boolean }> {
     const { business, appointment } = params;
     assertTransition(appointment.status, "cancelled");
+    const settings = await this.repository.getSettings(business.id);
 
     await this.repository.updateAppointmentStatus(
       appointment.id,
@@ -279,12 +293,7 @@ export class BookingService {
       log.warn("external calendar delete failed", { appointmentId: appointment.id, error }),
     );
     await this.repository.cancelReminders(appointment.id);
-    await this.sendNotification(
-      business,
-      appointment,
-      `Your ${appointment.serviceName || "appointment"} with ${business.name} on ${formatInTz(appointment.startsAt, appointment.timezone)} has been cancelled.`,
-      "Appointment cancelled",
-    ).catch(() => {});
+    await this.confirmations.sendCancellation(business, appointment, settings).catch(() => {});
     await this.repository.trackEvent(business.id, "appointment_cancelled", {
       appointmentId: appointment.id,
     });
@@ -420,26 +429,4 @@ export class BookingService {
     await this.repository.scheduleReminders(rows);
   }
 
-  private async sendConfirmation(business: Business, appointment: Appointment): Promise<void> {
-    const when = formatInTz(appointment.startsAt, appointment.timezone);
-    await this.sendNotification(
-      business,
-      appointment,
-      `You're booked! ${appointment.serviceName || "Your appointment"} with ${business.name} on ${when}.` +
-        (business.phone ? ` Questions? Call ${business.phone}.` : ""),
-      "Appointment confirmed",
-    );
-  }
-
-  private async sendNotification(
-    business: Business,
-    appointment: Appointment,
-    body: string,
-    subject: string,
-  ): Promise<void> {
-    const channel = appointment.visitorPhone ? ("sms" as const) : ("email" as const);
-    const to = appointment.visitorPhone || appointment.visitorEmail;
-    if (!to || !this.messaging.supports(channel)) return;
-    await this.messaging.send({ channel, to, body, subject });
-  }
 }

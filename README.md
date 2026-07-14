@@ -30,9 +30,13 @@ n8n, Make, …), follow-ups, and CRM updates.
   history, scheduled follow-ups, inbound webhook + manual triggers
 - **Built-in CRM** — automatic customer records from every lead/booking, dedupe + merge,
   pipeline stages, activity timeline, revenue attribution
+- **Customer lifecycle** — HTML/ICS/WhatsApp confirmations, self-service reschedule/cancel/
+  check-in links, intake forms, day-of tracking (checked in → in progress → completed),
+  thank-yous, satisfaction surveys, review & rebook journeys, lifecycle analytics
 - **Conversation history** — full transcripts with linked leads
 - **Settings** — allowed embed domains, lead notifications
-- **Analytics** — usage event stream + overview stats (charts arrive Phase 2)
+- **Analytics** — usage event stream, overview stats, and a lifecycle dashboard (conversion,
+  no-shows, reminder success, CLV, repeat rate, peak hours, AI success rate)
 - **Security** — Postgres Row Level Security per tenant, rate limiting, CORS allow-listing,
   Zod validation on every input, secrets never reach the browser
 
@@ -61,6 +65,7 @@ Full setup instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment (Vercel + Supabase) + checklist |
 | [docs/SCHEDULING.md](docs/SCHEDULING.md) | Appointment intelligence: booking engine, calendars, reminders |
 | [docs/WORKFLOWS.md](docs/WORKFLOWS.md) | Workflow automation platform + built-in CRM |
+| [docs/LIFECYCLE.md](docs/LIFECYCLE.md) | Customer lifecycle: confirmations, self-service, day-of tracking, surveys, analytics |
 | [docs/AI.md](docs/AI.md) | AI intelligence: prompting, retrieval, lead extraction |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Day-2 runbook: cron jobs, queues, monitoring |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Symptom-first diagnosis (calendar, voice, booking, workflows) |

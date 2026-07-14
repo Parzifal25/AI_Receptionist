@@ -43,6 +43,10 @@ Design rules, mirroring the rest of the codebase:
 | `appointment.created` | The booking engine confirms an appointment |
 | `appointment.rescheduled` | A live appointment moves |
 | `appointment.cancelled` | A live appointment is cancelled |
+| `appointment.checked_in` | The visitor checks in (self-service link or staff board) |
+| `appointment.completed` | Staff marks the visit completed — starts the after-visit journey |
+| `appointment.no_show` | Staff marks a no-show |
+| `feedback.received` | The visitor submits the satisfaction survey (payload carries `rating`, `nps`, `comment`) |
 | `lead.created` / `lead.updated` | Lead extraction captures/updates a lead |
 | `conversation.started` | A visitor opens a conversation (chat or voice) |
 | `conversation.archived` | Reserved — fires when archival lands in the dashboard |
@@ -101,14 +105,51 @@ placeholder keeps its raw type.
 | `crm_record_revenue` | Attribute revenue to a customer | `amount`, `email`/`phone` |
 | `schedule_followup` | Fire a `followup.due` event later (timer) | `delayMinutes`, `reason` |
 | `track_analytics` | Record a `workflow_custom` usage event | `name` |
+| `request_review` | Message a public-review link and record `review_requested` for analytics | `to`, `reviewUrl`, `channel`, `body?` |
+| `ops_create` | Create one back-office record through the `OpsProvider` port | `kind`, `data`, `name`/`email`/`phone` |
 
 **Integrations.** Slack and Discord have first-class webhook formats; Zapier,
-n8n, Make, HubSpot, Salesforce, OpsCorp FSM and anything else with an inbound
+n8n, Make, HubSpot, Salesforce and anything else with an inbound
 webhook URL use `call_webhook` with `format: "json"` (they receive the full
 event envelope). Google Calendar sync is not a workflow action — it is
 built into the booking engine (see [SCHEDULING.md](SCHEDULING.md)).
 Dedicated adapters (e.g. a native HubSpot upsert) slot in as new action
 types in `action-registry.ts` without engine changes.
+
+**OpsCorp / back-office systems.** `ops_create` goes through the
+`OpsProvider` port (`src/core/ports/ops-provider.ts`, selected by
+`OPS_PROVIDER`). `kind` is one of `fsm_ticket`, `technician_job`, `quote`,
+`invoice`, `inventory_reservation`, `payment`; `data` carries the
+kind-specific fields verbatim. The shipped `log` provider records requests
+(journeys stay fully exercisable); an OpsCorp REST adapter is a new factory
+case (`src/providers/ops/factory.ts`) — workflows, the engine, and every
+journey definition stay untouched when the back-end changes.
+
+## Journey templates & the visual builder
+
+`src/core/services/workflows/templates.ts` ships ready-made lifecycle
+journeys — **Booking journey** (booked → welcome → 24 h check-in),
+**Review & follow-up** (completed → 1 day → review ask → 30 days → rebook
+offer), **No-show recovery**, and **Unhappy customer alert** (rating < 4 →
+timeline flag). A template that waits is two workflows: one schedules a
+timer (`schedule_followup`), a `followup.due`-triggered companion (matched
+by `payload.reason`) continues — waits survive deploys because the timer
+lives in Postgres. `{{var.*}}` placeholders (e.g. the review URL) are filled
+at install; `{{event.*}}` interpolates per run.
+
+The dashboard's **Automations** page (`/dashboard/automations`) is the
+visual builder: a vertical trigger → step → step flow with parameter
+editing, template gallery, enable/disable, and delete, backed by the CRUD
+API below. Admin-only for writes; members see read-only.
+
+| Endpoint | What |
+|---|---|
+| `GET /api/workflows` | List the business's workflows |
+| `POST /api/workflows` | Create (admin) |
+| `GET/PATCH/DELETE /api/workflows/:id` | Read / update (version bump) / delete (admin) |
+| `GET /api/workflows/templates` | Template gallery |
+| `POST /api/workflows/templates` | Install a template's workflows (admin) |
+| `POST /api/workflows/:id/run` | Manual trigger (admin) |
 
 ## Retries, timeouts, dead letters
 
@@ -129,6 +170,10 @@ identity (email or phone):
 
 - `appointment.created` → upsert customer (stage `booked`), increment
   `total_appointments`, timeline entry; `rescheduled`/`cancelled` → timeline.
+- `appointment.checked_in`/`appointment.no_show` → timeline entry.
+- `appointment.completed` → upsert customer at stage `customer` (a completed
+  visit is the funnel's finish line), timeline entry.
+- `feedback.received` → timeline entry (kind `review`) with the rating.
 - `lead.created`/`lead.updated` → upsert customer (stage `engaged`), timeline.
 - **Dedupe/merge**: customers are keyed by normalized email and phone. When
   an email and a phone match two different rows, they merge (keeper: the

@@ -15,26 +15,55 @@
   workflows (conditions, templated actions, retries, dead-letter queue, execution history,
   timers, inbound webhook + manual triggers) and an always-on CRM (customer dedupe/merge,
   pipeline stages, timeline, revenue attribution). See [WORKFLOWS.md](WORKFLOWS.md).
+- **Customer lifecycle platform** — HTML/ICS/WhatsApp confirmations, self-service
+  reschedule/cancel/check-in links, reminder analytics, intake forms, day-of status tracking
+  (checked in / running late / in progress), thank-yous, satisfaction surveys, review &
+  rebook journey templates, a visual workflow builder, searchable customers + timeline,
+  appointments board, lifecycle analytics dashboard, and the OpsCorp-ready `OpsProvider`
+  port. See [LIFECYCLE.md](LIFECYCLE.md).
 - **Voice reliability** — microphone permission pre-flight, spaced recognition retries,
   network-specific and secure-context-aware fallbacks, Chrome synthesis workarounds.
 
-## Phase 2 (next)
+## Version 2 roadmap
 
-- **Scheduling dashboard UI** — staff management, scheduling-settings form, appointments
-  calendar view (the booking *engine* and the Google Calendar connect flow are done; the rest
-  of the *management surface* isn't — see [SCHEDULING.md](SCHEDULING.md#known-limits--next-steps))
-- **Workflow & CRM dashboard UI** — workflow builder, run history browser, customers view
-  (the platform is API/data complete with read RLS in place; no UI yet — see
-  [WORKFLOWS.md](WORKFLOWS.md#known-limits--next-steps))
-- **Real SMS/WhatsApp delivery** — implement `MessagingProvider` for Twilio (ports/factory
-  already in place; only the adapter is missing)
-- **Email notifications** — Resend/SES adapter for `NotificationProvider` (port already exists)
-- **Analytics dashboard** — charts over `usage_events` (volume, busiest hours, answer rate,
-  lead conversion, unanswered-question digest)
-- **Knowledge ingestion** — file upload (PDF/DOCX) via `StorageProvider`, URL crawling
-- **Team management UI** — invite members, role management (schema already supports it)
-- **Multiple receptionists per business** + per-page targeting
-- **Streaming responses** — token streaming to the widget for faster perceived latency
+The V1 lifecycle platform shipped 2026-07-14. V2 turns "works end to end,
+log-delivered" into "carrier-grade in production":
+
+**Delivery (highest leverage — everything already routes through ports)**
+1. **Twilio `MessagingProvider`** — real SMS + WhatsApp (Cloud API); the whole
+   confirmation/reminder/journey pipeline lights up with one factory case.
+2. **Resend/SES email adapter** — real HTML email + ICS delivery; also covers
+   the lead-notification `NotificationProvider`.
+3. **OpsCorp `OpsProvider` adapter** — REST client for FSM tickets, jobs,
+   quotes, invoices, inventory reservations, payments (`ops_create` is live
+   against the log adapter today).
+
+**Lifecycle completeness**
+4. **Automatic no-show sweep** — cron flags confirmed appointments past
+   end + grace as no-shows (feeds the recovery journey without staff input).
+5. **Settings UI for lifecycle content** — location address, prep
+   instructions, intake-form editor, review URL, reminder schedules.
+6. **Staff & scheduling-settings management UI** + appointments calendar view.
+7. **Per-service catalog** — durations, prices (revenue attribution gets
+   exact), per-service intake forms and prep content.
+8. **Payments** — deposit at booking via a `payment` ops record / Stripe;
+   ties revenue attribution to real money movement.
+
+**Automation platform**
+9. **Run-history browser** in the automations UI (workflow_runs/logs are
+   already tenant-readable).
+10. **Condition editor + branching** — visual conditions; parallel branches
+    and per-branch error policy in the engine.
+11. **Native CRM adapters** (HubSpot, Salesforce) as first-class actions.
+12. **Per-tenant message templates + localization** (reminder/confirmation
+    copy is centralized in `confirmation-content.ts` ready to template).
+
+**Platform**
+13. **Redis rate limiting + timer/queue hardening** for multi-instance deploys.
+14. **Streaming responses** to the widget; server-side voice (Phase 3 pull-in).
+15. **E2E suite** — `supabase start` + Playwright over booking → manage link →
+    check-in → complete → survey → journey firing.
+16. **Knowledge ingestion** (PDF/DOCX upload, URL crawl) and team management UI.
 
 ## Phase 3+
 

@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-07-14 — Customer lifecycle platform
+
+Appointments became a complete customer journey — everything before, during,
+and after the visit. See [LIFECYCLE.md](LIFECYCLE.md).
+
+### Before the appointment
+- **Rich confirmations**: HTML email with manage/directions buttons and an
+  **ICS calendar attachment** (`src/lib/ics.ts` — RFC 5545 escaping/folding,
+  REQUEST/CANCEL methods); **WhatsApp** when the gateway supports it, SMS
+  otherwise. Messaging port gained `html` + `attachments`.
+- **Self-service manage page** (`/appt/<manage_token>`): reschedule
+  (server-derived slots only), cancel, check in, running-late, Google Maps
+  directions, prep instructions, **intake forms**, post-visit survey. Public
+  token-authenticated API under `/api/v1/appointments/:token`, rate-limited,
+  uuid tokens with unique index.
+- **Reminders** now carry the manage link, prep, and directions, and record
+  `reminder_sent`/`reminder_failed` for analytics.
+- Per-business lifecycle content on `scheduling_settings`:
+  `location_address`, `prep_instructions`, `intake_form`, `review_url`.
+
+### During the appointment
+- State machine expanded: `checked_in`, `running_late`, `in_progress` (slot
+  still held; exclusion constraint rebuilt). `AppointmentLifecycleService`
+  validates transitions, cancels reminders on terminal outcomes, and emits
+  `appointment.checked_in` / `appointment.completed` / `appointment.no_show`.
+- **`/dashboard/appointments`**: today/upcoming/past board with one-click
+  legal transitions.
+
+### After the appointment
+- Built-in **thank-you message** with survey link on completion.
+- **Satisfaction surveys** (`appointment_feedback`: 1–5 stars, optional NPS,
+  comment; one per appointment, resubmission revises) emitting
+  `feedback.received`; CRM stage advances to `customer` on completion.
+- **Journey templates** (booking journey, review-ask after 1 day + rebook
+  offer after 30, no-show recovery, unhappy-customer alert) installable from
+  the new **visual workflow builder** (`/dashboard/automations`), backed by
+  full workflow CRUD (`/api/workflows` + `/api/workflows/templates`).
+- New workflow actions: `request_review` (tracks `review_requested`),
+  `ops_create` — the **OpsCorp-ready `OpsProvider` port**
+  (`fsm_ticket`, `technician_job`, `quote`, `invoice`,
+  `inventory_reservation`, `payment`; `OPS_PROVIDER` factory, `log` adapter
+  shipped).
+- New triggers: `appointment.checked_in/completed/no_show`,
+  `feedback.received` — with always-on CRM timeline sync for each.
+
+### Customers & analytics
+- **`/dashboard/customers`**: searchable customer list (name/email/phone) +
+  per-customer **searchable timeline** (text + kind filters).
+- **Lifecycle analytics** (`/dashboard/analytics`,
+  `GET /api/analytics/lifecycle`): booking conversion, reminder success,
+  no-show rate, review rate, CLV, repeat customers, revenue attribution,
+  appointment utilization, peak booking hours, AI success rate — pure
+  formulas pinned by unit tests.
+- Migration `0010_customer_lifecycle.sql`; tests: 33 files / 283 passing.
+
 ## 2026-07-14 — Business automation platform
 
 ### Workflow engine (new)

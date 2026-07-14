@@ -1,5 +1,13 @@
 export type MessageChannel = "sms" | "whatsapp" | "email";
 
+/** A file attached to an outbound email (e.g. an .ics calendar invite). */
+export interface MessageAttachment {
+  filename: string;
+  contentType: string;
+  /** UTF-8 text content; providers base64-encode as their API requires. */
+  content: string;
+}
+
 export interface OutboundMessage {
   channel: MessageChannel;
   /** Phone number (sms/whatsapp) or email address. */
@@ -8,6 +16,10 @@ export interface OutboundMessage {
   body: string;
   /** Subject line, used by email-capable providers. */
   subject?: string;
+  /** Rich HTML alternative, used by email-capable providers. */
+  html?: string;
+  /** Attachments, used by email-capable providers; others ignore them. */
+  attachments?: MessageAttachment[];
 }
 
 /**

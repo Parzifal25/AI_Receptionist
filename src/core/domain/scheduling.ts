@@ -39,6 +39,23 @@ export interface SchedulingSettings {
   remindersEnabled: boolean;
   /** Lead times before the appointment when reminders fire, in minutes. */
   reminderLeadMinutes: number[];
+  /** Street address for confirmations and Google Maps directions links. */
+  locationAddress: string;
+  /** "How to prepare" copy included in confirmations and reminders. */
+  prepInstructions: string;
+  /** Pre-visit intake form the visitor fills in from the manage page. */
+  intakeForm: IntakeField[];
+  /** Where "leave us a review" requests point (Google/Yelp/…). */
+  reviewUrl: string;
+}
+
+/** One field of a business's pre-visit intake form. */
+export interface IntakeField {
+  /** Stable key answers are stored under. */
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "checkbox";
+  required: boolean;
 }
 
 export const DEFAULT_SCHEDULING_SETTINGS: Omit<SchedulingSettings, "businessId"> = {
@@ -51,6 +68,10 @@ export const DEFAULT_SCHEDULING_SETTINGS: Omit<SchedulingSettings, "businessId">
   holidays: [],
   remindersEnabled: true,
   reminderLeadMinutes: [24 * 60, 60],
+  locationAddress: "",
+  prepInstructions: "",
+  intakeForm: [],
+  reviewUrl: "",
 };
 
 /** A UTC time range. `start` inclusive, `end` exclusive. */
@@ -70,6 +91,9 @@ export interface TimeSlot {
 export type AppointmentStatus =
   | "pending"
   | "confirmed"
+  | "checked_in"
+  | "running_late"
+  | "in_progress"
   | "cancelled"
   | "completed"
   | "no_show";
@@ -91,8 +115,21 @@ export interface Appointment {
   status: AppointmentStatus;
   /** Event id in the external calendar, empty for internal-only. */
   externalEventId: string;
+  /** Capability credential for self-service manage/feedback/intake links. */
+  manageToken: string;
   notes: string;
   createdAt: string;
+}
+
+/** Post-appointment satisfaction survey / review feedback. */
+export interface AppointmentFeedback {
+  appointmentId: string;
+  businessId: string;
+  /** 1–5 stars. */
+  rating: number;
+  /** 0–10 "would you recommend us", optional. */
+  nps: number | null;
+  comment: string;
 }
 
 export interface AppointmentDraft {

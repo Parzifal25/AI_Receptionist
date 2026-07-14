@@ -20,6 +20,10 @@ const settings: SchedulingSettings = {
   holidays: [],
   remindersEnabled: true,
   reminderLeadMinutes: [60],
+  locationAddress: "",
+  prepInstructions: "",
+  intakeForm: [],
+  reviewUrl: "",
 };
 
 const businessHours = {

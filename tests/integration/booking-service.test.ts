@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BookingService } from "@/core/services/scheduling/booking-service";
+import { ConfirmationService } from "@/core/services/lifecycle/confirmation-service";
 import { SlotTakenError, type SchedulingRepository } from "@/core/services/scheduling/scheduling-repository";
 import type {
   Appointment,
@@ -57,6 +58,10 @@ function buildFakes(options: { bookingEnabled?: boolean } = {}) {
     holidays: [],
     remindersEnabled: true,
     reminderLeadMinutes: [24 * 60, 60],
+    locationAddress: "12 Main St, Springfield",
+    prepInstructions: "Please clear access to the unit.",
+    intakeForm: [],
+    reviewUrl: "",
   };
   const staff: StaffMember[] = [
     {
@@ -110,6 +115,7 @@ function buildFakes(options: { bookingEnabled?: boolean } = {}) {
         id: `a${idCounter}`,
         leadId: null,
         externalEventId: "",
+        manageToken: `00000000-0000-4000-8000-00000000000${idCounter}`,
         notes: draft.notes ?? "",
         createdAt: NOW.toISOString(),
         status,
@@ -180,9 +186,15 @@ function buildFakes(options: { bookingEnabled?: boolean } = {}) {
 
   // Recorded business events — bookings feed the workflow/CRM platform.
   const emitted: Array<{ type: string; payload: Record<string, unknown> }> = [];
-  const service = new BookingService(repository, messaging, undefined, async (input) => {
-    emitted.push({ type: input.type, payload: input.payload });
-  });
+  const service = new BookingService(
+    repository,
+    messaging,
+    undefined,
+    async (input) => {
+      emitted.push({ type: input.type, payload: input.payload });
+    },
+    new ConfirmationService(messaging, "http://app.test"),
+  );
   return { service, appointments, reminders, sent, events, emitted, repository };
 }
 
@@ -221,9 +233,13 @@ describe("BookingService", () => {
     expect(appointments[0].status).toBe("confirmed");
     // 24h reminder + 1h reminder, both still in the future.
     expect(reminders.filter((r) => r.status === "scheduled")).toHaveLength(2);
+    // Fake gateway supports WhatsApp, so the phone confirmation rides it.
     expect(sent).toHaveLength(1);
-    expect(sent[0].channel).toBe("sms");
+    expect(sent[0].channel).toBe("whatsapp");
     expect(sent[0].body).toContain("Tuesday, July 14 at 9:00 AM");
+    // Self-service manage link and prep instructions ride along.
+    expect(sent[0].body).toContain("http://app.test/appt/");
+    expect(sent[0].body).toContain("clear access");
     expect(events).toContain("appointment_booked");
     // The workflow/CRM platform hears about the booking.
     expect(emitted.map((e) => e.type)).toEqual(["appointment.created"]);
@@ -278,7 +294,8 @@ describe("BookingService", () => {
     // Old reminders cancelled, new ones scheduled.
     expect(reminders.some((r) => r.status === "cancelled")).toBe(true);
     expect(reminders.filter((r) => r.status === "scheduled")).toHaveLength(2);
-    expect(sent.some((m) => m.body.includes("moved"))).toBe(true);
+    // The reschedule confirmation carries the new time.
+    expect(sent.some((m) => m.body.includes("Wednesday, July 15 at 9:00 AM"))).toBe(true);
   });
 
   it("rejects bookings violating validation rules", async () => {

@@ -33,6 +33,11 @@ const serverEnvSchema = z.object({
   // the application log; real gateways (Twilio, ...) plug in via the factory.
   MESSAGING_PROVIDER: z.enum(["log"]).default("log"),
 
+  // Back-office operations back-end (FSM tickets, jobs, quotes, invoices,
+  // inventory, payments) used by the ops_create workflow action. "log"
+  // records requests; an OpsCorp adapter plugs in via the factory.
+  OPS_PROVIDER: z.enum(["log"]).default("log"),
+
   // OAuth app credentials for tenant calendar connections (optional until a
   // tenant connects the corresponding provider).
   GOOGLE_CLIENT_ID: z.string().optional(),

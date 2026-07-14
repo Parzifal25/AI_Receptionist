@@ -12,6 +12,10 @@ export const BUSINESS_EVENT_TYPES = [
   "appointment.created",
   "appointment.rescheduled",
   "appointment.cancelled",
+  "appointment.checked_in",
+  "appointment.completed",
+  "appointment.no_show",
+  "feedback.received",
   "lead.created",
   "lead.updated",
   "conversation.started",
@@ -47,6 +51,8 @@ export const WORKFLOW_ACTION_TYPES = [
   "crm_record_revenue",
   "schedule_followup",
   "track_analytics",
+  "request_review",
+  "ops_create",
 ] as const;
 
 export type WorkflowActionType = (typeof WORKFLOW_ACTION_TYPES)[number];

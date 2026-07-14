@@ -60,7 +60,7 @@ The database is the arbiter, not application code. Migration
 ```sql
 constraint appointments_no_overlap exclude using gist (
   staff_id with =, tstzrange(starts_at, ends_at) with &&
-) where (status in ('pending', 'confirmed'))
+) where (status in ('pending', 'confirmed', 'checked_in', 'running_late', 'in_progress'))
 ```
 
 Two visitors confirming the same slot concurrently resolve to exactly one
@@ -138,9 +138,20 @@ provider), `CRON_SECRET` (authorizes `/api/cron/reminders`).
 - `booking-orchestrator.test.ts` — conversation bridge: context detection, slot injection, confirmed booking before reply, slot-taken recovery, reschedule-not-double-book, cancel fast path.
 - `chat-service.test.ts` — booking context reaches the prompt; bookings force lead capture.
 
+## Beyond the booking: the customer lifecycle
+
+Everything around the appointment — HTML confirmations with ICS attachments,
+WhatsApp/SMS, self-service reschedule/cancel links (`/appt/<manage_token>`),
+directions, prep instructions, intake forms, day-of status tracking
+(`checked_in`, `running_late`, `in_progress`), thank-yous, satisfaction
+surveys, review/rebook journeys, and lifecycle analytics — lives in the
+lifecycle layer. See [LIFECYCLE.md](LIFECYCLE.md). The state machine in
+`appointment-state.ts` and migration `0010_customer_lifecycle.sql` are the
+scheduling-side anchors.
+
 ## Known limits / next steps
 
-1. No dashboard UI for staff, scheduling settings, or appointments — the engine is API/data complete, the management surface isn't. (Google Calendar connect IS built, on the Settings page; Outlook/CalDAV connect flows are not.)
+1. No dashboard UI for staff or scheduling settings — the engine is API/data complete. Appointments now have a day-of tracking board (`/dashboard/appointments`); staff/settings management is still SQL/API. (Google Calendar connect IS built, on the Settings page; Outlook/CalDAV connect flows are not.)
 2. ~~Exact clock times~~ solved: `parseWhen` parses "tomorrow at 10 AM", "2:30pm", "14:00", "noon" into a one-hour slot filter (`exactTime`), and the orchestrator answers a fully-booked exact time with the next three real openings instead of a dead end.
 3. Reminder copy is fixed English; per-tenant templates and the visitor's language are a natural extension.
 4. No per-service durations — one slot length per business today (`services` catalog is the schema-level next step).

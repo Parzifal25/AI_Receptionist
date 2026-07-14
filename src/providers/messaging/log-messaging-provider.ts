@@ -21,6 +21,8 @@ export class LogMessagingProvider implements MessagingProvider {
       to: message.to,
       subject: message.subject ?? "",
       body: message.body,
+      hasHtml: Boolean(message.html),
+      attachments: (message.attachments ?? []).map((a) => a.filename),
     });
   }
 }

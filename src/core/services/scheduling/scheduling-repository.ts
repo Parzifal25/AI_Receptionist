@@ -2,15 +2,18 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Appointment,
+  AppointmentFeedback,
   AppointmentDraft,
   AppointmentReminder,
   AppointmentStatus,
   BusyInterval,
+  IntakeField,
   ReminderChannel,
   SchedulingSettings,
   StaffMember,
 } from "@/core/domain/scheduling";
 import { DEFAULT_SCHEDULING_SETTINGS } from "@/core/domain/scheduling";
+import { ACTIVE_STATUSES } from "./appointment-state";
 import type { CalendarConnection } from "@/providers/calendar/factory";
 import { AppError } from "@/core/errors/app-error";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -43,7 +46,7 @@ export class SchedulingRepository {
     const { data, error } = await this.db
       .from("scheduling_settings")
       .select(
-        "booking_enabled, timezone, slot_duration_minutes, buffer_minutes, min_notice_minutes, max_advance_days, holidays, reminders_enabled, reminder_lead_minutes",
+        "booking_enabled, timezone, slot_duration_minutes, buffer_minutes, min_notice_minutes, max_advance_days, holidays, reminders_enabled, reminder_lead_minutes, location_address, prep_instructions, intake_form, review_url",
       )
       .eq("business_id", businessId)
       .maybeSingle();
@@ -66,6 +69,10 @@ export class SchedulingRepository {
       reminderLeadMinutes: Array.isArray(data.reminder_lead_minutes)
         ? data.reminder_lead_minutes
         : [...DEFAULT_SCHEDULING_SETTINGS.reminderLeadMinutes],
+      locationAddress: data.location_address ?? "",
+      prepInstructions: data.prep_instructions ?? "",
+      intakeForm: Array.isArray(data.intake_form) ? (data.intake_form as IntakeField[]) : [],
+      reviewUrl: data.review_url ?? "",
     };
   }
 
@@ -102,7 +109,7 @@ export class SchedulingRepository {
       .from("appointments")
       .select("staff_id, starts_at, ends_at")
       .eq("business_id", businessId)
-      .in("status", ["pending", "confirmed"])
+      .in("status", ACTIVE_STATUSES)
       .lt("starts_at", toISO)
       .gt("ends_at", fromISO);
 
@@ -166,7 +173,7 @@ export class SchedulingRepository {
       .from("appointments")
       .select("*")
       .eq("conversation_id", conversationId)
-      .in("status", ["pending", "confirmed"])
+      .in("status", ACTIVE_STATUSES)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -221,6 +228,40 @@ export class SchedulingRepository {
       log.error("appointment reschedule failed", { error: error.message });
       throw AppError.internal();
     }
+  }
+
+  /** Token-scoped lookup for the public self-service manage surface. */
+  async getAppointmentByToken(manageToken: string): Promise<Appointment | null> {
+    const { data, error } = await this.db
+      .from("appointments")
+      .select("*")
+      .eq("manage_token", manageToken)
+      .maybeSingle();
+    if (error) {
+      log.error("appointment-by-token lookup failed", { error: error.message });
+      throw AppError.internal();
+    }
+    return data ? mapAppointment(data) : null;
+  }
+
+  /** Appointments in a window for the dashboard day board. */
+  async listAppointments(
+    businessId: string,
+    fromISO: string,
+    toISO: string,
+  ): Promise<Appointment[]> {
+    const { data, error } = await this.db
+      .from("appointments")
+      .select("*")
+      .eq("business_id", businessId)
+      .gte("starts_at", fromISO)
+      .lt("starts_at", toISO)
+      .order("starts_at", { ascending: true });
+    if (error) {
+      log.error("appointment list failed", { error: error.message });
+      throw AppError.internal();
+    }
+    return (data ?? []).map(mapAppointment);
   }
 
   async setExternalEventId(appointmentId: string, externalEventId: string): Promise<void> {
@@ -323,6 +364,76 @@ export class SchedulingRepository {
     if (error) log.warn("reminder error-record failed", { error: error.message });
   }
 
+  // --- Feedback & intake ------------------------------------------------------
+
+  /** Insert-or-update: resubmitting the survey revises the earlier answer. */
+  async upsertFeedback(feedback: AppointmentFeedback): Promise<void> {
+    const { error } = await this.db.from("appointment_feedback").upsert(
+      {
+        appointment_id: feedback.appointmentId,
+        business_id: feedback.businessId,
+        rating: feedback.rating,
+        nps: feedback.nps,
+        comment: feedback.comment.slice(0, 2000),
+      },
+      { onConflict: "appointment_id" },
+    );
+    if (error) {
+      log.error("feedback upsert failed", { error: error.message });
+      throw AppError.internal();
+    }
+  }
+
+  async getFeedback(appointmentId: string): Promise<AppointmentFeedback | null> {
+    const { data, error } = await this.db
+      .from("appointment_feedback")
+      .select("appointment_id, business_id, rating, nps, comment")
+      .eq("appointment_id", appointmentId)
+      .maybeSingle();
+    if (error) {
+      log.error("feedback lookup failed", { error: error.message });
+      throw AppError.internal();
+    }
+    if (!data) return null;
+    return {
+      appointmentId: data.appointment_id,
+      businessId: data.business_id,
+      rating: data.rating,
+      nps: data.nps,
+      comment: data.comment,
+    };
+  }
+
+  async upsertIntakeResponse(
+    appointmentId: string,
+    businessId: string,
+    answers: Record<string, string | boolean>,
+  ): Promise<void> {
+    const { error } = await this.db.from("intake_responses").upsert(
+      { appointment_id: appointmentId, business_id: businessId, answers },
+      { onConflict: "appointment_id" },
+    );
+    if (error) {
+      log.error("intake upsert failed", { error: error.message });
+      throw AppError.internal();
+    }
+  }
+
+  async getIntakeResponse(
+    appointmentId: string,
+  ): Promise<Record<string, string | boolean> | null> {
+    const { data, error } = await this.db
+      .from("intake_responses")
+      .select("answers")
+      .eq("appointment_id", appointmentId)
+      .maybeSingle();
+    if (error) {
+      log.error("intake lookup failed", { error: error.message });
+      throw AppError.internal();
+    }
+    return data ? (data.answers as Record<string, string | boolean>) : null;
+  }
+
   // --- Calendar connections ---------------------------------------------------
 
   /** The connection for a staff member (falls back to the business-level one). */
@@ -377,7 +488,17 @@ export class SchedulingRepository {
   /** Fire-and-forget analytics, mirroring WidgetRepository.trackEvent. */
   async trackEvent(
     businessId: string,
-    eventType: "appointment_booked" | "appointment_rescheduled" | "appointment_cancelled",
+    eventType:
+      | "appointment_booked"
+      | "appointment_rescheduled"
+      | "appointment_cancelled"
+      | "appointment_checked_in"
+      | "appointment_completed"
+      | "appointment_no_show"
+      | "reminder_sent"
+      | "reminder_failed"
+      | "review_requested"
+      | "feedback_received",
     metadata: Record<string, unknown> = {},
   ): Promise<void> {
     const { error } = await this.db.from("usage_events").insert({
@@ -404,6 +525,7 @@ function mapAppointment(row: {
   timezone: string;
   status: string;
   external_event_id: string;
+  manage_token: string;
   notes: string;
   created_at: string;
 }): Appointment {
@@ -422,6 +544,7 @@ function mapAppointment(row: {
     timezone: row.timezone,
     status: row.status as Appointment["status"],
     externalEventId: row.external_event_id,
+    manageToken: row.manage_token,
     notes: row.notes,
     createdAt: row.created_at,
   };

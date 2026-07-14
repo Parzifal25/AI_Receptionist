@@ -142,6 +142,46 @@ workflow must belong to the caller's business. Optional JSON body becomes
 the payload of a synthetic `manual` event. Returns **200**
 `{ "data": { "started": true } }`.
 
+### Workflow CRUD & templates
+
+Dashboard session required; writes are admin-only.
+
+- `GET /api/workflows` — list the business's workflows.
+- `POST /api/workflows` — create; body is a workflow definition without
+  `id`/`businessId`/`version` (validated by `workflowDefinitionSchema`).
+- `GET /api/workflows/:id` / `PATCH` (partial update, bumps `version`) /
+  `DELETE`.
+- `GET /api/workflows/templates` — built-in journey template gallery.
+- `POST /api/workflows/templates` — `{ "templateId": "...", "variables": {…} }`
+  installs a template's workflows. **201** with the created definitions.
+
+### `GET /api/analytics/lifecycle?days=30`
+
+Dashboard session required. Customer-lifecycle metrics for the caller's
+business over the trailing period (`days` 1–365, default 30): booking
+conversion, reminder success, no-show rate, review rate, CLV, repeat
+customers, revenue, utilization, peak booking hours, AI success rate.
+See [LIFECYCLE.md](LIFECYCLE.md#analytics).
+
+### Appointment self-service (public, token-authenticated)
+
+The `manage_token` in confirmation/reminder links is the entire credential.
+Rate-limited per IP; malformed and unknown tokens both return **404**.
+
+- `GET /api/v1/appointments/:token` — appointment facts, business contact,
+  directions/prep content, intake form + submission state, feedback state,
+  and (while the appointment is live) reschedule slots.
+- `POST /api/v1/appointments/:token` — body is one of
+  `{ "action": "cancel", "reason?" }`,
+  `{ "action": "reschedule", "startsAt", "staffId" }` (slot must come from
+  the offered list; conflicts return **409** with fresh guidance),
+  `{ "action": "check_in" }`, `{ "action": "running_late" }`.
+- `POST /api/v1/appointments/:token/feedback` —
+  `{ "rating": 1–5, "nps?": 0–10, "comment?" }`; valid once the visit
+  happened. Emits `feedback.received`.
+- `POST /api/v1/appointments/:token/intake` — `{ "answers": {fieldId: value} }`
+  validated against the business's intake form.
+
 ---
 
 ## Appointment booking (in-conversation)

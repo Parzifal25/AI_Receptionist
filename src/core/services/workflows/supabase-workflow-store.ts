@@ -105,6 +105,73 @@ export class SupabaseWorkflowStore implements WorkflowStore {
     return data ? rowToWorkflow(data) : null;
   }
 
+  // --- Definition CRUD (dashboard workflow builder) --------------------------
+
+  async listWorkflows(businessId: string): Promise<WorkflowDefinition[]> {
+    const { data, error } = await this.db
+      .from("workflows")
+      .select("*")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(`list all workflows: ${error.message}`);
+    return (data ?? [])
+      .map(rowToWorkflow)
+      .filter((workflow): workflow is WorkflowDefinition => workflow !== null);
+  }
+
+  async createWorkflow(
+    draft: Omit<WorkflowDefinition, "id" | "version">,
+  ): Promise<WorkflowDefinition> {
+    const { data, error } = await this.db
+      .from("workflows")
+      .insert({
+        business_id: draft.businessId,
+        name: draft.name,
+        description: draft.description,
+        trigger: draft.trigger,
+        enabled: draft.enabled,
+        conditions: draft.conditions,
+        steps: draft.steps,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(`create workflow: ${error.message}`);
+    const workflow = rowToWorkflow(data);
+    if (!workflow) throw new Error("created workflow failed validation");
+    return workflow;
+  }
+
+  /** Definition changes bump version so runs record what they executed. */
+  async updateWorkflow(
+    id: string,
+    businessId: string,
+    patch: Partial<Pick<WorkflowDefinition, "name" | "description" | "trigger" | "enabled" | "conditions" | "steps">>,
+    currentVersion: number,
+  ): Promise<void> {
+    const row: Record<string, unknown> = { version: currentVersion + 1 };
+    if (patch.name !== undefined) row.name = patch.name;
+    if (patch.description !== undefined) row.description = patch.description;
+    if (patch.trigger !== undefined) row.trigger = patch.trigger;
+    if (patch.enabled !== undefined) row.enabled = patch.enabled;
+    if (patch.conditions !== undefined) row.conditions = patch.conditions;
+    if (patch.steps !== undefined) row.steps = patch.steps;
+    const { error } = await this.db
+      .from("workflows")
+      .update(row)
+      .eq("id", id)
+      .eq("business_id", businessId);
+    if (error) throw new Error(`update workflow: ${error.message}`);
+  }
+
+  async deleteWorkflow(id: string, businessId: string): Promise<void> {
+    const { error } = await this.db
+      .from("workflows")
+      .delete()
+      .eq("id", id)
+      .eq("business_id", businessId);
+    if (error) throw new Error(`delete workflow: ${error.message}`);
+  }
+
   async createRun(run: {
     workflowId: string;
     businessId: string;

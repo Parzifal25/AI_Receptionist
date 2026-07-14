@@ -86,3 +86,9 @@ export const widgetConfigLimiter = createMemoryRateLimiter({
   limit: 60,
   windowMs: 60_000,
 });
+
+/** Public appointment self-service (manage/feedback/intake) endpoints. */
+export const appointmentManageLimiter = createMemoryRateLimiter({
+  limit: 30,
+  windowMs: 60_000,
+});

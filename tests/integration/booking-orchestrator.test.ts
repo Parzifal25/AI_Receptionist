@@ -51,6 +51,7 @@ const appointment: Appointment = {
   timezone: "America/New_York",
   status: "confirmed",
   externalEventId: "",
+  manageToken: "11111111-1111-4111-8111-111111111111",
   notes: "",
   createdAt: NOW.toISOString(),
 };

@@ -186,3 +186,99 @@ describe("schedule_followup", () => {
     );
   });
 });
+
+describe("request_review", () => {
+  it("messages the review link and records the ask for analytics", async () => {
+    const messaging = fakeMessaging();
+    const tracked: Array<{ type: string; metadata: Record<string, unknown> }> = [];
+    const actions = createActionRegistry({
+      messaging,
+      crm: stubCrm,
+      store: new InMemoryWorkflowStore(),
+      trackUsage: async (_businessId, eventType, metadata) => {
+        tracked.push({ type: eventType, metadata });
+      },
+    });
+
+    const result = await actions.request_review!(
+      { to: "ada@example.com", channel: "email", reviewUrl: "https://g.page/r/x/review" },
+      ctx,
+    );
+
+    expect(messaging.sent).toHaveLength(1);
+    expect(messaging.sent[0].channel).toBe("email");
+    expect(messaging.sent[0].body).toContain("https://g.page/r/x/review");
+    expect(tracked).toEqual([
+      { type: "review_requested", metadata: { correlationId: "conv-1", channel: "email" } },
+    ]);
+    expect(result).toMatchObject({ to: "ada@example.com" });
+  });
+
+  it("requires a review URL", async () => {
+    const actions = registry();
+    await expect(actions.request_review!({ to: "ada@example.com" }, ctx)).rejects.toThrow(
+      /reviewUrl/,
+    );
+  });
+});
+
+describe("ops_create", () => {
+  const fakeOps = () => {
+    const created: Array<Record<string, unknown>> = [];
+    return {
+      created,
+      provider: {
+        name: "fake-ops",
+        supports: (kind: string) => kind !== "payment",
+        createRecord: async (input: Record<string, unknown>) => {
+          created.push(input);
+          return { externalId: "ext-1" };
+        },
+      },
+    };
+  };
+
+  it("creates a back-office record through the OpsProvider port", async () => {
+    const ops = fakeOps();
+    const actions = createActionRegistry({
+      messaging: fakeMessaging(),
+      crm: stubCrm,
+      store: new InMemoryWorkflowStore(),
+      ops: ops.provider as never,
+    });
+
+    const result = await actions.ops_create!(
+      {
+        kind: "fsm_ticket",
+        email: "ada@example.com",
+        data: { summary: "AC not cooling", priority: "high" },
+      },
+      ctx,
+    );
+
+    expect(ops.created).toHaveLength(1);
+    expect(ops.created[0]).toMatchObject({
+      kind: "fsm_ticket",
+      businessId: "biz-1",
+      correlationId: "conv-1",
+      customer: { email: "ada@example.com" },
+      data: { summary: "AC not cooling", priority: "high" },
+    });
+    expect(result).toMatchObject({ kind: "fsm_ticket", externalId: "ext-1", provider: "fake-ops" });
+  });
+
+  it("rejects unknown kinds and unsupported kinds", async () => {
+    const ops = fakeOps();
+    const actions = createActionRegistry({
+      messaging: fakeMessaging(),
+      crm: stubCrm,
+      store: new InMemoryWorkflowStore(),
+      ops: ops.provider as never,
+    });
+    await expect(actions.ops_create!({ kind: "spaceship" }, ctx)).rejects.toThrow(/must be one of/);
+    await expect(actions.ops_create!({ kind: "payment" }, ctx)).rejects.toThrow(
+      /does not support payment/,
+    );
+    expect(ops.created).toHaveLength(0);
+  });
+});
