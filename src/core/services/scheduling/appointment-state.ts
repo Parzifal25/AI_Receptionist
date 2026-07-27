@@ -41,6 +41,14 @@ export const ACTIVE_STATUSES: AppointmentStatus[] = [
 /** Terminal statuses — nothing further can happen to the appointment. */
 export const TERMINAL_STATUSES: AppointmentStatus[] = ["cancelled", "completed", "no_show"];
 
+/**
+ * Statuses the automatic no-show sweep may act on: the visitor never
+ * arrived as far as the system knows. `checked_in` and `in_progress` are
+ * excluded on purpose — someone demonstrably showed up, so only staff may
+ * close those out.
+ */
+export const SWEEPABLE_STATUSES: AppointmentStatus[] = ["pending", "confirmed", "running_late"];
+
 export function canTransition(from: AppointmentStatus, to: AppointmentStatus): boolean {
   return TRANSITIONS[from]?.includes(to) ?? false;
 }

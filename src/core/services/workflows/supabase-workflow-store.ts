@@ -6,6 +6,7 @@ import {
   type BusinessEventType,
   type WorkflowDefinition,
   type WorkflowRun,
+  type WorkflowRunStatus,
   type WorkflowStepLog,
 } from "@/core/domain/workflow";
 import type { WorkflowStore } from "./types";
@@ -226,6 +227,68 @@ export class SupabaseWorkflowStore implements WorkflowStore {
       detail: entry.detail,
     });
     if (error) throw new Error(`append workflow log: ${error.message}`);
+  }
+
+  /**
+   * Run history for the automations UI. Read-side only — deliberately not
+   * part of the WorkflowStore contract the engine depends on, so the
+   * in-memory test store stays focused on execution semantics.
+   *
+   * Tenant scope is applied here (service-role client); `workflowId` is
+   * additionally constrained by business_id so a foreign id reveals nothing.
+   */
+  async listRuns(
+    businessId: string,
+    options: { workflowId?: string; status?: WorkflowRunStatus; limit?: number } = {},
+  ): Promise<Array<WorkflowRun & { createdAt: string; finishedAt: string | null }>> {
+    let query = this.db
+      .from("workflow_runs")
+      .select("*")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(Math.min(Math.max(options.limit ?? 50, 1), 200));
+
+    if (options.workflowId) query = query.eq("workflow_id", options.workflowId);
+    if (options.status) query = query.eq("status", options.status);
+
+    const { data, error } = await query;
+    if (error) throw new Error(`list workflow runs: ${error.message}`);
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+      ...rowToRun(row),
+      createdAt: row.created_at as string,
+      finishedAt: (row.finished_at as string | null) ?? null,
+    }));
+  }
+
+  /** Per-step log for one run, verified to belong to the caller's business. */
+  async listRunLogs(
+    businessId: string,
+    runId: string,
+  ): Promise<Array<WorkflowStepLog & { createdAt: string }>> {
+    const { data: run, error: runError } = await this.db
+      .from("workflow_runs")
+      .select("id")
+      .eq("id", runId)
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (runError) throw new Error(`load workflow run: ${runError.message}`);
+    if (!run) return [];
+
+    const { data, error } = await this.db
+      .from("workflow_run_logs")
+      .select("run_id, step_id, attempt, status, detail, created_at")
+      .eq("run_id", runId)
+      .order("id", { ascending: true })
+      .limit(200);
+    if (error) throw new Error(`list workflow run logs: ${error.message}`);
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+      runId: row.run_id as string,
+      stepId: row.step_id as string,
+      attempt: row.attempt as number,
+      status: row.status as WorkflowStepLog["status"],
+      detail: (row.detail as Record<string, unknown>) ?? {},
+      createdAt: row.created_at as string,
+    }));
   }
 
   async claimDueRuns(limit: number): Promise<WorkflowRun[]> {

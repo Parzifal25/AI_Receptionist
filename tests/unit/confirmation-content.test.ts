@@ -41,6 +41,8 @@ const settings: SchedulingSettings = {
   prepInstructions: "Please clear access to the unit.",
   intakeForm: [{ id: "issue", label: "Describe the issue", type: "text", required: true }],
   reviewUrl: "https://g.page/cool-air/review",
+  autoNoShowEnabled: false,
+  noShowGraceMinutes: 30,
 };
 
 const appointment: Appointment = {

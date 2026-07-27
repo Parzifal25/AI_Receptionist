@@ -47,6 +47,14 @@ export interface SchedulingSettings {
   intakeForm: IntakeField[];
   /** Where "leave us a review" requests point (Google/Yelp/…). */
   reviewUrl: string;
+  /**
+   * Whether the cron sweep may flip overdue appointments to no_show.
+   * Opt-in: a business that does not work the appointments board would
+   * otherwise have every past visit marked a no-show.
+   */
+  autoNoShowEnabled: boolean;
+  /** Minutes after an appointment's END before the sweep calls it a no-show. */
+  noShowGraceMinutes: number;
 }
 
 /** One field of a business's pre-visit intake form. */
@@ -72,6 +80,8 @@ export const DEFAULT_SCHEDULING_SETTINGS: Omit<SchedulingSettings, "businessId">
   prepInstructions: "",
   intakeForm: [],
   reviewUrl: "",
+  autoNoShowEnabled: false,
+  noShowGraceMinutes: 30,
 };
 
 /** A UTC time range. `start` inclusive, `end` exclusive. */

@@ -24,6 +24,8 @@ const settings: SchedulingSettings = {
   prepInstructions: "",
   intakeForm: [],
   reviewUrl: "",
+  autoNoShowEnabled: false,
+  noShowGraceMinutes: 30,
 };
 
 const businessHours = {

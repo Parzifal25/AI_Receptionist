@@ -94,6 +94,12 @@ Notes:
   failed workflow runs (same `CRON_SECRET`). Inbound webhook triggers
   (`POST /api/hooks/:businessId`) stay disabled per tenant until
   `business_settings.workflow_webhook_secret` is set. See [WORKFLOWS.md](WORKFLOWS.md).
+- **Automatic no-shows**: `vercel.json` registers a 15-minute cron hitting
+  `/api/cron/no-shows` (same `CRON_SECRET`). It only touches businesses that turned the
+  sweep on in Settings → Customer lifecycle, and only appointments nobody checked in whose
+  end time plus the grace period has passed. Every sweep emits `appointment.no_show`, so a
+  recovery journey reaches the customer without staff input. See
+  [LIFECYCLE.md](LIFECYCLE.md#during-the-appointment).
 - **Calendar connections**: if any tenant will connect Google Calendar or Outlook, set
   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and/or `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET`
   (OAuth app credentials from each platform's developer console) before they try to connect.
@@ -125,7 +131,7 @@ Notes:
 - [ ] Custom domain + HTTPS
 - [ ] Backup policy confirmed on Supabase (PITR on paid tiers)
 - [ ] Rate limiter upgraded to Redis if running multiple instances
-- [ ] `CRON_SECRET` set so the data-retention purge, reminder delivery, and workflow processing crons run and are authenticated
+- [ ] `CRON_SECRET` set so the data-retention purge, reminder delivery, workflow processing, and no-show sweep crons run and are authenticated
 - [ ] `MESSAGING_PROVIDER` set to a real gateway if appointment reminders/confirmations must reach visitors (default `log` does not send anything)
 - [ ] Migration `0008` applied and the `appointments_no_overlap` exclusion constraint verified present, if scheduling is in use
 - [ ] `supabase migration list` (or `psql`'s `supabase_migrations.schema_migrations`) shows every file in `supabase/migrations/` as applied — not just the ones a partial `db push` happened to reach

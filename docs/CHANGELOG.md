@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-07-27 — Lifecycle automation & operability
+
+Closes the gaps the V1 lifecycle platform left open: the parts of the
+journey that still needed a human, a SQL client, or a log tail.
+
+### Before the appointment
+- **Lifecycle settings editor** (`/dashboard/settings/lifecycle`): location
+  address, prep instructions, intake-form builder, review link, reminder
+  schedule (`2d, 24h, 90m` shorthand), and the no-show sweep — previously
+  SQL-only. Parsing rules live in a pure module
+  (`core/services/lifecycle/lifecycle-settings.ts`): https-only review links,
+  unique and safe intake ids, deduped/sorted reminder times, and id
+  round-tripping so re-saving a form never orphans stored intake answers.
+
+### During the appointment
+- **Automatic no-show sweep** — `/api/cron/no-shows` (every 15 min) flips
+  appointments nobody arrived for to `no_show`, opt-in per business, with a
+  grace period measured from the appointment's end. Never touches
+  `checked_in`/`in_progress`. Goes through the normal transition, so
+  reminders are cancelled, analytics recorded, and `appointment.no_show`
+  emitted — which drives the recovery journey with no staff input.
+  Migration `0011_lifecycle_automation.sql` adds the settings and a partial
+  index over exactly the sweep's predicate.
+
+### After the appointment
+- **Related-service upsell** journey template (completed → 7 days → offer +
+  timeline entry) and **Periodic rebooking** (completed → the tenant's own
+  `cadenceDays` → "you're due" invite).
+- `schedule_followup` accepts `delayDays` for cadence-shaped journeys,
+  capped at one year.
+
+### Timeline & automation
+- **Ops records reach the customer timeline** — tickets, jobs, quotes,
+  invoices, reservations, and payments created via `ops_create` now appear
+  on the customer's timeline, and a `payment` with a positive amount is
+  attributed as revenue. Best-effort by design: throwing after the
+  downstream record exists would make the engine retry and double-create it.
+- **Run-history browser** in Automations plus `GET /api/workflows/runs` and
+  `GET /api/workflows/runs/:runId` — recent runs by status, expandable into
+  per-step logs. Journeys are no longer only observable through log drains.
+
+### Tests
+320 passing (up from 283): the sweep rule's every branch, lifecycle-settings
+parsing, day-cadence timers, and `ops_create` timeline/revenue/failure paths.
+
 ## 2026-07-14 — Customer lifecycle platform
 
 Appointments became a complete customer journey — everything before, during,

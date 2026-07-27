@@ -13,7 +13,8 @@ import type {
   StaffMember,
 } from "@/core/domain/scheduling";
 import { DEFAULT_SCHEDULING_SETTINGS } from "@/core/domain/scheduling";
-import { ACTIVE_STATUSES } from "./appointment-state";
+import type { LifecycleSettingsPatch } from "@/core/services/lifecycle/lifecycle-settings";
+import { ACTIVE_STATUSES, SWEEPABLE_STATUSES } from "./appointment-state";
 import type { CalendarConnection } from "@/providers/calendar/factory";
 import { AppError } from "@/core/errors/app-error";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -46,7 +47,7 @@ export class SchedulingRepository {
     const { data, error } = await this.db
       .from("scheduling_settings")
       .select(
-        "booking_enabled, timezone, slot_duration_minutes, buffer_minutes, min_notice_minutes, max_advance_days, holidays, reminders_enabled, reminder_lead_minutes, location_address, prep_instructions, intake_form, review_url",
+        "booking_enabled, timezone, slot_duration_minutes, buffer_minutes, min_notice_minutes, max_advance_days, holidays, reminders_enabled, reminder_lead_minutes, location_address, prep_instructions, intake_form, review_url, auto_no_show_enabled, no_show_grace_minutes",
       )
       .eq("business_id", businessId)
       .maybeSingle();
@@ -73,7 +74,61 @@ export class SchedulingRepository {
       prepInstructions: data.prep_instructions ?? "",
       intakeForm: Array.isArray(data.intake_form) ? (data.intake_form as IntakeField[]) : [],
       reviewUrl: data.review_url ?? "",
+      autoNoShowEnabled: data.auto_no_show_enabled ?? false,
+      noShowGraceMinutes:
+        data.no_show_grace_minutes ?? DEFAULT_SCHEDULING_SETTINGS.noShowGraceMinutes,
     };
+  }
+
+  /**
+   * Writes the tenant-editable lifecycle settings. Upserts so a business
+   * that has never opened the scheduling settings still gets a row, with the
+   * booking-engine columns left at their defaults.
+   */
+  async updateLifecycleSettings(
+    businessId: string,
+    patch: LifecycleSettingsPatch,
+  ): Promise<void> {
+    const { error } = await this.db.from("scheduling_settings").upsert(
+      {
+        business_id: businessId,
+        location_address: patch.locationAddress,
+        prep_instructions: patch.prepInstructions,
+        review_url: patch.reviewUrl,
+        intake_form: patch.intakeForm,
+        reminders_enabled: patch.remindersEnabled,
+        reminder_lead_minutes: patch.reminderLeadMinutes,
+        auto_no_show_enabled: patch.autoNoShowEnabled,
+        no_show_grace_minutes: patch.noShowGraceMinutes,
+      },
+      { onConflict: "business_id" },
+    );
+    if (error) {
+      log.error("lifecycle settings update failed", { error: error.message });
+      throw AppError.internal();
+    }
+  }
+
+  /**
+   * Appointments the no-show sweep should consider: still live (nobody
+   * checked them in or closed them out) and already over. Oldest first, so a
+   * backlog of not-yet-past-grace rows can never starve genuinely overdue
+   * ones out of the batch. Cross-tenant by design — the caller applies each
+   * business's own grace period.
+   */
+  async listOverdueLiveAppointments(nowISO: string, limit = 100): Promise<Appointment[]> {
+    const { data, error } = await this.db
+      .from("appointments")
+      .select("*")
+      .in("status", SWEEPABLE_STATUSES)
+      .lt("ends_at", nowISO)
+      .order("ends_at", { ascending: true })
+      .limit(limit);
+    if (error) {
+      log.error("overdue appointment lookup failed", { error: error.message });
+      throw AppError.internal();
+    }
+    return (data ?? []).map(mapAppointment);
   }
 
   async listActiveStaff(businessId: string): Promise<StaffMember[]> {

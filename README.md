@@ -32,9 +32,11 @@ n8n, Make, …), follow-ups, and CRM updates.
   pipeline stages, activity timeline, revenue attribution
 - **Customer lifecycle** — HTML/ICS/WhatsApp confirmations, self-service reschedule/cancel/
   check-in links, intake forms, day-of tracking (checked in → in progress → completed),
-  thank-yous, satisfaction surveys, review & rebook journeys, lifecycle analytics
+  automatic no-shows, thank-yous, satisfaction surveys, review/upsell/rebook journeys,
+  lifecycle analytics
 - **Conversation history** — full transcripts with linked leads
-- **Settings** — allowed embed domains, lead notifications
+- **Settings** — allowed embed domains, lead notifications, and the customer-lifecycle
+  editor (prep instructions, intake form builder, reminder schedules, review link)
 - **Analytics** — usage event stream, overview stats, and a lifecycle dashboard (conversion,
   no-shows, reminder success, CLV, repeat rate, peak hours, AI success rate)
 - **Security** — Postgres Row Level Security per tenant, rate limiting, CORS allow-listing,

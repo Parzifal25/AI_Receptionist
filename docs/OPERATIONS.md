@@ -12,8 +12,9 @@ to do when something is stuck. Deployment itself is
 | `/api/cron/retention` | daily 03:00 | Purges conversations/analytics past each tenant's retention window | yes |
 | `/api/cron/reminders` | every 5 min | Delivers due appointment reminders | yes (SKIP LOCKED) |
 | `/api/cron/workflows` | every 5 min | Fires due workflow timers, retries failed runs | yes (SKIP LOCKED) |
+| `/api/cron/no-shows` | every 15 min | Marks overdue appointments as no-shows for tenants that opted in | yes (swept rows go terminal) |
 
-All three require `CRON_SECRET` as a bearer token; Vercel Cron sends it
+All four require `CRON_SECRET` as a bearer token; Vercel Cron sends it
 automatically. On other hosts, schedule authenticated GETs yourself. A
 misconfigured secret returns 500/401 and logs at `error` — alert on it.
 

@@ -185,6 +185,27 @@ describe("schedule_followup", () => {
       /delayMinutes/,
     );
   });
+
+  it("accepts a cadence in days, including the string a template variable produces", async () => {
+    const store = new InMemoryWorkflowStore();
+    const actions = createActionRegistry({
+      messaging: fakeMessaging(),
+      crm: stubCrm,
+      store,
+    });
+
+    await actions.schedule_followup!({ delayDays: "90", reason: "periodic-rebook" }, ctx);
+
+    const ninetyDaysMs = 90 * 24 * 60 * 60_000;
+    const fireAt = Date.parse(store.timers[0].fireAt);
+    expect(fireAt).toBeGreaterThan(Date.now() + ninetyDaysMs - 60_000);
+    expect(fireAt).toBeLessThan(Date.now() + ninetyDaysMs + 60_000);
+  });
+
+  it("refuses to park a timer beyond a year", async () => {
+    const actions = registry();
+    await expect(actions.schedule_followup!({ delayDays: 400 }, ctx)).rejects.toThrow(/one-year/);
+  });
 });
 
 describe("request_review", () => {
@@ -265,6 +286,121 @@ describe("ops_create", () => {
       data: { summary: "AC not cooling", priority: "high" },
     });
     expect(result).toMatchObject({ kind: "fsm_ticket", externalId: "ext-1", provider: "fake-ops" });
+  });
+
+  /** CRM that records what the action wrote, for timeline assertions. */
+  const recordingCrm = () => {
+    const timeline: Array<{ kind: string; title: string; detail?: Record<string, unknown> }> = [];
+    const revenue: number[] = [];
+    const crm = new CrmService({
+      findByEmail: async () => null,
+      findByPhone: async () => null,
+      insert: async (businessId, draft) => ({
+        id: "cust-1",
+        businessId,
+        ...draft,
+        totalAppointments: 0,
+        revenueTotal: 0,
+      }),
+      update: async (_id, patch) => {
+        if (patch.revenueTotal !== undefined) revenue.push(patch.revenueTotal);
+      },
+      markMerged: async () => undefined,
+      appendTimeline: async (_businessId, _customerId, entry) => {
+        timeline.push(entry);
+      },
+    } satisfies CrmStore);
+    return { crm, timeline, revenue };
+  };
+
+  it("puts the back-office record on the customer timeline", async () => {
+    const ops = fakeOps();
+    const { crm, timeline } = recordingCrm();
+    const actions = createActionRegistry({
+      messaging: fakeMessaging(),
+      crm,
+      store: new InMemoryWorkflowStore(),
+      ops: ops.provider as never,
+    });
+
+    const result = await actions.ops_create!(
+      { kind: "invoice", email: "ada@example.com", data: { amount: 240 } },
+      ctx,
+    );
+
+    expect(result).toMatchObject({ timelined: true });
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0].kind).toBe("invoice");
+    expect(timeline[0].title).toContain("Invoice");
+    expect(timeline[0].title).toContain("ext-1");
+    expect(timeline[0].detail).toMatchObject({ externalId: "ext-1", provider: "fake-ops" });
+  });
+
+  it("attributes a recorded payment as revenue, but never a quote", async () => {
+    const paying = {
+      name: "pay-ops",
+      supports: () => true,
+      createRecord: async () => ({ externalId: "pay-1" }),
+    };
+    const forPayment = recordingCrm();
+    const forQuote = recordingCrm();
+
+    await createActionRegistry({
+      messaging: fakeMessaging(),
+      crm: forPayment.crm,
+      store: new InMemoryWorkflowStore(),
+      ops: paying as never,
+    }).ops_create!({ kind: "payment", email: "ada@example.com", data: { amount: 120 } }, ctx);
+
+    await createActionRegistry({
+      messaging: fakeMessaging(),
+      crm: forQuote.crm,
+      store: new InMemoryWorkflowStore(),
+      ops: paying as never,
+    }).ops_create!({ kind: "quote", email: "ada@example.com", data: { amount: 990 } }, ctx);
+
+    expect(forPayment.revenue).toEqual([120]);
+    expect(forQuote.revenue).toEqual([]);
+  });
+
+  it("skips the timeline when the journey knows no customer identity", async () => {
+    const ops = fakeOps();
+    const { crm, timeline } = recordingCrm();
+    const actions = createActionRegistry({
+      messaging: fakeMessaging(),
+      crm,
+      store: new InMemoryWorkflowStore(),
+      ops: ops.provider as never,
+    });
+
+    const result = await actions.ops_create!({ kind: "fsm_ticket", data: {} }, ctx);
+
+    expect(result).toMatchObject({ externalId: "ext-1", timelined: false });
+    expect(timeline).toHaveLength(0);
+  });
+
+  it("still succeeds when the timeline write fails — a retry would double-create the record", async () => {
+    const ops = fakeOps();
+    const brokenCrm = new CrmService({
+      findByEmail: async () => null,
+      findByPhone: async () => null,
+      insert: async () => {
+        throw new Error("crm is down");
+      },
+      update: async () => undefined,
+      markMerged: async () => undefined,
+      appendTimeline: async () => undefined,
+    } satisfies CrmStore);
+
+    const result = await createActionRegistry({
+      messaging: fakeMessaging(),
+      crm: brokenCrm,
+      store: new InMemoryWorkflowStore(),
+      ops: ops.provider as never,
+    }).ops_create!({ kind: "fsm_ticket", email: "ada@example.com", data: {} }, ctx);
+
+    expect(ops.created).toHaveLength(1);
+    expect(result).toMatchObject({ externalId: "ext-1", timelined: false });
   });
 
   it("rejects unknown kinds and unsupported kinds", async () => {

@@ -122,6 +122,11 @@ Policy knobs: timezone (IANA), `slot_duration_minutes`, `buffer_minutes`,
 `min_notice_minutes`, `max_advance_days`, `holidays` (YYYY-MM-DD array),
 `reminders_enabled`, `reminder_lead_minutes`.
 
+Those booking-engine knobs are still SQL/API. The **customer-facing** half of
+the same table — reminder schedule, location address, prep instructions,
+intake form, review link, and the automatic no-show sweep — is edited at
+`/dashboard/settings/lifecycle` (see [LIFECYCLE.md](LIFECYCLE.md)).
+
 Env: `MESSAGING_PROVIDER` (default `log`), `GOOGLE_CLIENT_ID/SECRET`,
 `MICROSOFT_CLIENT_ID/SECRET` (only needed once a tenant connects that
 provider), `CRON_SECRET` (authorizes `/api/cron/reminders`).
@@ -151,7 +156,7 @@ scheduling-side anchors.
 
 ## Known limits / next steps
 
-1. No dashboard UI for staff or scheduling settings — the engine is API/data complete. Appointments now have a day-of tracking board (`/dashboard/appointments`); staff/settings management is still SQL/API. (Google Calendar connect IS built, on the Settings page; Outlook/CalDAV connect flows are not.)
+1. No dashboard UI for staff or the booking-engine settings (timezone, slot length, buffers, notice, holidays) — the engine is API/data complete. Appointments have a day-of tracking board (`/dashboard/appointments`) and the customer-facing lifecycle settings have an editor (`/dashboard/settings/lifecycle`); staff and slot policy are still SQL/API. (Google Calendar connect IS built, on the Settings page; Outlook/CalDAV connect flows are not.)
 2. ~~Exact clock times~~ solved: `parseWhen` parses "tomorrow at 10 AM", "2:30pm", "14:00", "noon" into a one-hour slot filter (`exactTime`), and the orchestrator answers a fully-booked exact time with the next three real openings instead of a dead end.
 3. Reminder copy is fixed English; per-tenant templates and the visitor's language are a natural extension.
 4. No per-service durations — one slot length per business today (`services` catalog is the schema-level next step).

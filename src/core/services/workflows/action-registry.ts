@@ -6,6 +6,19 @@ import type { ActionContext, ActionRegistry, WorkflowStore } from "./types";
 import type { CrmService, CustomerStage } from "@/core/services/crm/crm-service";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
+import { logger } from "@/lib/logger";
+
+const log = logger.child({ service: "workflow-actions" });
+
+/** Human labels for ops records on the customer timeline. */
+const OPS_RECORD_LABELS: Record<OpsRecordKind, string> = {
+  fsm_ticket: "Service ticket",
+  technician_job: "Technician job",
+  quote: "Quote",
+  invoice: "Invoice",
+  inventory_reservation: "Inventory reservation",
+  payment: "Payment",
+};
 
 /**
  * The built-in workflow actions. Every action talks to a port (messaging),
@@ -163,10 +176,21 @@ export function createActionRegistry(deps: {
       return { customerId: customer.id, amount };
     },
 
+    /**
+     * Arms a timer that re-enters the engine as `followup.due`. The delay is
+     * given in minutes, or in days for cadence-shaped journeys ("invite them
+     * back every 90 days") where a minute count would be unreadable — days
+     * win when both are supplied. Capped at a year so a templated variable
+     * can never park a timer beyond any plausible retention window.
+     */
     schedule_followup: async (params, ctx) => {
-      const delayMinutes = Number(params.delayMinutes);
+      const days = Number(params.delayDays);
+      const delayMinutes = Number.isFinite(days) && days > 0 ? days * 1440 : Number(params.delayMinutes);
       if (!Number.isFinite(delayMinutes) || delayMinutes <= 0) {
-        throw new Error(`schedule_followup needs a positive "delayMinutes"`);
+        throw new Error(`schedule_followup needs a positive "delayMinutes" or "delayDays"`);
+      }
+      if (delayMinutes > 365 * 1440) {
+        throw new Error(`schedule_followup delay exceeds the one-year maximum`);
       }
       const fireAt = new Date(Date.now() + delayMinutes * 60_000).toISOString();
       await store.scheduleTimer({
@@ -230,18 +254,55 @@ export function createActionRegistry(deps: {
         params.data && typeof params.data === "object" && !Array.isArray(params.data)
           ? (params.data as Record<string, unknown>)
           : {};
+      const email = str(params.email) || undefined;
+      const phone = str(params.phone) || undefined;
       const result = await ops.createRecord({
         kind,
         businessId: ctx.businessId,
         correlationId: ctx.correlationId,
-        customer: {
-          name: str(params.name) || undefined,
-          email: str(params.email) || undefined,
-          phone: str(params.phone) || undefined,
-        },
+        customer: { name: str(params.name) || undefined, email, phone },
         data,
       });
-      return { kind, externalId: result.externalId, provider: ops.name };
+
+      // The downstream record now exists. Mirroring it onto the customer
+      // timeline is best-effort on purpose: throwing here would make the
+      // engine retry the step and create a SECOND ticket/invoice/payment.
+      let timelined = false;
+      if (email || phone) {
+        try {
+          const { customer } = await crm.upsertCustomer(ctx.businessId, {
+            name: str(params.name) || undefined,
+            email,
+            phone,
+          });
+          await crm.recordTimeline(ctx.businessId, customer.id, {
+            kind,
+            title: `${OPS_RECORD_LABELS[kind]} created (${result.externalId})`,
+            detail: {
+              externalId: result.externalId,
+              provider: ops.name,
+              eventId: ctx.event.id,
+              ...data,
+            },
+            occurredAt: ctx.event.occurredAt,
+          });
+          // A recorded payment is money that actually moved — attribute it
+          // so lifetime value and revenue reporting stay honest.
+          const amount = Number(data.amount);
+          if (kind === "payment" && Number.isFinite(amount) && amount > 0) {
+            await crm.recordRevenue(customer, amount);
+          }
+          timelined = true;
+        } catch (error) {
+          log.warn("ops record created but not timelined", {
+            kind,
+            externalId: result.externalId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      return { kind, externalId: result.externalId, provider: ops.name, timelined };
     },
 
     track_analytics: async (params, ctx) => {

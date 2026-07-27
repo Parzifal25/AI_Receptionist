@@ -272,7 +272,188 @@ export function AutomationsClient({
           ))}
         </ul>
       </section>
+
+      <RunHistory workflows={workflows} />
     </div>
+  );
+}
+
+const RUN_STATUS_STYLES: Record<string, string> = {
+  succeeded: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  failed: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  dead_letter: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+  running: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300",
+  pending: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  skipped: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+};
+
+interface RunRow {
+  id: string;
+  workflowId: string;
+  status: string;
+  attempt: number;
+  maxAttempts: number;
+  currentStep: number;
+  correlationId: string;
+  error: string;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+interface RunLogRow {
+  stepId: string;
+  attempt: number;
+  status: string;
+  detail: Record<string, unknown>;
+  createdAt: string;
+}
+
+/**
+ * What the journeys actually did. Loaded on demand rather than with the
+ * page: most visits to this screen are about building a workflow, not
+ * auditing one, and run history is the largest table here.
+ */
+function RunHistory({ workflows }: { workflows: WorkflowDefinition[] }) {
+  const [runs, setRuns] = useState<RunRow[] | null>(null);
+  const [logs, setLogs] = useState<Record<string, RunLogRow[]>>({});
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [failure, setFailure] = useState("");
+
+  const names = useMemo(
+    () => Object.fromEntries(workflows.map((w) => [w.id, w.name])),
+    [workflows],
+  );
+
+  const load = async (status: string) => {
+    setLoading(true);
+    setFailure("");
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    const response = await fetch(`/api/workflows/runs${query}`);
+    const payload = await response.json().catch(() => null);
+    setLoading(false);
+    if (!response.ok) {
+      setFailure(payload?.error?.message ?? "Could not load run history");
+      return;
+    }
+    setRuns(payload?.data?.runs ?? []);
+  };
+
+  const toggle = async (runId: string) => {
+    if (expanded === runId) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(runId);
+    if (logs[runId]) return;
+    const response = await fetch(`/api/workflows/runs/${runId}`);
+    const payload = await response.json().catch(() => null);
+    if (response.ok) setLogs((current) => ({ ...current, [runId]: payload?.data?.logs ?? [] }));
+  };
+
+  return (
+    <section className={card}>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            Run history
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            Every time a journey fired — and what each step did.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            className={inputCls}
+            value={filter}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              void load(event.target.value);
+            }}
+          >
+            <option value="">All runs</option>
+            <option value="succeeded">Succeeded</option>
+            <option value="failed">Failed (retrying)</option>
+            <option value="dead_letter">Dead letter</option>
+            <option value="skipped">Skipped (conditions)</option>
+            <option value="running">Running</option>
+          </select>
+          <button className={btnSecondary} disabled={loading} onClick={() => void load(filter)}>
+            {loading ? "Loading…" : runs === null ? "Load" : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      {failure && (
+        <p className="px-6 py-4 text-sm text-red-700 dark:text-red-300">{failure}</p>
+      )}
+
+      {runs === null ? (
+        <p className="px-6 py-6 text-sm text-slate-500 dark:text-slate-400">
+          Load the history to see recent journey executions.
+        </p>
+      ) : runs.length === 0 ? (
+        <p className="px-6 py-6 text-sm text-slate-500 dark:text-slate-400">
+          No runs yet{filter ? " with that status" : ""}.
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-200 dark:divide-slate-800">
+          {runs.map((run) => (
+            <li key={run.id} className="px-6 py-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-slate-900 dark:text-slate-100">
+                    {names[run.workflowId] ?? "Deleted workflow"}
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                    {new Date(run.createdAt).toLocaleString()}
+                    {run.attempt > 1 && ` · attempt ${run.attempt}/${run.maxAttempts}`}
+                    {run.error && ` · ${run.error}`}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    RUN_STATUS_STYLES[run.status] ?? RUN_STATUS_STYLES.pending
+                  }`}
+                >
+                  {run.status.replace("_", " ")}
+                </span>
+                <button className={btnSecondary} onClick={() => void toggle(run.id)}>
+                  {expanded === run.id ? "Hide steps" : "Steps"}
+                </button>
+              </div>
+
+              {expanded === run.id && (
+                <ol className="mt-3 space-y-1.5 border-l-2 border-slate-200 pl-4 dark:border-slate-700">
+                  {(logs[run.id] ?? []).map((entry, index) => (
+                    <li key={index} className="text-sm">
+                      <span className="font-medium text-slate-900 dark:text-slate-100">
+                        {entry.stepId}
+                      </span>{" "}
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {entry.status}
+                        {entry.attempt > 1 && ` (attempt ${entry.attempt})`}
+                      </span>
+                      {Object.keys(entry.detail).length > 0 && (
+                        <pre className="mt-1 overflow-x-auto rounded bg-slate-50 p-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {JSON.stringify(entry.detail, null, 2)}
+                        </pre>
+                      )}
+                    </li>
+                  ))}
+                  {(logs[run.id] ?? []).length === 0 && (
+                    <li className="text-sm text-slate-500 dark:text-slate-400">
+                      No steps logged — the run never got past its conditions.
+                    </li>
+                  )}
+                </ol>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

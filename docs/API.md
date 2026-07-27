@@ -155,6 +155,19 @@ Dashboard session required; writes are admin-only.
 - `POST /api/workflows/templates` — `{ "templateId": "...", "variables": {…} }`
   installs a template's workflows. **201** with the created definitions.
 
+### Workflow run history
+
+Dashboard session required; read-only, so members see it too.
+
+- `GET /api/workflows/runs?workflowId=&status=&limit=` — recent runs for the
+  caller's business, newest first (`limit` 1–200, default 50; `status` is one
+  of `pending|running|succeeded|failed|skipped|dead_letter`). Each row carries
+  status, attempt/maxAttempts, the step the run reached, correlation id, the
+  last error, and timestamps.
+- `GET /api/workflows/runs/:runId` — the per-step log for one run (step id,
+  attempt, status, and the executor's returned detail). A run belonging to
+  another business returns an empty log rather than a distinguishable 404.
+
 ### `GET /api/analytics/lifecycle?days=30`
 
 Dashboard session required. Customer-lifecycle metrics for the caller's

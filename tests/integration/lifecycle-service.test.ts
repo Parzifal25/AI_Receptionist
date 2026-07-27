@@ -49,6 +49,8 @@ const settings: SchedulingSettings = {
   prepInstructions: "",
   intakeForm: [],
   reviewUrl: "https://g.page/cool-air/review",
+  autoNoShowEnabled: false,
+  noShowGraceMinutes: 30,
 };
 
 function makeAppointment(status: AppointmentStatus, startsAt = "2026-07-14T13:00:00.000Z"): Appointment {

@@ -103,7 +103,7 @@ placeholder keeps its raw type.
 | `crm_upsert_customer` | Create/update a CRM customer | `name`, `email`, `phone`, `stage`, `source` |
 | `crm_record_timeline` | Append a timeline entry (upserts the customer first) | `title`, `kind`, `email`/`phone` |
 | `crm_record_revenue` | Attribute revenue to a customer | `amount`, `email`/`phone` |
-| `schedule_followup` | Fire a `followup.due` event later (timer) | `delayMinutes`, `reason` |
+| `schedule_followup` | Fire a `followup.due` event later (timer) | `delayMinutes` **or** `delayDays` (cadence journeys; days win, max 1 year), `reason` |
 | `track_analytics` | Record a `workflow_custom` usage event | `name` |
 | `request_review` | Message a public-review link and record `review_requested` for analytics | `to`, `reviewUrl`, `channel`, `body?` |
 | `ops_create` | Create one back-office record through the `OpsProvider` port | `kind`, `data`, `name`/`email`/`phone` |
@@ -120,7 +120,12 @@ types in `action-registry.ts` without engine changes.
 `OpsProvider` port (`src/core/ports/ops-provider.ts`, selected by
 `OPS_PROVIDER`). `kind` is one of `fsm_ticket`, `technician_job`, `quote`,
 `invoice`, `inventory_reservation`, `payment`; `data` carries the
-kind-specific fields verbatim. The shipped `log` provider records requests
+kind-specific fields verbatim. A record that names a customer is also
+mirrored onto that customer's timeline, and a `payment` with a positive
+`data.amount` is attributed as revenue; that mirroring is best-effort by
+design, because throwing after the downstream record exists would make the
+engine retry and create a second one (`timelined: false` in the step log
+marks the rare miss). The shipped `log` provider records requests
 (journeys stay fully exercisable); an OpsCorp REST adapter is a new factory
 case (`src/providers/ops/factory.ts`) — workflows, the engine, and every
 journey definition stay untouched when the back-end changes.
@@ -130,8 +135,10 @@ journey definition stay untouched when the back-end changes.
 `src/core/services/workflows/templates.ts` ships ready-made lifecycle
 journeys — **Booking journey** (booked → welcome → 24 h check-in),
 **Review & follow-up** (completed → 1 day → review ask → 30 days → rebook
-offer), **No-show recovery**, and **Unhappy customer alert** (rating < 4 →
-timeline flag). A template that waits is two workflows: one schedules a
+offer), **Related-service upsell** (completed → 7 days → offer + timeline
+entry), **Periodic rebooking** (completed → the tenant's own `cadenceDays`
+→ "you're due" invite), **No-show recovery**, and **Unhappy customer alert**
+(rating < 4 → timeline flag). A template that waits is two workflows: one schedules a
 timer (`schedule_followup`), a `followup.due`-triggered companion (matched
 by `payload.reason`) continues — waits survive deploys because the timer
 lives in Postgres. `{{var.*}}` placeholders (e.g. the review URL) are filled
@@ -142,6 +149,13 @@ visual builder: a vertical trigger → step → step flow with parameter
 editing, template gallery, enable/disable, and delete, backed by the CRUD
 API below. Admin-only for writes; members see read-only.
 
+Below the builder, **Run history** answers "did it actually fire?": recent
+runs filtered by status (succeeded / failed-retrying / dead letter / skipped
+/ running), each expandable into its per-step log with the executor's
+returned detail and the failure reason. It loads on demand rather than with
+the page — most visits here are about building a journey, not auditing one,
+and runs are the largest table on the screen.
+
 | Endpoint | What |
 |---|---|
 | `GET /api/workflows` | List the business's workflows |
@@ -149,6 +163,8 @@ API below. Admin-only for writes; members see read-only.
 | `GET/PATCH/DELETE /api/workflows/:id` | Read / update (version bump) / delete (admin) |
 | `GET /api/workflows/templates` | Template gallery |
 | `POST /api/workflows/templates` | Install a template's workflows (admin) |
+| `GET /api/workflows/runs` | Run history, filterable by `workflowId` / `status` |
+| `GET /api/workflows/runs/:runId` | Per-step log for one run |
 | `POST /api/workflows/:id/run` | Manual trigger (admin) |
 
 ## Retries, timeouts, dead letters
@@ -211,7 +227,9 @@ identity (email or phone):
   step timeout, unregistered action, timer firing, tenant/trigger isolation.
 - `workflow-actions.test.ts` — messaging delivery + channel guards, webhook
   envelope/headers/Slack/Discord formats, non-2xx = failure, https-only,
-  follow-up timer scheduling.
+  follow-up timer scheduling (minutes and day cadences, one-year cap), and
+  `ops_create` timeline mirroring / payment attribution / survival of a CRM
+  outage.
 - `workflow-interpolate.test.ts` — path resolution, templates, every
   condition operator.
 - `crm-service.test.ts` — normalization, create/update, phone matching,
@@ -220,10 +238,9 @@ identity (email or phone):
 
 ## Known limits / next steps
 
-1. No dashboard UI for defining workflows or browsing runs/customers yet —
-   the platform is API/data complete (RLS read policies are already in
-   place), the management surface isn't. Definitions are inserted via
-   service-role tooling today.
+1. Conditions are still API-only — the visual builder edits triggers and
+   steps, but a workflow's `conditions` array has no editor and is set via
+   the CRUD API or a template install.
 2. Bookings don't carry prices, so automatic revenue attribution needs the
    `services` catalog (per-service durations + prices) planned in
    SCHEDULING.md; until then revenue arrives via `crm_record_revenue`.

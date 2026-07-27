@@ -154,6 +154,138 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     ],
   },
   {
+    id: "service-upsell",
+    name: "Related-service upsell",
+    description:
+      "Appointment completed → wait 7 days → offer a related service, and log the offer on the customer's timeline.",
+    variables: [
+      {
+        key: "serviceName",
+        label: "Service to offer",
+        example: "Annual maintenance plan",
+        required: true,
+      },
+      {
+        key: "offerDetails",
+        label: "One line about the offer",
+        example: "Two tune-ups a year plus priority scheduling, for $180.",
+        required: true,
+      },
+    ],
+    workflows: [
+      {
+        name: "Upsell — schedule the offer",
+        description: "Waits a week after the visit so the offer lands after the work is judged.",
+        trigger: "appointment.completed",
+        enabled: true,
+        conditions: [{ path: "payload.visitorEmail", op: "exists" }],
+        steps: [
+          {
+            id: "schedule-upsell",
+            action: "schedule_followup",
+            params: { delayDays: "7", reason: "upsell-offer" },
+          },
+        ],
+      },
+      {
+        name: "Upsell — related service offer",
+        description: "Sends the offer and records it against the customer.",
+        trigger: "followup.due",
+        enabled: true,
+        conditions: [{ path: "payload.reason", op: "eq", value: "upsell-offer" }],
+        steps: [
+          {
+            id: "upsell-email",
+            action: "send_email",
+            params: {
+              to: "{{event.payload.original.visitorEmail}}",
+              subject: "Something that pairs well with your {{event.payload.original.serviceName}}",
+              body: "Hi {{event.payload.original.visitorName}}, now that your {{event.payload.original.serviceName}} is done, our {{var.serviceName}} is a natural next step. {{var.offerDetails}} Just reply if you'd like it.",
+            },
+          },
+          {
+            id: "log-upsell",
+            action: "crm_record_timeline",
+            params: {
+              email: "{{event.payload.original.visitorEmail}}",
+              phone: "{{event.payload.original.visitorPhone}}",
+              name: "{{event.payload.original.visitorName}}",
+              kind: "upsell",
+              title: "Offered {{var.serviceName}}",
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "periodic-rebook",
+    name: "Periodic rebooking",
+    description:
+      "Appointment completed → wait one service interval → invite the customer back for their next routine visit.",
+    variables: [
+      {
+        key: "cadenceDays",
+        label: "Days between routine visits",
+        example: "90",
+        required: true,
+      },
+      {
+        key: "serviceName",
+        label: "Recurring service",
+        example: "seasonal system check",
+        required: true,
+      },
+    ],
+    workflows: [
+      {
+        name: "Periodic rebooking — arm the cadence",
+        description: "Starts the service-interval timer as soon as a visit completes.",
+        trigger: "appointment.completed",
+        enabled: true,
+        conditions: [{ path: "payload.visitorEmail", op: "exists" }],
+        steps: [
+          {
+            id: "schedule-cadence",
+            action: "schedule_followup",
+            // Quoted on purpose: template variables substitute into JSON
+            // strings; schedule_followup coerces the delay numerically.
+            params: { delayDays: "{{var.cadenceDays}}", reason: "periodic-rebook" },
+          },
+        ],
+      },
+      {
+        name: "Periodic rebooking — invite",
+        description: "Invites the customer back when their interval is up.",
+        trigger: "followup.due",
+        enabled: true,
+        conditions: [{ path: "payload.reason", op: "eq", value: "periodic-rebook" }],
+        steps: [
+          {
+            id: "rebook-invite",
+            action: "send_email",
+            params: {
+              to: "{{event.payload.original.visitorEmail}}",
+              subject: "You're due for your {{var.serviceName}}",
+              body: "Hi {{event.payload.original.visitorName}}, it's been about {{var.cadenceDays}} days since your last visit — time for your {{var.serviceName}}. Reply with a day that suits you and we'll get you booked.",
+            },
+          },
+          {
+            id: "log-rebook-offer",
+            action: "crm_record_timeline",
+            params: {
+              email: "{{event.payload.original.visitorEmail}}",
+              phone: "{{event.payload.original.visitorPhone}}",
+              name: "{{event.payload.original.visitorName}}",
+              kind: "rebook_offer",
+              title: "Invited back for {{var.serviceName}}",
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     id: "no-show-recovery",
     name: "No-show recovery",
     description: "Marked no-show → friendly rebooking nudge.",

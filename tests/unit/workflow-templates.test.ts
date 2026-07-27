@@ -46,6 +46,37 @@ describe("workflow templates", () => {
     expect(offer.steps[0].action).toBe("send_email");
   });
 
+  it("upsell journey waits a week, then offers and logs the related service", () => {
+    const template = getTemplate("service-upsell")!;
+    const [start, offer] = template.workflows;
+    expect(start.trigger).toBe("appointment.completed");
+    expect(start.steps[0].params.delayDays).toBe("7");
+    expect(offer.steps.map((s) => s.action)).toEqual(["send_email", "crm_record_timeline"]);
+
+    const drafts = instantiateTemplate(template, {
+      serviceName: "Annual maintenance plan",
+      offerDetails: "Two tune-ups a year for $180.",
+    });
+    const flattened = JSON.stringify(drafts);
+    expect(flattened).toContain("Annual maintenance plan");
+    expect(flattened).toContain("Two tune-ups a year for $180.");
+    expect(flattened).not.toContain("{{var.");
+  });
+
+  it("periodic rebooking arms the tenant's own service cadence", () => {
+    const drafts = instantiateTemplate(getTemplate("periodic-rebook")!, {
+      cadenceDays: "90",
+      serviceName: "seasonal system check",
+    });
+    // The cadence lands as a string — schedule_followup coerces it.
+    expect(drafts[0].steps[0].params).toMatchObject({
+      delayDays: "90",
+      reason: "periodic-rebook",
+    });
+    expect(drafts[1].trigger).toBe("followup.due");
+    expect(JSON.stringify(drafts[1])).toContain("seasonal system check");
+  });
+
   it("rejects a missing required variable", () => {
     const template = getTemplate("post-visit-review")!;
     expect(() => instantiateTemplate(template, {})).toThrow(/reviewUrl/);

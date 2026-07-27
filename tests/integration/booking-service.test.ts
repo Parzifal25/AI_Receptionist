@@ -62,6 +62,8 @@ function buildFakes(options: { bookingEnabled?: boolean } = {}) {
     prepInstructions: "Please clear access to the unit.",
     intakeForm: [],
     reviewUrl: "",
+    autoNoShowEnabled: false,
+    noShowGraceMinutes: 30,
   };
   const staff: StaffMember[] = [
     {

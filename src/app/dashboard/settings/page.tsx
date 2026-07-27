@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireBusiness } from "@/lib/auth";
 import { getServerEnv } from "@/lib/env";
 import { googleRedirectUri } from "@/app/api/oauth/google-calendar/shared";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { SettingsForm } from "@/features/settings/settings-form";
 import { CalendarConnectionCard } from "@/features/settings/calendar-connection-card";
 
@@ -43,6 +45,20 @@ export default async function SettingsPage({
           Security and notification preferences for your workspace.
         </p>
       </div>
+      <Card>
+        <CardHeader
+          title="Customer lifecycle"
+          description="Directions, prep instructions, intake form, reminder schedule, review link, and automatic no-shows."
+        />
+        <CardBody>
+          <Link
+            href="/dashboard/settings/lifecycle"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+          >
+            Configure lifecycle content →
+          </Link>
+        </CardBody>
+      </Card>
       <CalendarConnectionCard
         connected={calendar !== null}
         connectedAt={calendar?.created_at ?? null}

@@ -21,13 +21,25 @@
   rebook journey templates, a visual workflow builder, searchable customers + timeline,
   appointments board, lifecycle analytics dashboard, and the OpsCorp-ready `OpsProvider`
   port. See [LIFECYCLE.md](LIFECYCLE.md).
+- **Lifecycle automation & operability** — automatic no-show sweep (opt-in, grace measured
+  from the appointment's end), the lifecycle settings editor (prep, intake builder, review
+  link, reminder schedules), upsell and periodic-rebooking journeys, ops records on the
+  customer timeline with payment revenue attribution, and the workflow run-history browser.
 - **Voice reliability** — microphone permission pre-flight, spaced recognition retries,
   network-specific and secure-context-aware fallbacks, Chrome synthesis workarounds.
 
 ## Version 2 roadmap
 
-The V1 lifecycle platform shipped 2026-07-14. V2 turns "works end to end,
-log-delivered" into "carrier-grade in production":
+The V1 lifecycle platform shipped 2026-07-14; lifecycle automation and
+operability closed its gaps on 2026-07-27 (no-show sweep, lifecycle settings
+editor, upsell/rebook journeys, ops records on the timeline, run history).
+
+**The one thing that matters most:** every customer-facing message in this
+product is currently written to a log file. The lifecycle, journey, and
+analytics machinery is complete and tested end to end, but until items 1–2
+ship, no customer has actually received anything. Everything else on this
+list is an improvement; those two are the difference between a working
+demo and a working business.
 
 **Delivery (highest leverage — everything already routes through ports)**
 1. **Twilio `MessagingProvider`** — real SMS + WhatsApp (Cloud API); the whole
@@ -36,33 +48,36 @@ log-delivered" into "carrier-grade in production":
    the lead-notification `NotificationProvider`.
 3. **OpsCorp `OpsProvider` adapter** — REST client for FSM tickets, jobs,
    quotes, invoices, inventory reservations, payments (`ops_create` is live
-   against the log adapter today).
+   against the log adapter today, and already timelines what it creates).
 
 **Lifecycle completeness**
-4. **Automatic no-show sweep** — cron flags confirmed appointments past
-   end + grace as no-shows (feeds the recovery journey without staff input).
-5. **Settings UI for lifecycle content** — location address, prep
-   instructions, intake-form editor, review URL, reminder schedules.
-6. **Staff & scheduling-settings management UI** + appointments calendar view.
-7. **Per-service catalog** — durations, prices (revenue attribution gets
+4. **Staff & booking-policy management UI** + appointments calendar view
+   (timezone, slot length, buffers, notice, holidays, staff hours are the
+   last SQL-only surface).
+5. **Per-service catalog** — durations, prices (revenue attribution gets
    exact), per-service intake forms and prep content.
-8. **Payments** — deposit at booking via a `payment` ops record / Stripe;
-   ties revenue attribution to real money movement.
+6. **Payments** — deposit at booking via a `payment` ops record / Stripe;
+   ties revenue attribution to real money movement end to end.
+7. **Per-lead-time reminder channels** — the schema already carries a channel
+   per reminder row ("SMS at 24h, email at 1h"); only the chooser is missing.
+8. **Business-timezone day boundaries** on the appointments board and the
+   analytics period (server clock today — fine same-region, wrong globally).
 
 **Automation platform**
-9. **Run-history browser** in the automations UI (workflow_runs/logs are
-   already tenant-readable).
-10. **Condition editor + branching** — visual conditions; parallel branches
-    and per-branch error policy in the engine.
-11. **Native CRM adapters** (HubSpot, Salesforce) as first-class actions.
-12. **Per-tenant message templates + localization** (reminder/confirmation
-    copy is centralized in `confirmation-content.ts` ready to template).
+9. **Condition editor + branching** — visual conditions; parallel branches
+   and per-branch error policy in the engine.
+10. **Native CRM adapters** (HubSpot, Salesforce) as first-class actions.
+11. **Per-tenant message templates + localization** — `confirmation-content.ts`
+    centralizes every string ready to template; the conversational layer
+    already mirrors the visitor's language, the lifecycle layer does not.
+12. **Journey analytics** — per-workflow conversion (offers sent → rebooked),
+    so the upsell and rebook journeys can be judged, not just run.
 
 **Platform**
 13. **Redis rate limiting + timer/queue hardening** for multi-instance deploys.
 14. **Streaming responses** to the widget; server-side voice (Phase 3 pull-in).
 15. **E2E suite** — `supabase start` + Playwright over booking → manage link →
-    check-in → complete → survey → journey firing.
+    check-in → complete → survey → journey firing → no-show sweep.
 16. **Knowledge ingestion** (PDF/DOCX upload, URL crawl) and team management UI.
 
 ## Phase 3+
@@ -106,8 +121,12 @@ log-delivered" into "carrier-grade in production":
    remove the need for escaping entirely.
 6. **E2E coverage** — RLS policies and API routes are manually tested; add a `supabase start` +
    Playwright suite in CI.
-7. **No scheduling dashboard** — staff, scheduling settings, and calendar OAuth connections are
-   configured directly in the database today; the booking engine is complete but has no
-   management UI yet.
+7. **Partial scheduling dashboard** — customer-facing lifecycle settings have an editor
+   (`/dashboard/settings/lifecycle`) and Google Calendar has a connect flow, but staff rows
+   and booking policy (timezone, slot length, buffers, notice, holidays) are still configured
+   directly in the database.
 8. **Reminder/confirmation copy is fixed English** — no per-tenant templates or visitor-language
    matching, unlike the conversational layer which already mirrors the visitor's language.
+9. **Sweep batch is global, not round-robin** — the no-show sweep claims the 100 most overdue
+   appointments across all tenants per tick. Correct (oldest first, and swept rows go
+   terminal), but one tenant with a large backlog delays others by a few ticks.
