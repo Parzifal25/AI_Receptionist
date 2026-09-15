@@ -75,7 +75,7 @@ export interface ModelConfig {
 // Channel profile
 // ---------------------------------------------------------------------------
 
-export type ChannelProfileId = "web-chat" | "web-voice";
+export type ChannelProfileId = "web-chat" | "web-voice" | "phone-voice";
 
 /**
  * What the runtime needs to know about the channel a turn is delivered on.
@@ -126,6 +126,12 @@ export interface RuntimeInput {
   customer?: CustomerContext | null;
   /** Injectable clock for deterministic tests. */
   now?: Date;
+  /**
+   * Interruptible channels (phone barge-in) abort the turn through this
+   * signal. Honoured only until an action commits; a cancelled turn throws
+   * `RuntimeCancelledError` and persists nothing (see cancellation.ts).
+   */
+  signal?: AbortSignal;
 }
 
 export interface RuntimeTimings {
@@ -408,6 +414,7 @@ export type RuntimeEventType =
   | "memory.updated"
   | "escalation.triggered"
   | "runtime.completed"
+  | "runtime.cancelled"
   | "runtime.failed";
 
 /**

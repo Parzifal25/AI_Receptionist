@@ -53,6 +53,8 @@ export interface VoicePrompts {
   turnFailure: string;
   /** Spoken when a requested transfer could not be completed. */
   transferFailed: string;
+  /** Spoken immediately before bridging the caller to a human. */
+  transferAnnounce: string;
 }
 
 export interface VoiceSessionConfig {
@@ -857,6 +859,11 @@ export class VoiceSession {
     }
     if (directive.kind === "transfer") {
       this.transferRequested = true;
+      // Deterministic, honest announcement: the caller always hears that a
+      // transfer is being attempted, whatever the model's reply said.
+      await this.play({ kind: "policy", text: this.config.prompts.transferAnnounce, turnId: null, directive: { kind: "continue" } });
+      // State may have moved while the announcement played (hang-up, barge-in end).
+      if (this.isClosing()) return;
       let ok = false;
       try {
         ok = await this.deps.hooks.onTransferRequested(directive.reason);
@@ -1020,6 +1027,10 @@ export class VoiceSession {
     } catch {
       // observability must never break the call
     }
+  }
+
+  private isClosing(): boolean {
+    return this.state === "ending" || this.state === "ended";
   }
 
   private setState(state: VoiceSessionState): void {

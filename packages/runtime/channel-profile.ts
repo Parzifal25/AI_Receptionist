@@ -10,8 +10,12 @@ import type { ChannelProfile, ChannelProfileId } from "./contracts";
  * Phase 2 ships two profiles for the existing web widget:
  *   - web-chat:  the typed chat surface.
  *   - web-voice: the browser speech accessory (existing behaviour: spoken
- *     replies, short, no markdown). This is NOT telephony — phone profiles
- *     arrive with the voice gateway in a later phase.
+ *     replies, short, no markdown). This is NOT telephony.
+ *
+ * Phase 3 adds `phone-voice` for the telephony channel (voice gateway):
+ * the same runtime, shorter replies, interruption, spoken-number rules and
+ * language mirroring. Language-specific wording belongs in the agent's
+ * persisted prompt template, not here.
  */
 
 const WEB_TEXT_FORMATTING =
@@ -55,9 +59,34 @@ export const WEB_VOICE_PROFILE: ChannelProfile = Object.freeze({
   spokenDeliveryRules: WEB_VOICE_FORMATTING,
 });
 
+const PHONE_FORMATTING =
+  `- This is a live phone call. Speak like a person on the phone: one or two short sentences, then stop and let the caller talk.
+- Reply in the language the caller is using. If they mix languages (for example Telugu with English words), mirror that mix naturally and keep technical terms the way the caller says them.
+- Ask exactly one question per turn, and only the question the conversation needs next.
+- Never read out lists, symbols, URLs or formatting. Say it the way a person would say it aloud.
+- If you did not clearly understand a name, number or place, say so briefly and ask the caller to repeat it — never guess.`;
+
+const PHONE_SPOKEN_DELIVERY =
+  `Say numbers the way people say them aloud. Read phone numbers, amounts, dates and times back to the caller and ask them to confirm before relying on them. If the caller interrupts you, drop your point and respond to what they said. Never say you have done something (booked, saved, transferred) unless the system section below confirms it happened.`;
+
+export const PHONE_VOICE_PROFILE: ChannelProfile = Object.freeze({
+  id: "phone-voice",
+  channel: "phone",
+  modality: "voice",
+  maxReplyChars: 450,
+  supportsMarkdown: false,
+  supportsInterruption: true,
+  requiresConfirmationForSideEffects: true,
+  allowsToolExecution: true,
+  latencySensitivity: "high",
+  formattingRules: PHONE_FORMATTING,
+  spokenDeliveryRules: PHONE_SPOKEN_DELIVERY,
+});
+
 const PROFILES: Record<ChannelProfileId, ChannelProfile> = {
   "web-chat": WEB_CHAT_PROFILE,
   "web-voice": WEB_VOICE_PROFILE,
+  "phone-voice": PHONE_VOICE_PROFILE,
 };
 
 export function channelProfile(id: ChannelProfileId): ChannelProfile {

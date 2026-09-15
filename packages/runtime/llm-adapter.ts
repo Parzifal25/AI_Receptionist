@@ -11,6 +11,7 @@ import {
   type LLMToolCall,
   type LLMToolDescriptor,
 } from "@halo/ports/llm-provider";
+import { RuntimeCancelledError } from "./cancellation";
 import type { ModelCallUsage } from "./contracts";
 
 /**
@@ -52,6 +53,8 @@ export interface InvokeModelParams {
   /** Present → streaming is preferred when available. */
   onDelta?: (delta: LLMDelta) => void;
   clock?: () => number;
+  /** Aborts the call (barge-in). Rejects with RuntimeCancelledError; never retried. */
+  signal?: AbortSignal;
 }
 
 export interface InvokeModelResult {
@@ -71,22 +74,29 @@ export class ModelDeadlineError extends Error {
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-function withDeadline<T>(promise: Promise<T>, remainingMs: number, deadlineAt: number): Promise<T> {
+function withDeadline<T>(promise: Promise<T>, remainingMs: number, deadlineAt: number, signal?: AbortSignal): Promise<T> {
   if (remainingMs <= 0) return Promise.reject(new ModelDeadlineError(deadlineAt));
+  if (signal?.aborted) return Promise.reject(new RuntimeCancelledError("model"));
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new ModelDeadlineError(deadlineAt)), remainingMs);
+    if (signal) {
+      onAbort = () => reject(new RuntimeCancelledError("model"));
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
   });
   // An abandoned call must not surface as an unhandled rejection later.
   promise.catch(() => {});
   return Promise.race([promise, timeout]).finally(() => {
     if (timer) clearTimeout(timer);
+    if (signal && onAbort) signal.removeEventListener("abort", onAbort);
   });
 }
 
 /** Transient = the provider was reachable-ish but failed; timeouts and deadlines are never retried. */
 function isRetryable(error: unknown): boolean {
-  if (error instanceof ModelDeadlineError) return false;
+  if (error instanceof ModelDeadlineError || error instanceof RuntimeCancelledError) return false;
   if (isAppError(error)) return error.code === "PROVIDER_ERROR" && !/too long/i.test(error.message);
   return false;
 }
@@ -139,6 +149,9 @@ export async function invokeModel(params: InvokeModelParams): Promise<InvokeMode
       ...params.options,
       ...(tools ? { tools } : {}),
       timeoutMs: Math.max(1, remainingMs),
+      // Adapters use abortSignal INSTEAD of their own timeout, so a caller
+      // signal is combined with the remaining deadline, never substituted.
+      ...(params.signal ? { abortSignal: AbortSignal.any([params.signal, AbortSignal.timeout(Math.max(1, remainingMs))]) } : {}),
     };
     try {
       const call = useStreaming
@@ -148,7 +161,7 @@ export async function invokeModel(params: InvokeModelParams): Promise<InvokeMode
             params.onDelta,
           ).then((r) => ({ ...r, model: r.model || providerModel(params.provider) }))
         : params.provider.complete(params.systemPrompt, params.messages, options);
-      const result = await withDeadline(call, remainingMs, params.deadlineAt);
+      const result = await withDeadline(call, remainingMs, params.deadlineAt, params.signal);
       const latencyMs = clock() - startedAt;
       return {
         result,
@@ -157,8 +170,8 @@ export async function invokeModel(params: InvokeModelParams): Promise<InvokeMode
         usage: normalizeUsage(params.provider.name, result, latencyMs, params.purpose, useStreaming),
       };
     } catch (error) {
-      lastError = error;
-      if (attempt >= retry.attempts || !isRetryable(error)) break;
+      lastError = params.signal?.aborted ? new RuntimeCancelledError("model") : error;
+      if (attempt >= retry.attempts || !isRetryable(lastError)) break;
       await sleep(retry.delayMs);
     }
   }

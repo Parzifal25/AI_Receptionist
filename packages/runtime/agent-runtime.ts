@@ -4,6 +4,7 @@ import { AppError, isAppError } from "@halo/core/errors/app-error";
 import { isSubstantiveQuestion } from "@halo/knowledge/retrieval-query";
 import { describeCapabilities, type LLMDelta, type LLMMessage, type LLMProvider } from "@halo/ports/llm-provider";
 import { logger } from "@halo/platform/logger";
+import { isRuntimeCancelled, RuntimeCancelledError } from "./cancellation";
 import { buildConversationContext, conversationalHistory, DEFAULT_CONTEXT_LIMITS } from "./context-builder";
 import type {
   ActionRecord,
@@ -72,7 +73,9 @@ import { ToolRegistry, type ToolExecutionContext } from "./tools/registry";
  *   - tool intents per round ≤ maxIntentsPerRound; each executed at most
  *     once per turn (idempotency key), never retried;
  *   - wall clock ≤ turnTimeoutMs for model work (deadline race);
- *   - context size ≤ ContextLimits.
+ *   - context size ≤ ContextLimits;
+ *   - an aborted `input.signal` cancels the turn only while nothing has
+ *     committed; a cancelled turn persists nothing (cancellation.ts).
  */
 
 export const PROVIDER_FALLBACK_REPLY =
@@ -179,6 +182,13 @@ export class AgentRuntime {
     const userMessage = input.userMessage;
     const degraded: RuntimeDegradation = { provider: false, knowledge: false, state: false, systemActions: false };
     const capabilities = describeCapabilities(this.deps.llm);
+    const signal = input.signal;
+    // Committed = at least one action succeeded this turn. From then on the
+    // turn completes regardless of cancellation (see cancellation.ts).
+    let committed = false;
+    const checkpoint = (stage: string) => {
+      if (signal?.aborted && !committed) throw new RuntimeCancelledError(stage);
+    };
 
     events.emit("runtime.started", {
       channel: channel.id,
@@ -189,6 +199,7 @@ export class AgentRuntime {
     });
 
     try {
+      checkpoint("start");
       // ---- state + history ------------------------------------------------
       const contextStart = Date.now();
       let state: ConversationState = emptyConversationState();
@@ -210,6 +221,7 @@ export class AgentRuntime {
         await this.deps.conversations.loadHistory(trusted.conversationId, trusted.businessId, limits.maxHistoryFetch),
       );
 
+      checkpoint("history");
       // ---- knowledge --------------------------------------------------------
       const retrievalStart = Date.now();
       let knowledge = emptyKnowledge();
@@ -236,6 +248,7 @@ export class AgentRuntime {
       });
       const knowledgeGap = knowledge.snippets.length === 0 && isSubstantiveQuestion(userMessage);
 
+      checkpoint("knowledge");
       // ---- system actions (act before narrate) ------------------------------
       const actionsStart = Date.now();
       const systemSections: string[] = [];
@@ -268,6 +281,8 @@ export class AgentRuntime {
         }
       }
       let actionsMs = Date.now() - actionsStart;
+      committed = actions.some((a) => a.status === "succeeded");
+      checkpoint("system_actions");
 
       // ---- tool selection (capability-aware) -------------------------------
       const execution: ToolExecutionContext = {
@@ -360,6 +375,7 @@ export class AgentRuntime {
           tools: toolsThisRound.map((t) => t.name),
           messages: messages.length,
         });
+        checkpoint(`model_round_${round}`);
         let invocation;
         try {
           invocation = await invokeModel({
@@ -372,8 +388,10 @@ export class AgentRuntime {
             purpose: round === 0 ? "reply" : "tool_round",
             retry: this.policy.modelRetry,
             onDelta: this.deps.onDelta,
+            signal: committed ? undefined : signal,
           });
         } catch (error) {
+          if (isRuntimeCancelled(error) && !committed) throw error;
           providerFailed = true;
           events.emit("model.failed", {
             round,
@@ -484,6 +502,7 @@ export class AgentRuntime {
               claimsPermitted: result.claimsPermitted,
               summary: result.summary,
             });
+            if (result.status === "succeeded") committed = true;
             if (result.statePatch) state = applyStatePatch(state, result.statePatch);
             state = applyStatePatch(state, {
               lastToolIntent: {
@@ -517,6 +536,7 @@ export class AgentRuntime {
         }
       }
 
+      checkpoint("validation");
       // ---- validation (act-then-narrate) ------------------------------------
       const validationStart = Date.now();
       let reply: string;
@@ -539,6 +559,7 @@ export class AgentRuntime {
               deadlineAt,
               purpose: "repair",
               retry: { ...this.policy.modelRetry, attempts: 1 },
+              signal: committed ? undefined : signal,
             });
             regenerated = true;
             usageCalls.push(repair.usage);
@@ -549,6 +570,7 @@ export class AgentRuntime {
             // and its verdict come from the repair attempt.
             verdict = { ...second, violations: [...verdict.violations, ...second.violations] };
           } catch (error) {
+            if (isRuntimeCancelled(error) && !committed) throw error;
             fallbackUsed = true;
             log.warn("repair generation failed, using safe fallback", { error });
           }
@@ -611,6 +633,8 @@ export class AgentRuntime {
         slots: Object.keys(state.slots).length,
       });
 
+      // Last cancellation point: after this the turn is persisted.
+      checkpoint("persistence");
       // ---- persistence ---------------------------------------------------------
       const transcript: ChatMessage[] = [
         { role: "user", content: userMessage },
@@ -673,6 +697,10 @@ export class AgentRuntime {
       });
       return output;
     } catch (error) {
+      if (isRuntimeCancelled(error)) {
+        events.emit("runtime.cancelled", { stage: error.stage, totalMs: Date.now() - startedAt });
+        throw error;
+      }
       events.emit("runtime.failed", {
         code: isAppError(error) ? error.code : error instanceof Error ? error.name : "unknown",
         totalMs: Date.now() - startedAt,

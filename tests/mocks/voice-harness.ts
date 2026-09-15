@@ -123,6 +123,7 @@ export const TEST_PROMPTS = {
   goodbye: "Thank you for calling, goodbye.",
   turnFailure: "Sorry, could you say that again?",
   transferFailed: "I could not connect you right now.",
+  transferAnnounce: "Please hold while I connect you.",
 };
 
 export function buildSession(opts: {
