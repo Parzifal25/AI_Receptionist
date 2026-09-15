@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getAdminClient } from "@/lib/supabase/admin";
-import { logger } from "@/lib/logger";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
+import { getAdminClient } from "@halo/tenancy/supabase/admin";
+import { logger } from "@halo/platform/logger";
 import type { ActionState } from "@/features/business/actions";
 
 const log = logger.child({ feature: "settings" });

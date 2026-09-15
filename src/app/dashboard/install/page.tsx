@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getServerEnv } from "@/lib/env";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
+import { getServerEnv } from "@halo/platform/env";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { CopySnippet } from "@/features/install/copy-snippet";
 

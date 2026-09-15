@@ -1,8 +1,8 @@
 import { z } from "zod";
-import type { ChatMessage, LeadDraft } from "@/core/domain/types";
-import type { LLMProvider } from "@/core/ports/llm-provider";
+import type { ChatMessage, LeadDraft } from "@halo/core/domain/types";
+import type { LLMProvider } from "@halo/ports/llm-provider";
 import { buildLeadExtractionPrompt } from "./prompt-builder";
-import { logger } from "@/lib/logger";
+import { logger } from "@halo/platform/logger";
 
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 // Digits with common separators; requires 7-15 digits total (E.164 bounds).

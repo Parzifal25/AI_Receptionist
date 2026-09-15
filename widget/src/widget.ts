@@ -1,5 +1,5 @@
-import type { SpeechProvider } from "@/core/ports/speech-provider";
-import { BrowserSpeechProvider } from "@/providers/speech/browser-speech-provider";
+import type { SpeechProvider } from "@halo/ports/speech-provider";
+import { BrowserSpeechProvider } from "@halo/providers/speech/browser-speech-provider";
 import { WidgetApi, WidgetApiError, type WidgetConfig } from "./api";
 import { WIDGET_CSS } from "./styles";
 import { VoiceSession, type VoiceFallbackReason, type VoiceState } from "./voice-session";

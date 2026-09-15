@@ -5,7 +5,7 @@ import {
   canTransition,
   isInFlight,
   isLive,
-} from "@/core/services/scheduling/appointment-state";
+} from "@halo/scheduling/appointment-state";
 
 describe("appointment state machine", () => {
   it("allows the legal lifecycle paths", () => {

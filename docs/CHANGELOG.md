@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-09-15 — HALO Phase 2: Agent Runtime
+
+The conversational turn now runs on a generic, channel-independent Agent
+Runtime (`packages/runtime/`, [RUNTIME.md](RUNTIME.md)); `ChatService` is
+its web-chat adapter and the public API is unchanged.
+
+### Runtime
+- Typed contracts (`RuntimeInput/Output`, `TrustedRequestContext`,
+  `ChannelProfile`, `ConversationContext`, `ToolIntent/Result`,
+  `EscalationDecision`, `UsageMetadata`, `RuntimeEvent`).
+- Channel profiles (`web-chat`, `web-voice`), bounded deterministic context
+  builder, pure prompt composer over the persisted agent version
+  (`PROMPT_COMPOSER_VERSION = 2026-09-15.1`), knowledge resolver adapter with
+  count/character budgets, capability-aware LLM adapter (streaming and native
+  tools where supported, honest fallback otherwise, deadline race, explicit
+  retry policy, normalized usage), closed tool registry + four-stage intent
+  boundary, bounded orchestration loop, response validator enforcing
+  act-then-narrate, rolling recap memory, typed escalation, tenant-safe
+  runtime events.
+- Migration `0019_conversation_state.sql`: typed conversation state per
+  conversation (RLS members-read; service-role write).
+- LLM port: `capabilities()`, `stream()`, tool descriptors/calls, finish
+  reasons, `timeoutMs`; OpenAI-compatible and Anthropic adapters gain
+  streaming + native tools; Ollama gains streaming; Gemini declares
+  completion-only.
+- Scheduling engine exposed as a runtime system action with a typed outcome
+  (`BookingTurnOutcome`), so replies can only confirm what the engine did.
+- New business event `conversation.escalated` for tenant workflows; usage and
+  latency recorded on every `message_sent` usage event.
+
+### Hardening found on the way (Phase 1.5)
+- `AppError` factories accept `details` (typecheck was failing in
+  `packages/agents`); `check:rls` resets the schema so it is idempotent in CI
+  and now also verifies `conversation_state` isolation.
+
+### Tests & gates
+- 118 new tests (565 total, all green): runtime units, provider streaming,
+  orchestration bounds, ten golden transcripts, route-level security.
+- New `npm run check:architecture` gate (runtime boundaries, provider
+  direction, closed tool registry, RLS on every table) wired into CI;
+  `npm run perf:baseline` and [PERFORMANCE_BASELINE.md](PERFORMANCE_BASELINE.md).
+
+
 ## 2026-07-27 — Lifecycle automation & operability
 
 Closes the gaps the V1 lifecycle platform left open: the parts of the

@@ -1,4 +1,4 @@
-import type { ChatMessage, LeadDraft } from "@/core/domain/types";
+import type { ChatMessage, LeadDraft } from "@halo/core/domain/types";
 
 /**
  * Lead qualification.

@@ -16,7 +16,7 @@ await build({
   minify: true,
   format: "iife",
   target: "es2019",
-  alias: { "@": path.join(root, "src") },
+  alias: { "@": path.join(root, "src"), "@halo": path.join(root, "packages") },
   banner: { js: "/* AI Receptionist widget — https://github.com/your-org/ai-receptionist */" },
   logLevel: "info",
 });

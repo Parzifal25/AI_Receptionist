@@ -76,6 +76,36 @@ first-party from the app's own origin (not a third-party CDN), so the trust boun
 same as the API the widget talks to. If a separate CDN origin is introduced later, revisit with
 versioned, hash-pinned bundles as an opt-in for enterprise customers.
 
+## Agent runtime boundaries (Phase 2)
+
+- **Server-authoritative identity.** Tenant, agent and agent version reach the runtime only in
+  a `TrustedRequestContext` built by the route from rows it looked up (widget key → receptionist
+  → conversation row → tenant-scoped version lookup). The runtime refuses a context whose
+  tenant or version disagrees with the resolved agent. The request body cannot name an agent or
+  version; a conversation row pointing at another tenant's version cannot resolve it.
+- **The model proposes, application code decides.** Model tool calls become `ToolIntent`s only
+  after the name matches a closed registry and the arguments validate against a strict schema
+  (unknown keys such as ids, URLs or keys are dropped). Authorization (granted, bound,
+  channel, precondition, confirmation, duplicate) is application policy; execution runs
+  application-bound executors with the trusted context; a failure is a typed result, never
+  retried. There are exactly two built-in tools, none granted by default.
+- **No code or network from the reasoning core.** `packages/runtime` contains no `eval`,
+  `Function`, `child_process`, `vm`, `fetch` or `process.env` — enforced by
+  `npm run check:architecture`, together with dependency direction (runtime → ports/core/platform
+  only; providers never import the runtime) and RLS on every migrated table.
+- **Act-then-narrate is checked, not just prompted.** The validator rejects replies claiming a
+  booking, reschedule, cancellation or handoff unless a verified action of that kind happened
+  this turn; one corrective regeneration, then an honest fallback that never claims success.
+- **Bounded everything.** Recent history 16 messages, recap 1200 chars, knowledge 6 snippets /
+  7200 chars, tool descriptors 8, total context 32 000 chars; ≤ 2 tool rounds, ≤ 3 intents per
+  round, 120 s turn deadline, 2 s state-store timeout, 1 regeneration.
+- **Memory is data, not instruction.** The recap and retrieved documents are labelled as
+  information in the prompt; stored text is sanitized so it cannot masquerade as a prompt
+  section or a role. Conversation state is tenant-scoped (`conversation_state`, RLS members-read,
+  service-role write); no other tenant's history or state can reach a prompt.
+- **Tenant-safe telemetry.** Runtime events carry counts, names, codes and durations — never
+  message text, prompts, secrets or contact details.
+
 ## Workflow automation surface
 
 - **Inbound webhook trigger** (`POST /api/hooks/:businessId`): disabled until the tenant sets

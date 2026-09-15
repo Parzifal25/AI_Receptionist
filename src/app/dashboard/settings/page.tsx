@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireBusiness } from "@/lib/auth";
-import { getServerEnv } from "@/lib/env";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { getServerEnv } from "@halo/platform/env";
 import { googleRedirectUri } from "@/app/api/oauth/google-calendar/shared";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
+import { getAdminClient } from "@halo/tenancy/supabase/admin";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { SettingsForm } from "@/features/settings/settings-form";
 import { CalendarConnectionCard } from "@/features/settings/calendar-connection-card";

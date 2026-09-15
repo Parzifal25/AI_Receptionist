@@ -1,0 +1,103 @@
+name: CI
+
+# Phase 0 quality gate: every push and PR must pass lint, typecheck, tests,
+# the production build, and the preflight configuration gate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Minimal env so server modules that validate configuration at import
+      # time succeed in CI. Values are placeholders; no real service is used.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (0 errors, 0 warnings)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Production build (widget + app)
+        run: npm run build
+
+      - name: Preflight (configuration gate, no database in CI)
+        run: npm run preflight:ci
+
+      - name: Package neutrality + boundary gate
+        run: npm run check:neutral
+
+      - name: Architecture gate (runtime boundaries, closed tool registry, RLS)
+        run: npm run check:architecture
+
+      # check:migrations needs a database, so it runs in the dedicated
+      # `migrations` job below where Postgres is provisioned.
+
+  migrations:
+    # Applies the full migration set to a throwaway Postgres so a query
+    # referencing a column that does not exist (the calendar_connections
+    # .status bug) can never ship again.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Migrations assume a Supabase-shaped DB (auth/storage schemas). Apply
+      # the minimal stubs first so the full migration set runs on vanilla PG.
+      - name: Create Supabase schema stubs (auth, storage)
+        run: psql "$SUPABASE_DB_URL" --no-psqlrc --set ON_ERROR_STOP=1 -f infrastructure/ci/supabase-stubs.sql
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          PGPASSWORD: postgres
+
+      - name: Apply every migration in order + schema-drift check
+        run: npm run check:migrations
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          PGPASSWORD: postgres
+
+      # Re-applies the same migrations to a fresh DB and verifies tenant
+      # isolation AS the real authenticated/service_role roles (JWT-claim
+      # GUCs), never as the bypassing table owner.
+      - name: Real-role RLS verification
+        run: npm run check:rls
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          PGPASSWORD: postgres

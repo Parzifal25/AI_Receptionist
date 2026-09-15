@@ -28,6 +28,21 @@
 - **Voice reliability** — microphone permission pre-flight, spaced recognition retries,
   network-specific and secure-context-aware fallbacks, Chrome synthesis workarounds.
 
+## HALO Phase 2 — Agent Runtime (shipped 2026-09-15)
+
+See [RUNTIME.md](RUNTIME.md). Web chat runs on the generic runtime; phone, WhatsApp and future
+agents reuse it through channel profiles. Deferred to later phases, with the dependency noted:
+
+| Deferred | Why not Phase 2 | Depends on |
+| --- | --- | --- |
+| Collection-scoped and multilingual retrieval; query rewriting for Telugu/Tenglish | `KnowledgeProvider` has no collection parameter; embedding/eval work is Phase 3 | Phase 3 |
+| SSE streaming to the widget | validation runs on the whole reply (act-then-narrate); sentence-level validation is voice-gateway work | Phase 4–5 |
+| Phone `ChannelProfile`, warm transfer on escalation | telephony/voice gateway | Phase 5 |
+| General Tool Runtime (custom/HTTP/database tools), tool console | needs the tool sandbox and console design | Phase 3+ |
+| Cross-conversation customer recall in the prompt | requires visitor identity verification and consent policy | Phase 3+ |
+| Prompt caching breakpoints, per-agent knowledge/doctrine budgets | optimization after a real-provider baseline exists | Phase 4 |
+| Removal of `HALO_AGENT_RESOLUTION_COMPAT_FAIL_OPEN` and the receptionist compatibility path | agent console must create agents at onboarding first | agent console |
+
 ## Version 2 roadmap
 
 The V1 lifecycle platform shipped 2026-07-14; lifecycle automation and
@@ -97,8 +112,8 @@ demo and a working business.
 | Limitation | Impact | Path |
 | --- | --- | --- |
 | In-memory rate limiter | resets on deploy; per-instance when scaled out | Redis adapter behind the existing async interface |
-| Browser speech only | voice quality varies; recognition unsupported in Firefox (widget hides the mic there) | server speech providers (Phase 3) |
-| Lead notifications are log-only | no email alerts yet | email `NotificationProvider` (Phase 2) |
+| Browser speech only | voice quality varies; recognition unsupported in Firefox (widget hides the mic there) | server speech providers (Phase 3) — the obsolete Vapi telephony stub was removed in Phase 0; the real telephony port arrives with HALO Phase 4/5 |
+| Lead notifications are log-only unless MESSAGING_PROVIDER includes `resend` | email alerts need the provider env set | per-tenant notification routing (HALO Phase 6) |
 | No streaming | replies appear all at once | SSE from the messages endpoint |
 | One business per user in the UI | schema supports many; no switcher UI | business picker (Phase 2) |
 | Embedding upgrade requires Ollama | default is Postgres FTS (works well for FAQs/short docs) | OpenAI embeddings + dimension migration documented in the factory |

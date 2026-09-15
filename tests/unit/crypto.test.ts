@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { timingSafeEqualStr } from "@/lib/crypto";
+import { timingSafeEqualStr } from "@halo/platform/crypto";
 
 describe("timingSafeEqualStr", () => {
   it("returns true for identical strings", () => {

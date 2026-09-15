@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { Badge, Card, CardBody, CardHeader } from "@/components/ui/card";
-import { cn } from "@/lib/cn";
+import { cn } from "@halo/platform/cn";
 
 export const metadata: Metadata = { title: "Conversation — AI Receptionist" };
 
@@ -29,6 +29,7 @@ export default async function ConversationDetailPage({
       .select("id, role, content, created_at")
       .eq("conversation_id", id)
       .eq("business_id", businessId)
+      .in("role", ["user", "assistant"])
       .order("created_at", { ascending: true }),
     supabase
       .from("leads")

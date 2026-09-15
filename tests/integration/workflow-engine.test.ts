@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BusinessEvent, WorkflowDefinition } from "@/core/domain/workflow";
-import { WorkflowEngine } from "@/core/services/workflows/engine";
-import type { ActionRegistry } from "@/core/services/workflows/types";
+import type { BusinessEvent, WorkflowDefinition } from "@halo/core/domain/workflow";
+import { WorkflowEngine } from "@halo/workflows/engine";
+import type { ActionRegistry } from "@halo/workflows/types";
 import { InMemoryWorkflowStore } from "../mocks/in-memory-workflow-store";
 
 function makeEvent(overrides: Partial<BusinessEvent> = {}): BusinessEvent {

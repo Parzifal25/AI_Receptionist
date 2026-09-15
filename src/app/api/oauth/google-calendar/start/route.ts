@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireBusiness } from "@/lib/auth";
-import { getServerEnv } from "@/lib/env";
-import { createOAuthNonce, encodeOAuthState } from "@/lib/oauth-state";
-import { logger } from "@/lib/logger";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { getServerEnv } from "@halo/platform/env";
+import { createOAuthNonce, encodeOAuthState } from "@halo/platform/oauth-state";
+import { logger } from "@halo/platform/logger";
 import {
   GOOGLE_AUTH_URL,
   GOOGLE_CALENDAR_SCOPES,

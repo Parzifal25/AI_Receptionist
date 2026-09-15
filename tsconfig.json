@@ -19,7 +19,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      // HALO workspace packages (plan §2.3): packages/* are first-class
+      // modules importable from the app and from each other as @halo/*.
+      "@halo/*": ["./packages/*"]
     }
   },
   "include": [

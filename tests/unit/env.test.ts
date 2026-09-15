@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getServerEnv, resetEnvCacheForTests } from "@/lib/env";
+import { getServerEnv, resetEnvCacheForTests } from "@halo/platform/env";
 
 const REQUIRED = {
   NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",

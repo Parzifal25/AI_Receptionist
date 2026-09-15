@@ -1,5 +1,5 @@
 import { type InputHTMLAttributes, type TextareaHTMLAttributes, forwardRef } from "react";
-import { cn } from "@/lib/cn";
+import { cn } from "@halo/platform/cn";
 
 const FIELD_CLASSES =
   "block w-full rounded-md border-0 px-3 py-2 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 " +

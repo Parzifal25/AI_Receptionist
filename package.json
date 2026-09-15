@@ -2,6 +2,9 @@
   "name": "ai-receptionist",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "npm run build:widget && next build",
@@ -10,6 +13,14 @@
     "build:widget": "node scripts/build-widget.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "preflight": "tsx --conditions react-server scripts/preflight.ts",
+    "preflight:ci": "tsx --conditions react-server scripts/preflight.ts --skip-db-check",
+    "check:migrations": "node scripts/check-migrations.mjs",
+    "check:neutral": "node scripts/check-neutral.mjs",
+    "check:rls": "node scripts/check-rls.mjs",
+    "check:architecture": "node scripts/check-architecture.mjs",
+    "perf:baseline": "tsx scripts/perf-baseline.ts",
     "predev": "npm run build:widget"
   },
   "dependencies": {
@@ -18,6 +29,7 @@
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

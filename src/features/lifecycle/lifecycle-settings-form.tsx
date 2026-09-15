@@ -6,8 +6,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { FormError, FormSuccess } from "@/components/ui/form-feedback";
 import { updateLifecycleSettings } from "./actions";
-import type { IntakeField } from "@/core/domain/scheduling";
-import type { LifecycleSettingsPatch } from "@/core/services/lifecycle/lifecycle-settings";
+import type { IntakeField } from "@halo/core/domain/scheduling";
+import type { LifecycleSettingsPatch } from "@halo/lifecycle/lifecycle-settings";
 import type { ActionState } from "@/features/business/actions";
 
 const MAX_INTAKE_FIELDS = 25;

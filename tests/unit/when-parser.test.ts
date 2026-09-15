@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWhen } from "@/core/services/scheduling/when-parser";
+import { parseWhen } from "@halo/scheduling/when-parser";
 
 // Monday 2026-07-13, 08:00 in New York (12:00Z).
 const NOW = new Date("2026-07-13T12:00:00Z");

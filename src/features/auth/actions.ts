@@ -2,9 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logger";
-import { safeRedirectPath } from "@/lib/safe-redirect";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
+import { logger } from "@halo/platform/logger";
+import { safeRedirectPath } from "@halo/platform/safe-redirect";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email("Enter a valid email address").max(254),

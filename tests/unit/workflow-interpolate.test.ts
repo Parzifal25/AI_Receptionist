@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { BusinessEvent } from "@/core/domain/workflow";
+import type { BusinessEvent } from "@halo/core/domain/workflow";
 import {
   eventMatches,
   interpolateParams,
   interpolateString,
   resolvePath,
-} from "@/core/services/workflows/interpolate";
+} from "@halo/workflows/interpolate";
 
 const event: BusinessEvent = {
   id: "evt-1",

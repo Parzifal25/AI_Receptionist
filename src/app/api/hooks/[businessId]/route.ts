@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AppError } from "@/core/errors/app-error";
-import { emitBusinessEvent } from "@/core/services/workflows/event-bus";
+import { AppError } from "@halo/core/errors/app-error";
+import { emitBusinessEvent } from "@halo/workflows/event-bus";
 import { fail, withErrorHandling } from "@/lib/api/respond";
-import { getAdminClient } from "@/lib/supabase/admin";
-import { timingSafeEqualStr } from "@/lib/crypto";
+import { getAdminClient } from "@halo/tenancy/supabase/admin";
+import { timingSafeEqualStr } from "@halo/platform/crypto";
 
 export const dynamic = "force-dynamic";
 

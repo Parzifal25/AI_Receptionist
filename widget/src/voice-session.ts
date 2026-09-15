@@ -1,4 +1,4 @@
-import type { SpeechProvider, SpeechRecognitionSession } from "@/core/ports/speech-provider";
+import type { SpeechProvider, SpeechRecognitionSession } from "@halo/ports/speech-provider";
 
 /**
  * Voice conversation state machine. DOM-free and provider-agnostic so it is

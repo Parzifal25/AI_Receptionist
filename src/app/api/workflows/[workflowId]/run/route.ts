@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { AppError } from "@/core/errors/app-error";
-import { getWorkflowEngine } from "@/core/services/workflows/event-bus";
-import { SupabaseWorkflowStore } from "@/core/services/workflows/supabase-workflow-store";
+import { AppError } from "@halo/core/errors/app-error";
+import { getWorkflowEngine } from "@halo/workflows/event-bus";
+import { SupabaseWorkflowStore } from "@halo/workflows/supabase-workflow-store";
 import { fail, withErrorHandling } from "@/lib/api/respond";
-import { requireBusiness } from "@/lib/auth";
+import { requireBusiness } from "@halo/tenancy/auth";
 
 export const dynamic = "force-dynamic";
 

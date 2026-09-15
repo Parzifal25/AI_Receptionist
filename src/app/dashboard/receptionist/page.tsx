@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { ReceptionistForm } from "@/features/receptionist/receptionist-form";
-import { DEFAULT_BRANDING, type WidgetBranding } from "@/core/domain/types";
+import { DEFAULT_BRANDING, type WidgetBranding } from "@halo/core/domain/types";
 
 export const metadata: Metadata = { title: "Receptionist — AI Receptionist" };
 

@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { ChatService } from "@/core/services/chat-service";
-import type { BookingOrchestrator } from "@/core/services/scheduling/booking-orchestrator";
+import type { BookingOrchestrator } from "@halo/scheduling/booking-orchestrator";
 import type { WidgetRepository } from "@/core/services/widget-repository";
-import type { LLMProvider } from "@/core/ports/llm-provider";
-import type { KnowledgeProvider } from "@/core/ports/knowledge-provider";
-import type { NotificationProvider } from "@/core/ports/notification-provider";
-import { DEFAULT_BRANDING, type Business, type ChatMessage, type Receptionist } from "@/core/domain/types";
+import type { LLMProvider } from "@halo/ports/llm-provider";
+import type { KnowledgeProvider } from "@halo/ports/knowledge-provider";
+import type { NotificationProvider } from "@halo/ports/notification-provider";
+import { DEFAULT_BRANDING, type Business, type ChatMessage, type Receptionist } from "@halo/core/domain/types";
+import { InMemoryConversationStateStore } from "@halo/runtime/conversation-state";
 
 /**
  * Integration test of the full conversational turn with in-memory fakes for
@@ -96,7 +97,9 @@ function buildFakes(options: { llmReplies: string[]; knowledgeEmpty?: boolean })
     }),
   } as unknown as WidgetRepository;
 
-  const service = new ChatService(llm, knowledge, notifications, repository);
+  const service = new ChatService(llm, knowledge, notifications, repository, null, async () => {}, {
+    stateStore: new InMemoryConversationStateStore(),
+  });
   return { service, messages, leads, events, notifications, repository };
 }
 
@@ -195,6 +198,8 @@ describe("ChatService.respond", () => {
       { name: "fake", notifyNewLead: async () => {} },
       repository,
       orchestrator,
+      async () => {},
+      { stateStore: new InMemoryConversationStateStore() },
     );
 
     const { reply } = await service.respond({

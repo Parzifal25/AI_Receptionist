@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scoreLead } from "@/core/services/lead-scorer";
-import type { ChatMessage } from "@/core/domain/types";
+import type { ChatMessage } from "@halo/core/domain/types";
 
 describe("scoreLead", () => {
   it("scores an empty draft as cold with zero", () => {

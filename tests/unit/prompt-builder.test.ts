@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt } from "@/core/services/prompt-builder";
-import { DEFAULT_BRANDING, type Business, type Receptionist } from "@/core/domain/types";
+import { DEFAULT_BRANDING, type Business, type Receptionist } from "@halo/core/domain/types";
 
 const business: Business = {
   id: "b1",

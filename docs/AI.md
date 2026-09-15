@@ -1,9 +1,19 @@
 # AI System — Intelligence Report
 
 How the receptionist thinks, what was improved in the 2026-07-13 intelligence
-overhaul (`PROMPT_VERSION 2026-07-13.1`), and what remains.
+overhaul (`PROMPT_VERSION 2026-07-28.1`), and what remains.
 
 ## Architecture of the intelligence layer
+
+**Phase 2 (2026-09-15):** the conversational turn runs on the HALO Agent Runtime
+(`packages/runtime/`, see [RUNTIME.md](RUNTIME.md)): bounded context, prompt composition from
+the persisted agent version, capability-aware model adapter (streaming/tools where the
+provider supports them), a controlled tool-intent boundary, a bounded orchestration loop, a
+response validator that enforces act-then-narrate as a check, bounded rolling memory, typed
+escalation, and per-turn usage/events. `PROMPT_ASSEMBLER_VERSION` now mirrors
+`PROMPT_COMPOSER_VERSION` (`2026-09-15.1`). Everything below still applies; it describes the
+doctrine and the deterministic engines the runtime composes around.
+
 
 | Concern | Module | Approach |
 |---|---|---|
@@ -101,6 +111,7 @@ conversation length to lead capture.
 2. **Lead scoring is lexical** — deterministic phrase matching is explainable and free but misses paraphrase ("water is pouring through my ceiling" scores as emergency only via "leaking"-family phrases). A cheap LLM classification pass gated to high-value conversations is the next step.
 3. **No conversation summarisation** — history is truncated at 16 messages; very long chats lose their opening context. A rolling summary would preserve it.
 4. ~~**No real booking**~~ — solved by Appointment Intelligence (see `docs/SCHEDULING.md`): the AI checks real availability, books, confirms, and triggers reminders in-conversation, backed by Google/Outlook/CalDAV/internal calendar adapters.
+4b. ~~**Booking conversations restarted each turn**~~ — solved by the draft appointment (`scheduling/booking-draft.ts`, see `docs/SCHEDULING.md`): the half-finished booking is conversation-scoped state, so multi-detail messages land in one pass, corrections replace rather than duplicate, the engine is invoked automatically the moment the draft is complete, and no branch may narrate a booking the engine did not make.
 5. **English-centric phrase lists** — scoring/trigger regexes won't fire on non-English conversations, though the conversational layer mirrors the visitor's language.
 6. **No automated live evals** — the test suite is a regression harness; there is no LLM-judged conversation-quality benchmark yet.
 

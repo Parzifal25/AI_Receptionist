@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fuseByReciprocalRank, normalizeQuery } from "@/providers/knowledge/supabase-knowledge-provider";
-import type { KnowledgeSnippet } from "@/core/domain/types";
+import { fuseByReciprocalRank, normalizeQuery } from "@halo/providers/knowledge/supabase-knowledge-provider";
+import type { KnowledgeSnippet } from "@halo/core/domain/types";
 
 function snip(refId: string, source: "chunk" | "faq" = "chunk"): KnowledgeSnippet {
   return { source, refId, title: `title-${refId}`, content: `content-${refId}`, score: 0 };

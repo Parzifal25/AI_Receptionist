@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { FormError, FormSuccess } from "@/components/ui/form-feedback";
-import type { BusinessHours, Weekday } from "@/core/domain/types";
+import type { BusinessHours, Weekday } from "@halo/core/domain/types";
 import { updateBusinessProfile, type ActionState } from "./actions";
 
 const WEEKDAYS: Array<{ key: Weekday; label: string }> = [

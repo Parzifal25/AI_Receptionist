@@ -4,7 +4,7 @@ import type {
   SpeechProvider,
   SpeechRecognitionCallbacks,
   SpeechRecognitionSession,
-} from "@/core/ports/speech-provider";
+} from "@halo/ports/speech-provider";
 import {
   VoiceSession,
   type VoiceFallbackReason,

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { IntakeField, TimeSlot } from "@/core/domain/scheduling";
-import { formatInTz } from "@/core/services/scheduling/timezone";
+import type { IntakeField, TimeSlot } from "@halo/core/domain/scheduling";
+import { formatInTz } from "@halo/scheduling/timezone";
 
 interface Props {
   token: string;

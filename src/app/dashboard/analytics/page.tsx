@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireBusiness } from "@/lib/auth";
-import { LifecycleAnalyticsService } from "@/core/services/analytics/lifecycle-analytics-service";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { LifecycleAnalyticsService } from "@halo/analytics/lifecycle-analytics-service";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Analytics — AI Receptionist" };

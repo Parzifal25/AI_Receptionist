@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireBusiness } from "@/lib/auth";
-import { AppointmentLifecycleService } from "@/core/services/lifecycle/lifecycle-service";
-import { loadBusinessById } from "@/core/services/lifecycle/manage-service";
-import { SchedulingRepository } from "@/core/services/scheduling/scheduling-repository";
-import { logger } from "@/lib/logger";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { AppointmentLifecycleService } from "@halo/lifecycle/lifecycle-service";
+import { loadBusinessById } from "@halo/lifecycle/manage-service";
+import { SchedulingRepository } from "@halo/scheduling/scheduling-repository";
+import { logger } from "@halo/platform/logger";
 
 const log = logger.child({ feature: "appointments" });
 

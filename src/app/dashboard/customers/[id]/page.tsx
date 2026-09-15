@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Customer — AI Receptionist" };

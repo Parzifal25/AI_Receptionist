@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createMemoryRateLimiter } from "@/lib/rate-limit";
+import { createMemoryRateLimiter } from "@halo/platform/rate-limit";
 
 describe("createMemoryRateLimiter", () => {
   beforeEach(() => vi.useFakeTimers());

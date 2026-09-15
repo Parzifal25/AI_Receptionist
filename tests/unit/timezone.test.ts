@@ -8,7 +8,7 @@ import {
   timezoneOffsetMs,
   weekdayInTz,
   zonedTimeToUtc,
-} from "@/core/services/scheduling/timezone";
+} from "@halo/scheduling/timezone";
 
 describe("zonedTimeToUtc", () => {
   it("converts standard-time wall clocks to UTC", () => {

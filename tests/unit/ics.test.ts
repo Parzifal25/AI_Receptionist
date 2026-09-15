@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseIcsBusy, toIcsStamp } from "@/providers/calendar/caldav-calendar-provider";
+import { parseIcsBusy, toIcsStamp } from "@halo/providers/calendar/caldav-calendar-provider";
 
 describe("toIcsStamp", () => {
   it("converts ISO instants to ICS UTC stamps", () => {

@@ -3,7 +3,7 @@ import {
   lifecycleSettingsSchema,
   parseIntakeFields,
   parseReminderLeadMinutes,
-} from "@/core/services/lifecycle/lifecycle-settings";
+} from "@halo/lifecycle/lifecycle-settings";
 
 /**
  * The tenant-editable lifecycle content. These values are messaged to real

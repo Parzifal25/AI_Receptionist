@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { AppError, isAppError } from "@/core/errors/app-error";
-import { logger } from "@/lib/logger";
+import { AppError, isAppError } from "@halo/core/errors/app-error";
+import { logger } from "@halo/platform/logger";
 
 /**
  * Uniform API envelope:

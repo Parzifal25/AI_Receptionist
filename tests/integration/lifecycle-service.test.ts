@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { Business } from "@/core/domain/types";
+import type { Business } from "@halo/core/domain/types";
 import type {
   Appointment,
   AppointmentFeedback,
   AppointmentStatus,
   SchedulingSettings,
-} from "@/core/domain/scheduling";
-import type { MessagingProvider, OutboundMessage } from "@/core/ports/messaging-provider";
-import type { SchedulingRepository } from "@/core/services/scheduling/scheduling-repository";
-import { AppointmentLifecycleService } from "@/core/services/lifecycle/lifecycle-service";
-import { FeedbackService } from "@/core/services/lifecycle/feedback-service";
-import { ConfirmationService } from "@/core/services/lifecycle/confirmation-service";
+} from "@halo/core/domain/scheduling";
+import type { MessagingProvider, OutboundMessage } from "@halo/ports/messaging-provider";
+import type { SchedulingRepository } from "@halo/scheduling/scheduling-repository";
+import { AppointmentLifecycleService } from "@halo/lifecycle/lifecycle-service";
+import { FeedbackService } from "@halo/lifecycle/feedback-service";
+import { ConfirmationService } from "@halo/lifecycle/confirmation-service";
 
 /**
  * During/after-appointment lifecycle against in-memory fakes: day-of status

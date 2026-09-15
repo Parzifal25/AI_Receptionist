@@ -8,8 +8,8 @@ import {
   type WorkflowActionType,
   type WorkflowDefinition,
   type WorkflowStep,
-} from "@/core/domain/workflow";
-import type { WorkflowTemplate } from "@/core/services/workflows/templates";
+} from "@halo/core/domain/workflow";
+import type { WorkflowTemplate } from "@halo/workflows/templates";
 
 /**
  * The visual workflow builder: a vertical flow — trigger at the top, then
@@ -28,6 +28,7 @@ const TRIGGER_LABELS: Record<string, string> = {
   "lead.updated": "Lead updated",
   "conversation.started": "Conversation started",
   "conversation.archived": "Conversation archived",
+  "conversation.escalated": "Conversation escalated to a human",
   "customer.created": "Customer created",
   "customer.updated": "Customer updated",
   "followup.due": "Scheduled follow-up due",

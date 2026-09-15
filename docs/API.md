@@ -65,6 +65,12 @@ One conversational turn.
 
 `404` unknown token · `409` conversation ended · `429` rate limited · `502` AI provider down.
 
+Since Phase 2 the turn runs on the Agent Runtime ([RUNTIME.md](RUNTIME.md)); the envelope is
+unchanged. Each turn records tenant-safe usage/latency metadata on the `message_sent` usage
+event (`turnId`, provider, model, model calls, tokens when reported, latency, tool rounds,
+escalation flag) and emits the `conversation.escalated` business event when a handoff is
+newly triggered.
+
 ---
 
 ### `POST /api/v1/widget/leads`

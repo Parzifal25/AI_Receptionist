@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { AppointmentManageService } from "@/core/services/lifecycle/manage-service";
-import { directionsUrl } from "@/core/services/lifecycle/confirmation-content";
-import { formatInTz } from "@/core/services/scheduling/timezone";
+import { AppointmentManageService } from "@halo/lifecycle/manage-service";
+import { directionsUrl } from "@halo/lifecycle/confirmation-content";
+import { formatInTz } from "@halo/scheduling/timezone";
 import { ManageActions } from "./manage-client";
 
 export const metadata: Metadata = { title: "Your appointment" };

@@ -4,7 +4,7 @@ import {
   escapeIcsText,
   foldIcsLine,
   toIcsUtcStamp,
-} from "@/lib/ics";
+} from "@halo/platform/ics";
 
 describe("toIcsUtcStamp", () => {
   it("converts ISO instants to ICS UTC stamps", () => {

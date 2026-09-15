@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireBusiness } from "@/lib/auth";
-import { toLifecyclePatch } from "@/core/services/lifecycle/lifecycle-settings";
-import { SchedulingRepository } from "@/core/services/scheduling/scheduling-repository";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { toLifecyclePatch } from "@halo/lifecycle/lifecycle-settings";
+import { SchedulingRepository } from "@halo/scheduling/scheduling-repository";
 import { LifecycleSettingsForm } from "@/features/lifecycle/lifecycle-settings-form";
 
 export const metadata: Metadata = { title: "Customer lifecycle — AI Receptionist" };

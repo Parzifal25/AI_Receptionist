@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { HttpError, isTransientHttpError, withRetry } from "@/lib/retry";
+import { HttpError, isTransientHttpError, withRetry } from "@halo/platform/retry";
 
 const noSleep = async () => {};
 

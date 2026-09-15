@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { AppError } from "@/core/errors/app-error";
+import { AppError } from "@halo/core/errors/app-error";
 import { WidgetRepository } from "@/core/services/widget-repository";
 import { corsHeaders, isOriginAllowed, preflightResponse } from "@/lib/api/cors";
 import { clientIp, fail, withErrorHandling } from "@/lib/api/respond";
-import { widgetConfigLimiter } from "@/lib/rate-limit";
+import { widgetConfigLimiter } from "@halo/platform/rate-limit";
 
 const querySchema = z.object({
   key: z.string().min(8).max(64),

@@ -3,7 +3,7 @@ import {
   computeLifecycleMetrics,
   localStartHour,
   type LifecycleAnalyticsInput,
-} from "@/core/services/analytics/lifecycle-analytics";
+} from "@halo/analytics/lifecycle-analytics";
 
 const appointment = (
   status: LifecycleAnalyticsInput["appointments"][number]["status"],

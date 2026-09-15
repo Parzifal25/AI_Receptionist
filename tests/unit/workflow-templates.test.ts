@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { workflowDefinitionSchema } from "@/core/domain/workflow";
+import { workflowDefinitionSchema } from "@halo/core/domain/workflow";
 import {
   getTemplate,
   instantiateTemplate,
   WORKFLOW_TEMPLATES,
-} from "@/core/services/workflows/templates";
+} from "@halo/workflows/templates";
 
 describe("workflow templates", () => {
   it("every template instantiates into schema-valid workflow definitions", () => {

@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { requireBusiness } from "@/lib/auth";
+import { requireBusiness } from "@halo/tenancy/auth";
 
 // Every dashboard page is per-user and cookie-scoped — never prerender.
 export const dynamic = "force-dynamic";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { signOut } from "@/features/auth/actions";
 import { DashboardNav } from "@/features/dashboard/nav";
 import { Button } from "@/components/ui/button";

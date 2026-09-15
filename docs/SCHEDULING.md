@@ -10,13 +10,15 @@ triggers reminders — inside a normal conversation.
 Visitor: "I'd like AC servicing tomorrow."
    │
    ▼
-BookingOrchestrator.prepareTurn (per chat turn, stateless)
-   1. scheduling context?   keyword OR parsed time expression OR live appointment
-   2. parseWhen             "tomorrow" → UTC window in the business timezone
-   3. getAvailability       real slots from the availability engine
-   4. extractAction         JSON pass: did the visitor just commit to a slot / cancel?
-   5. execute               book / reschedule / cancel via BookingService
-   6. inject ground truth   "## Live scheduling" or "## Booking status" prompt section
+BookingOrchestrator.prepareTurn (per chat turn, draft-driven)
+   1. load draft            the appointment this conversation is assembling
+   2. scheduling context?   keyword OR parsed time expression OR live appointment OR draft
+   3. parseWhen             "tomorrow" → UTC window in the business timezone
+   4. getAvailability       real slots from the availability engine
+   5. update the draft      LLM extraction, then deterministic extraction (regex wins)
+   6. resolve + commit      the visitor's wall clock → one real open slot
+   7. execute               the moment the draft is complete: book / reschedule / cancel
+   8. inject ground truth   "## Live scheduling" or "## Booking status" prompt section
    │
    ▼
 Reply model narrates what the engine actually did. It can only offer
@@ -34,6 +36,54 @@ additionally emit `appointment.*` business events into the workflow/CRM
 platform (fire-and-forget — automation can never break a booking); see
 [WORKFLOWS.md](WORKFLOWS.md).
 
+## The draft appointment
+
+A booking is rarely one message. `scheduling/booking-draft.ts` holds what the
+conversation has gathered so far — `service`, `date`, `time`, `name`, `email`,
+`phone`, `notes` — persisted per conversation in `booking_drafts`
+(`0012_booking_drafts.sql`) and deleted the moment it becomes a real
+appointment. Every turn *updates* it; no turn restarts it.
+
+- **One message, many fields.** Deterministic extraction reads labelled values
+  (`Name:` / `Phone:` / `Email:`, inline or on the following line), a bare
+  email or phone, "I'm Sam", and any date/time expression — so a pasted block
+  of details fills every field in one pass. The LLM pass adds `service` and
+  `notes`; regex-verified contact details always win, because they cannot be
+  hallucinated.
+- **Latest value wins, empty never clears.** A corrected phone number or
+  service replaces the old one; a turn that mentions neither leaves them alone.
+- **Agreed vs. mentioned.** `date`/`time` are the visitor's wall clock, not an
+  instant. `timeCommitted` records that they *agreed* to it rather than merely
+  asked about it, and changing the time clears the flag — so a correction can
+  never book the superseded slot. Only a committed time that still matches a
+  real open slot is bookable, and the visitor's own words outrank the model's
+  slot number (a re-indexed list must never turn "9am" into 10am).
+- **Complete → book.** When `missingFields` comes back empty the orchestrator
+  calls `BookingService` itself; the visitor never has to say "yes" twice.
+- **Failure keeps the draft.** A rejected booking drops the dead time and
+  keeps everything else, so recovery never re-collects details.
+
+The draft is also what stops the generic-question loop: the prompt section
+lists exactly what the visitor has already given ("never ask for any of them
+again") and names the single next thing to ask for.
+
+## What the model may claim
+
+The reply model narrates; it never decides. Every branch of `prepareTurn`
+says explicitly what did and did not happen:
+
+- Nothing is described as booked unless `BookingService` returned `ok: true`
+  **on this turn**. Mid-booking sections state "The appointment is NOT booked"
+  and forbid "confirmed / held / reserved".
+- A failed booking is reported as failed, with the engine's own reason and its
+  real alternatives — never re-narrated as a success.
+- A cancellation request with no appointment on file gets an honest "I can't
+  see a booking under this chat", never a fabricated cancellation.
+- A repeated confirmation of a time the visitor already holds is answered with
+  "nothing has changed", not a silent reschedule into the next free slot.
+- Prices, policies, staff actions and availability may only come from the
+  business profile, knowledge base, or an engine-supplied section.
+
 ## Architecture
 
 | Layer | Module | Notes |
@@ -45,6 +95,7 @@ platform (fire-and-forget — automation can never break a booking); see
 | Date parsing | `scheduling/when-parser.ts` | Deterministic "tomorrow / next tuesday / july 15 / morning" → UTC window |
 | Booking engine | `scheduling/booking-service.ts` | availability → book → confirm → remind; reschedule; cancel |
 | Persistence | `scheduling/scheduling-repository.ts` | Service-role Supabase; SlotTakenError on constraint violation |
+| Draft appointment | `scheduling/booking-draft.ts` | Pure. Conversation-scoped booking state: extraction, merge, slot resolution, readiness |
 | Conversation bridge | `scheduling/booking-orchestrator.ts` | Turn pipeline described above |
 | Reminders | `scheduling/reminder-service.ts` + `/api/cron/reminders` | Vercel Cron every 5 min |
 | Calendar port | `src/core/ports/calendar-provider.ts` | listBusy / create / update / delete |
@@ -140,7 +191,9 @@ provider), `CRON_SECRET` (authorizes `/api/cron/reminders`).
 - `appointment-state.test.ts` — legal and illegal transitions.
 - `retry.test.ts`, `ics.test.ts` — retry policy, CalDAV ICS parsing.
 - `booking-service.test.ts` — end-to-end workflow against an in-memory repo that simulates the exclusion constraint: book/confirm/remind, double-book race, cancel-frees-slot, reschedule, validation.
-- `booking-orchestrator.test.ts` — conversation bridge: context detection, slot injection, confirmed booking before reply, slot-taken recovery, reschedule-not-double-book, cancel fast path.
+- `booking-draft.test.ts` — draft model: labelled/multi-field extraction, name hints, merge and correction semantics, commitment clearing, slot resolution and ambiguity, readiness.
+- `booking-orchestrator.test.ts` — conversation bridge: context detection, slot injection, draft accumulation, auto-booking on completion, corrections, slot-taken and rejected-booking recovery, reschedule-not-double-book, cancel fast path, cancel-with-nothing-to-cancel, extraction-pass outage.
+- `booking-conversation.test.ts` — end-to-end conversations through ChatService + orchestrator + engine: multi-turn booking, one-message booking, no re-asking, corrections, repeated messages, reschedule, cancellation, tool failure and recovery, no-availability honesty.
 - `chat-service.test.ts` — booking context reaches the prompt; bookings force lead capture.
 
 ## Beyond the booking: the customer lifecycle

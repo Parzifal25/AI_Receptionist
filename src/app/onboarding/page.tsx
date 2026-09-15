@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { OnboardingForm } from "@/features/business/onboarding-form";
 
 export const metadata: Metadata = { title: "Set up your business — AI Receptionist" };

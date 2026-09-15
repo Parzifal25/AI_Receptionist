@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildRetrievalQuery, isSubstantiveQuestion } from "@/core/services/retrieval-query";
-import type { ChatMessage } from "@/core/domain/types";
+import { buildRetrievalQuery, isSubstantiveQuestion } from "@halo/knowledge/retrieval-query";
+import type { ChatMessage } from "@halo/core/domain/types";
 
 const history: ChatMessage[] = [
   { role: "user", content: "Do you do teeth whitening?" },

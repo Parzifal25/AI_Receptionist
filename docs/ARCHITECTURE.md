@@ -104,38 +104,47 @@ whole conversational pipeline testable with in-memory fakes
 
 ## Conversational turn (data flow)
 
+Since HALO Phase 2 the turn runs on the **Agent Runtime** (`packages/runtime/`,
+documented in [RUNTIME.md](RUNTIME.md)); `ChatService` is the web-chat adapter
+over it.
+
 1. Widget POSTs `{visitorToken, message}` to `/api/v1/widget/messages`.
 2. Route validates with Zod, rate-limits per token **and** per IP, resolves the conversation by
-   its unguessable visitor token, then loads the receptionist + business context.
-3. `ChatService.respond`:
-   - fetches recent history, then retrieves tenant-scoped knowledge (FAQ + document chunks) for
-     a **context-rewritten** query (`retrieval-query.ts` expands short/anaphoric follow-ups with
-     recent visitor turns before searching),
-   - runs the `BookingOrchestrator` (if scheduling is enabled for the tenant): detects
-     scheduling intent, fetches real availability, executes any book/reschedule/cancel action
-     the visitor just confirmed, and returns a prompt section describing what actually happened,
-   - builds the grounded system prompt (`prompt-builder.ts`) — identity, tone, profile, hours,
-     retrieved snippets, conversation craft and situation-handling rules, the matched
-     **industry playbook** (`industry-playbooks.ts`), anti-hallucination and prompt-injection
-     rules, lead-capture behavior, plus the booking-orchestrator section when present,
-   - calls the configured `LLMProvider`,
-   - persists both turns,
-   - runs lead extraction (**regex for email/phone (never hallucinates) + a JSON-mode LLM pass
-     for name/intent**; regex wins conflicts) periodically, on trigger phrases, or immediately
-     when a booking just completed. Extracted leads are scored by `lead-scorer.ts` (0-100,
-     temperature, classification, recommended next action) before being persisted. New leads
-     trigger the `NotificationProvider`,
-   - records an `unanswered_question` usage event when a substantive question retrieved no
-     grounding, so the dashboard can surface knowledge gaps.
-4. Reply returns to the widget; in voice mode it is spoken via `SpeechProvider` and the
-   microphone re-opens for a hands-free loop.
+   its unguessable visitor token, loads the receptionist + business context, and loads the
+   **agent version pinned on the conversation row** (never from the request; a version id that
+   does not belong to the tenant cannot resolve).
+3. `ChatService.respondForAgent` builds a `TrustedRequestContext` (tenant, conversation, agent,
+   version, `turnId`) and calls `AgentRuntime.run`, which:
+   - loads bounded conversation state and history (user/assistant rows only),
+   - resolves knowledge through the `KnowledgeResolver` for a **context-rewritten** query,
+     with count and character budgets (retrieval failure degrades to no knowledge),
+   - runs system action providers — the `BookingOrchestrator` (if scheduling is enabled)
+     detects intent, fetches real availability, executes any book/reschedule/cancel action and
+     hands back a ground-truth section **plus a typed outcome** recording what it did,
+   - selects the controlled tools to offer (granted ∩ bound ∩ channel ∩ provider capability;
+     none by default),
+   - builds the bounded `ConversationContext` and composes the system prompt from the persisted
+     agent version (identity → facts → state/recap → knowledge → channel → doctrine → Rules →
+     custom instructions → verified actions),
+   - calls the configured `LLMProvider` in a bounded loop (≤ 2 tool rounds, turn deadline;
+     model-proposed intents are schema-validated, authorized, executed once through
+     application-bound executors),
+   - validates the reply — act-then-narrate: no booking/cancel/reschedule/handoff claim without
+     a verified action; channel length/markdown; no leaked instructions — with one corrective
+     regeneration then an honest fallback,
+   - decides a typed escalation, updates the rolling recap and state, persists both transcript
+     rows (and tool rows) and the state,
+   - runs post-turn hooks: lead extraction (**regex for email/phone + JSON-mode LLM pass**,
+     scored by `lead-scorer.ts`, notifying the owner on new leads) on the same cadence as before,
+     and knowledge-gap recording (`unanswered_question`).
+4. Route records usage/latency on the `message_sent` usage event, emits
+   `conversation.escalated` when a handoff was newly triggered, and returns `{ data: { reply } }`.
+   In voice mode the widget speaks the reply and re-opens the microphone.
 
-Failure isolation: knowledge-retrieval, booking-orchestration, and lead-capture errors are all
-logged and degrade to a normal turn without the corresponding enhancement; only an LLM failure
-surfaces an error to the visitor. This is the same design principle used throughout: the AI layer
-composes optional enhancements around a conversation that always works. See
-[AI.md](AI.md) for the conversational/lead-qualification intelligence and
-[SCHEDULING.md](SCHEDULING.md) for the appointment engine.
+Failure isolation: knowledge retrieval, state load/save, system actions and hooks degrade to a
+normal turn (recorded in `RuntimeOutput.degraded` and runtime events); a provider failure or
+turn deadline yields the honest canned reply; only transcript persistence failure surfaces as an
+error. See [RUNTIME.md](RUNTIME.md), [AI.md](AI.md) and [SCHEDULING.md](SCHEDULING.md).
 
 ## Knowledge retrieval
 

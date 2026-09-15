@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Appointment, AppointmentStatus } from "@/core/domain/scheduling";
-import { isNoShowOverdue } from "@/core/services/lifecycle/no-show-sweep";
+import type { Appointment, AppointmentStatus } from "@halo/core/domain/scheduling";
+import { isNoShowOverdue } from "@halo/lifecycle/no-show-sweep";
 
 /**
  * The automatic no-show rule. Getting this wrong either marks paying

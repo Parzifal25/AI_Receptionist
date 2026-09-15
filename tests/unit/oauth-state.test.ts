@@ -3,7 +3,7 @@ import {
   createOAuthNonce,
   decodeOAuthState,
   encodeOAuthState,
-} from "@/lib/oauth-state";
+} from "@halo/platform/oauth-state";
 
 const SECRET = "test-secret";
 

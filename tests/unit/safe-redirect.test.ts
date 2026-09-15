@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { safeRedirectPath } from "@/lib/safe-redirect";
+import { safeRedirectPath } from "@halo/platform/safe-redirect";
 
 describe("safeRedirectPath", () => {
   it("allows a normal path-absolute value", () => {

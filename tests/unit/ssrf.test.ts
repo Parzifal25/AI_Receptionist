@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertPublicHttpsUrl, isForbiddenAddress } from "@/lib/ssrf";
+import { assertPublicHttpsUrl, isForbiddenAddress } from "@halo/platform/ssrf";
 
 describe("isForbiddenAddress", () => {
   it("rejects loopback, private, link-local, CGNAT, and unspecified IPv4", () => {

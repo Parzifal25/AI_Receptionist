@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/cn";
+import { cn } from "@halo/platform/cn";
 
 const LINKS = [
   { href: "/dashboard", label: "Overview" },
@@ -16,8 +16,10 @@ const LINKS = [
   { href: "/dashboard/customers", label: "Customers" },
   { href: "/dashboard/automations", label: "Automations" },
   { href: "/dashboard/analytics", label: "Analytics" },
+  { href: "/dashboard/operations", label: "Operations" },
   { href: "/dashboard/install", label: "Install widget" },
   { href: "/dashboard/settings", label: "Settings" },
+  { href: "/dashboard/admin", label: "Admin" },
 ] as const;
 
 export function DashboardNav() {

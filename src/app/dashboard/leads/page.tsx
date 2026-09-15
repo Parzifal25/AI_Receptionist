@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { Card, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { deleteLead, updateLeadStatus } from "@/features/leads/actions";
-import type { LeadStatus } from "@/core/domain/types";
+import type { LeadStatus } from "@halo/core/domain/types";
 
 export const metadata: Metadata = { title: "Leads — AI Receptionist" };
 

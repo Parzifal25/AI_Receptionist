@@ -72,6 +72,8 @@ Full setup instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Day-2 runbook: cron jobs, queues, monitoring |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Symptom-first diagnosis (calendar, voice, booking, workflows) |
 | [docs/TESTING.md](docs/TESTING.md) | Automated tests + manual testing checklist |
+| [docs/RUNTIME.md](docs/RUNTIME.md) | HALO Agent Runtime (Phase 2): pipeline, contracts, trust model, bounds |
+| [docs/PERFORMANCE_BASELINE.md](docs/PERFORMANCE_BASELINE.md) | Runtime latency baseline and largest levers |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phase 2+, known limitations, technical debt |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Release history |
 
@@ -84,6 +86,9 @@ Full setup instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 | `npm run build:widget` | Bundle only `public/widget.js` |
 | `npm test` | Run the Vitest suite |
 | `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript, no emit |
+| `npm run preflight` | Production configuration gate (DB probe; `preflight:ci` skips it) |
+| `npm run check:migrations` | Apply migrations to a throwaway Postgres + schema-drift check |
 
 ## Tech stack
 

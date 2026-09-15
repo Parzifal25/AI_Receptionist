@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { AppError } from "@/core/errors/app-error";
-import { ChatService } from "@/core/services/chat-service";
-import { BookingOrchestrator } from "@/core/services/scheduling/booking-orchestrator";
+import { AppError } from "@halo/core/errors/app-error";
+import { ChatService, type ResolvedAgentRuntimeContext, resolvedContextFromReceptionist } from "@/core/services/chat-service";
+import { SupabaseAgentRepository } from "@halo/agents/agent-repository";
+import { BookingOrchestrator } from "@halo/scheduling/booking-orchestrator";
 import { WidgetRepository } from "@/core/services/widget-repository";
 import { corsHeaders, isOriginAllowed, preflightResponse } from "@/lib/api/cors";
 import { clientIp, fail, withErrorHandling } from "@/lib/api/respond";
-import { widgetMessageLimiter } from "@/lib/rate-limit";
+import { widgetMessageLimiter } from "@halo/platform/rate-limit";
+import { emitBusinessEvent } from "@halo/workflows/event-bus";
 
 const bodySchema = z.object({
   visitorToken: z.string().min(16).max(128),
@@ -59,6 +61,35 @@ export const POST = withErrorHandling("widget.messages", async (request: NextReq
     return fail(AppError.forbidden("This domain is not allowed to use this widget"), headers);
   }
 
+  // HALO Phase 1: the runtime executes against the agent version the
+  // conversation was started with. Both ids come from the conversation row
+  // (server-persisted at creation) — never from the request. Conversations
+  // without linkage (pre-migration rows, or a fail-open start) run on the
+  // receptionist compatibility path.
+  let agentContext: ResolvedAgentRuntimeContext;
+  if (conversation.agentId && conversation.agentVersionId) {
+    const version = await new SupabaseAgentRepository().getVersion(
+      conversation.agentVersionId,
+      business.id,
+    );
+    if (version) {
+      agentContext = {
+        business,
+        agentId: conversation.agentId,
+        agentVersionId: conversation.agentVersionId,
+        agentVersion: version.version,
+        config: version.config,
+        promptTemplate: version.promptTemplate,
+        model: version.model,
+        receptionist,
+      };
+    } else {
+      agentContext = resolvedContextFromReceptionist({ business, receptionist });
+    }
+  } else {
+    agentContext = resolvedContextFromReceptionist({ business, receptionist });
+  }
+
   if (conversation.messageCount >= MAX_MESSAGES_PER_CONVERSATION) {
     await repository.endConversation(conversation.id);
     return fail(
@@ -68,15 +99,49 @@ export const POST = withErrorHandling("widget.messages", async (request: NextReq
   }
 
   const chat = new ChatService(undefined, undefined, undefined, repository, new BookingOrchestrator());
-  const { reply } = await chat.respond({
-    business,
-    receptionist,
+  const { reply, runtime } = await chat.respondForAgent(agentContext, {
     conversationId: conversation.id,
     userMessage: body.message,
     channel: conversation.channel,
   });
 
-  await repository.trackEvent(business.id, "message_sent");
+  // Phase 2: per-turn usage/latency telemetry rides on the existing usage
+  // event (tenant-safe numbers only — no transcript, no prompt).
+  await repository.trackEvent(business.id, "message_sent", {
+    turnId: runtime.turnId,
+    provider: runtime.usage.provider,
+    model: runtime.usage.model,
+    modelCalls: runtime.usage.modelCalls,
+    ...(runtime.usage.totalTokens !== undefined
+      ? {
+          inputTokens: runtime.usage.inputTokens,
+          outputTokens: runtime.usage.outputTokens,
+          totalTokens: runtime.usage.totalTokens,
+        }
+      : {}),
+    latencyMs: runtime.timings.totalMs,
+    modelLatencyMs: runtime.timings.modelMs,
+    toolRounds: runtime.usage.toolRounds,
+    escalated: runtime.escalation.escalate,
+    degradedProvider: runtime.degraded.provider,
+  });
+
+  // Emitted once per conversation: the runtime raises `escalation.triggered`
+  // only on the turn that first triggers it (state stays "triggered" after).
+  if (runtime.events.some((event) => event.type === "escalation.triggered")) {
+    // Workflow trigger for tenants who automate handoffs — fire-and-forget.
+    void emitBusinessEvent({
+      businessId: business.id,
+      type: "conversation.escalated",
+      correlationId: conversation.id,
+      payload: {
+        conversationId: conversation.id,
+        reason: runtime.escalation.reason ?? "",
+        priority: runtime.escalation.priority,
+        recommendedAction: runtime.escalation.recommendedAction,
+      },
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ data: { reply } }, { headers });
 });

@@ -1,5 +1,5 @@
 import { type ButtonHTMLAttributes, forwardRef } from "react";
-import { cn } from "@/lib/cn";
+import { cn } from "@halo/platform/cn";
 
 type Variant = "primary" | "secondary" | "danger" | "ghost";
 type Size = "sm" | "md";

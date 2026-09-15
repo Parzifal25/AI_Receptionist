@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { Badge, Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FaqEditor } from "@/features/faqs/faq-editor";

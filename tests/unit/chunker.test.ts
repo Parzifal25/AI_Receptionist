@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chunkText } from "@/core/services/chunker";
+import { chunkText } from "@halo/knowledge/chunker";
 
 describe("chunkText", () => {
   it("returns empty array for empty input", () => {

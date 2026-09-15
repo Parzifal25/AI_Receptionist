@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireBusiness } from "@/lib/auth";
+import { requireBusiness } from "@halo/tenancy/auth";
 import {
   lifecycleSettingsSchema,
   parseIntakeFields,
   parseReminderLeadMinutes,
-} from "@/core/services/lifecycle/lifecycle-settings";
-import { SchedulingRepository } from "@/core/services/scheduling/scheduling-repository";
-import { logger } from "@/lib/logger";
+} from "@halo/lifecycle/lifecycle-settings";
+import { SchedulingRepository } from "@halo/scheduling/scheduling-repository";
+import { logger } from "@halo/platform/logger";
 import type { ActionState } from "@/features/business/actions";
 
 const log = logger.child({ feature: "lifecycle-settings" });

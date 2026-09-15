@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { AppError } from "@/core/errors/app-error";
-import { workflowDefinitionSchema } from "@/core/domain/workflow";
-import { SupabaseWorkflowStore } from "@/core/services/workflows/supabase-workflow-store";
+import { AppError } from "@halo/core/errors/app-error";
+import { workflowDefinitionSchema } from "@halo/core/domain/workflow";
+import { SupabaseWorkflowStore } from "@halo/workflows/supabase-workflow-store";
 import { fail, withErrorHandling } from "@/lib/api/respond";
-import { requireBusiness } from "@/lib/auth";
+import { requireBusiness } from "@halo/tenancy/auth";
 
 export const dynamic = "force-dynamic";
 

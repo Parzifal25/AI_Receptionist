@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   INDUSTRY_PLAYBOOKS,
   matchIndustryPlaybook,
-} from "@/core/services/industry-playbooks";
+} from "@/content/industry-playbooks";
+import { matchPlaybook, renderPlaybookSection } from "@halo/knowledge/playbooks";
 
-describe("matchIndustryPlaybook", () => {
+describe("matchIndustryPlaybook (app seed catalog)", () => {
   it("matches common industry phrasings to the right playbook", () => {
     const cases: Array<[industry: string, description: string, expected: string]> = [
       ["Dentistry", "", "dental"],
@@ -57,5 +58,39 @@ describe("matchIndustryPlaybook", () => {
     expect(hvac?.emergency).toMatch(/gas/i);
     const electrical = matchIndustryPlaybook("Electrician");
     expect(electrical?.emergency).toMatch(/911/);
+  });
+});
+
+describe("matchPlaybook (generic mechanism, no industry knowledge)", () => {
+  const catalog = [
+    {
+      id: "sample-a",
+      match: /\b(aaa)\b/,
+      qualifyingDetails: ["one"],
+      notes: ["note"],
+    },
+    {
+      id: "sample-b",
+      match: /\b(bbb)\b/,
+      qualifyingDetails: ["two"],
+      notes: ["note"],
+      compliance: "never do X",
+    },
+  ];
+
+  it("selects from a caller-supplied catalog", () => {
+    expect(matchPlaybook(catalog, "AAA services")?.id).toBe("sample-a");
+    expect(matchPlaybook(catalog, "", "we are the bbb guys")?.id).toBe("sample-b");
+    expect(matchPlaybook(catalog, "zzz")).toBeNull();
+    expect(matchPlaybook([], "anything")).toBeNull();
+  });
+
+  it("renders a deterministic, self-contained section", () => {
+    const section = renderPlaybookSection(catalog[1]);
+    expect(section).toContain("## Industry playbook");
+    expect(section).toContain("- note");
+    expect(section).toContain("two");
+    expect(section).toContain("- Hard rule: never do X");
+    expect(renderPlaybookSection(catalog[1])).toBe(section);
   });
 });

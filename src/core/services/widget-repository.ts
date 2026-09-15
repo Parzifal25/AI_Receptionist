@@ -8,12 +8,13 @@ import type {
   Receptionist,
   UsageEventType,
   WidgetBranding,
-} from "@/core/domain/types";
-import { DEFAULT_BRANDING } from "@/core/domain/types";
+} from "@halo/core/domain/types";
+import { DEFAULT_BRANDING } from "@halo/core/domain/types";
 import { scoreLead } from "./lead-scorer";
-import { AppError } from "@/core/errors/app-error";
-import { getAdminClient } from "@/lib/supabase/admin";
-import { logger } from "@/lib/logger";
+import { AppError } from "@halo/core/errors/app-error";
+import { getAdminClient } from "@halo/tenancy/supabase/admin";
+import { logger } from "@halo/platform/logger";
+import type { ToolTranscriptRecord } from "@halo/runtime/system-actions";
 
 const log = logger.child({ service: "widget-repository" });
 
@@ -115,12 +116,38 @@ export class WidgetRepository {
     };
   }
 
+  /**
+   * Trusted tenant proof for agent resolution (HALO Phase 1). A widget key
+   * exists on exactly one receptionist row of exactly one tenant, so it maps
+   * 1:1 to (businessId, agent slug = receptionist id). No client input can
+   * widen this scope.
+   */
+  async getAgentSelectorByWidgetKey(
+    widgetKey: string,
+  ): Promise<{ businessId: string; agentSlug: string }> {
+    const { data, error } = await this.db
+      .from("receptionists")
+      .select("id, business_id, is_active")
+      .eq("widget_key", widgetKey)
+      .maybeSingle();
+    if (error) {
+      log.error("agent selector lookup failed", { error: error.message });
+      throw AppError.internal();
+    }
+    if (!data || !data.is_active) throw AppError.notFound("Receptionist");
+    return { businessId: data.business_id, agentSlug: data.id };
+  }
+
   async createConversation(params: {
     businessId: string;
     receptionistId: string;
     channel: "chat" | "voice";
     pageUrl: string;
     userAgent: string;
+    /** HALO Phase 1: agent serving this conversation (optional during the
+     *  compatibility period; resolved by AgentResolver when available). */
+    agentId?: string | null;
+    agentVersionId?: string | null;
   }): Promise<Conversation> {
     const { data, error } = await this.db
       .from("conversations")
@@ -130,8 +157,10 @@ export class WidgetRepository {
         channel: params.channel,
         page_url: params.pageUrl.slice(0, 2000),
         user_agent: params.userAgent.slice(0, 500),
+        ...(params.agentId !== undefined ? { agent_id: params.agentId } : {}),
+        ...(params.agentVersionId !== undefined ? { agent_version_id: params.agentVersionId } : {}),
       })
-      .select("id, business_id, receptionist_id, visitor_token, channel, status, message_count, started_at, last_message_at")
+      .select("id, business_id, receptionist_id, visitor_token, channel, status, message_count, started_at, last_message_at, agent_id, agent_version_id")
       .single();
 
     if (error || !data) {
@@ -145,7 +174,7 @@ export class WidgetRepository {
   async getConversationByToken(visitorToken: string): Promise<Conversation> {
     const { data, error } = await this.db
       .from("conversations")
-      .select("id, business_id, receptionist_id, visitor_token, channel, status, message_count, started_at, last_message_at")
+      .select("id, business_id, receptionist_id, visitor_token, channel, status, message_count, started_at, last_message_at, agent_id, agent_version_id")
       .eq("visitor_token", visitorToken)
       .maybeSingle();
 
@@ -157,11 +186,16 @@ export class WidgetRepository {
     return mapConversation(data);
   }
 
+  /**
+   * Conversational rows only (user/assistant): tool-call transcript rows
+   * (role = 'tool', migration 0016) are runtime records, never model history.
+   */
   async getRecentMessages(conversationId: string, limit = 20): Promise<ChatMessage[]> {
     const { data, error } = await this.db
       .from("messages")
       .select("role, content")
       .eq("conversation_id", conversationId)
+      .in("role", ["user", "assistant"])
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -191,6 +225,40 @@ export class WidgetRepository {
     }
     // conversations.message_count / last_message_at are maintained by the
     // messages_bump_conversation trigger — no read-modify-write here.
+  }
+
+  /**
+   * Transcribes tool-call turns (HALO Phase 2): one `role = 'tool'` row per
+   * executed or rejected intent, with validated arguments and the typed
+   * result. Content stays empty — the runtime narrates from the result.
+   */
+  async appendToolRecords(
+    conversationId: string,
+    businessId: string,
+    records: ToolTranscriptRecord[],
+  ): Promise<void> {
+    if (records.length === 0) return;
+    const { error } = await this.db.from("messages").insert(
+      records.map(({ intent, result }) => ({
+        conversation_id: conversationId,
+        business_id: businessId,
+        role: "tool",
+        content: "",
+        tool_call_id: intent.id.slice(0, 200),
+        tool_name: intent.name.slice(0, 200),
+        tool_args: intent.arguments,
+        tool_result: {
+          status: result.status,
+          summary: result.summary,
+          ...(result.rejection ? { rejection: result.rejection } : {}),
+          ...(result.error ? { error: result.error } : {}),
+        },
+      })),
+    );
+    if (error) {
+      log.error("tool transcript insert failed", { error: error.message });
+      throw AppError.internal();
+    }
   }
 
   /** Marks a conversation ended; subsequent messages are rejected. */
@@ -332,6 +400,8 @@ function mapConversation(row: {
   message_count: number;
   started_at: string;
   last_message_at: string;
+  agent_id?: string | null;
+  agent_version_id?: string | null;
 }): Conversation {
   return {
     id: row.id,
@@ -343,5 +413,7 @@ function mapConversation(row: {
     messageCount: row.message_count,
     startedAt: row.started_at,
     lastMessageAt: row.last_message_at,
+    agentId: row.agent_id ?? null,
+    agentVersionId: row.agent_version_id ?? null,
   };
 }

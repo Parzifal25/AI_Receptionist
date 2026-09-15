@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AppError } from "@/core/errors/app-error";
-import { ReminderService } from "@/core/services/scheduling/reminder-service";
+import { AppError } from "@halo/core/errors/app-error";
+import { ReminderService } from "@halo/scheduling/reminder-service";
 import { fail, withErrorHandling } from "@/lib/api/respond";
-import { getServerEnv } from "@/lib/env";
-import { logger } from "@/lib/logger";
-import { timingSafeEqualStr } from "@/lib/crypto";
+import { getServerEnv } from "@halo/platform/env";
+import { logger } from "@halo/platform/logger";
+import { timingSafeEqualStr } from "@halo/platform/crypto";
 
 export const dynamic = "force-dynamic";
 

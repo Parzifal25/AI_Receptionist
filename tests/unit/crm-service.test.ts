@@ -7,7 +7,7 @@ import {
   type Customer,
   type CustomerDraft,
   type TimelineEntry,
-} from "@/core/services/crm/crm-service";
+} from "@halo/crm/crm-service";
 
 class InMemoryCrmStore implements CrmStore {
   customers: Customer[] = [];

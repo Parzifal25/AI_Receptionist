@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { ProfileForm } from "@/features/business/profile-form";
-import type { BusinessHours } from "@/core/domain/types";
+import type { BusinessHours } from "@halo/core/domain/types";
 
 export const metadata: Metadata = { title: "Business profile — AI Receptionist" };
 

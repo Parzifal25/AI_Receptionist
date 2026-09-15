@@ -1,48 +1,99 @@
 import "server-only";
-import type { Business, ChatMessage, Receptionist } from "@/core/domain/types";
-import type { KnowledgeProvider } from "@/core/ports/knowledge-provider";
-import type { LLMProvider } from "@/core/ports/llm-provider";
-import type { NotificationProvider } from "@/core/ports/notification-provider";
-import { buildSystemPrompt, PROMPT_VERSION } from "./prompt-builder";
-import { buildRetrievalQuery, isSubstantiveQuestion } from "./retrieval-query";
-import { extractLead, isLeadWorthSaving } from "./lead-extractor";
-import type { BookingOrchestrator } from "./scheduling/booking-orchestrator";
+import type { AgentConfig } from "@halo/core/domain/agents";
+import type { Business, ChatMessage, Receptionist } from "@halo/core/domain/types";
+import type { KnowledgeProvider } from "@halo/ports/knowledge-provider";
+import type { LLMProvider } from "@halo/ports/llm-provider";
+import type { NotificationProvider } from "@halo/ports/notification-provider";
+import { logger } from "@halo/platform/logger";
+import { getLLMProvider } from "@halo/providers/llm/factory";
+import { getKnowledgeProvider } from "@halo/providers/knowledge/factory";
+import { getNotificationProvider } from "@halo/providers/notification/factory";
+import { emitBusinessEvent, type EmitInput } from "@halo/workflows/event-bus";
+import type { BookingOrchestrator } from "@halo/scheduling/booking-orchestrator";
+import { BookingSystemActionProvider } from "@halo/scheduling/booking-runtime-adapter";
+import { AgentRuntime, defaultDoctrine, newTurnId, type RuntimePolicy } from "@halo/runtime/agent-runtime";
+import { channelProfileForConversation } from "@halo/runtime/channel-profile";
+import type { ResolvedAgentRuntimeContext, RuntimeEventSink, RuntimeOutput } from "@halo/runtime/contracts";
+import type { ConversationStateStore } from "@halo/runtime/conversation-state";
+import { ProviderKnowledgeResolver } from "@halo/runtime/knowledge-resolver";
+import { SupabaseConversationStateStore } from "@halo/runtime/stores/supabase-conversation-state-store";
+import type { ConversationStore } from "@halo/runtime/system-actions";
+import { BUILTIN_TOOLS, ToolRegistry } from "@halo/runtime/tools/registry";
+import { PROMPT_ASSEMBLER_VERSION, receptionistDoctrine } from "./prompt-builder";
+import {
+  KnowledgeGapHook,
+  LeadCaptureHook,
+  LeadCaptureService,
+  requestHumanHandoffExecutor,
+  saveContactDetailsExecutor,
+} from "./lead-capture";
 import { WidgetRepository } from "./widget-repository";
-import { isAppError } from "@/core/errors/app-error";
-import { logger } from "@/lib/logger";
-import { getLLMProvider } from "@/providers/llm/factory";
-import { getKnowledgeProvider } from "@/providers/knowledge/factory";
-import { getNotificationProvider } from "@/providers/notification/log-notification-provider";
-import { emitBusinessEvent, type EmitInput } from "./workflows/event-bus";
 
-/**
- * Shown when the LLM provider is down or times out. The widget must never
- * hard-fail a chat turn over an upstream outage — a canned but honest reply
- * keeps the conversation usable and still gives the visitor a next step.
- */
-const PROVIDER_FALLBACK_REPLY =
-  "Sorry, I'm having trouble connecting right now. Please try again in a moment, " +
-  "or leave your name and phone/email and the team will follow up.";
-
-const HISTORY_LIMIT = 16;
-/** Run lead extraction every N visitor messages to bound LLM cost. */
-const LEAD_EXTRACTION_INTERVAL = 3;
-/**
- * Messages that likely just changed the lead picture — contact details,
- * booking/pricing intent, urgency — trigger extraction immediately instead
- * of waiting for the periodic pass, so a hot lead is scored while it's hot.
- */
-const LEAD_TRIGGER_RE =
-  /@|\d{6,}|\b(book|booking|appointment|schedule|quote|estimate|price|pricing|cost|urgent|emergency|asap|call me|contact me|reach me)\b/i;
+export type { ResolvedAgentRuntimeContext } from "@halo/runtime/contracts";
 
 const log = logger.child({ service: "chat" });
 
 /**
- * Orchestrates one conversational turn:
- * retrieve knowledge → build prompt → complete → persist → capture lead.
- * Depends only on ports; providers are injected (defaulted from factories).
+ * Compatibility adapter: lifts a receptionist-shaped context (the pre-HALO
+ * path) into a resolved agent context. Agent identity is unknown on this
+ * path (legacy callers); the receptionist row remains the selector and the
+ * conversation carries no agent linkage. The 0014 backfill maps every
+ * receptionist to an agent, so this path is behaviour-identical, not
+ * agent-broken.
+ */
+export function resolvedContextFromReceptionist(params: {
+  business: Business;
+  receptionist: Receptionist;
+}): ResolvedAgentRuntimeContext {
+  const config: AgentConfig = {
+    identity: { name: params.receptionist.name, persona: params.receptionist.tone },
+    objective: "",
+    instructions: {
+      promptTemplate: "",
+      customInstructions: params.receptionist.customInstructions,
+    },
+    language: { primary: params.receptionist.language || "en", fallbacks: [], codeSwitchPolicy: "allow" },
+    voice: { bargeIn: true },
+    knowledge: { collectionIds: [], retrievalPolicy: "hybrid" },
+    tools: { grantedToolIds: [], policy: {} },
+    workflows: { allowedTriggers: [] },
+    guardrails: { refusals: [], escalationTriggers: [], piiRules: {} },
+  };
+  return {
+    business: params.business,
+    agentId: null as unknown as string,
+    agentVersionId: null as unknown as string,
+    agentVersion: 0,
+    config,
+    promptTemplate: "",
+    model: undefined,
+    receptionist: params.receptionist,
+  };
+}
+
+export interface ChatServiceOptions {
+  /** Defaults to the Postgres-backed store; tests inject an in-memory one. */
+  stateStore?: ConversationStateStore;
+  events?: RuntimeEventSink;
+  policy?: Partial<RuntimePolicy>;
+}
+
+/**
+ * The web-chat channel adapter over the HALO Agent Runtime (Phase 2).
+ *
+ * Before Phase 2 this class WAS the turn: retrieve → prompt → complete →
+ * persist → capture. It now binds the application's trusted services to
+ * the generic runtime — knowledge provider, transcript repository, the
+ * scheduling engine as a system action, lead capture as a post-turn hook,
+ * the two built-in controlled tools — and keeps its public surface so
+ * routes and tests are unchanged.
+ *
+ * Trust: the resolved agent context (tenant, agent, version) comes from the
+ * caller's server-side resolution; nothing here consults the client.
  */
 export class ChatService {
+  private runtime: AgentRuntime | null = null;
+
   constructor(
     private readonly llm: LLMProvider = getLLMProvider(),
     private readonly knowledge: KnowledgeProvider = getKnowledgeProvider(),
@@ -52,167 +103,97 @@ export class ChatService {
     private readonly booking: BookingOrchestrator | null = null,
     /** Workflow/CRM automation feed; failures are logged, never propagated. */
     private readonly emitEvent: (input: EmitInput) => Promise<void> = emitBusinessEvent,
+    private readonly options: ChatServiceOptions = {},
   ) {}
 
+  private getRuntime(): AgentRuntime {
+    if (this.runtime) return this.runtime;
+    const leads = new LeadCaptureService(this.llm, this.notifications, this.repository, this.emitEvent);
+    const conversations: ConversationStore = {
+      loadHistory: (conversationId, _businessId, limit) => this.repository.getRecentMessages(conversationId, limit),
+      appendMessages: (conversationId, businessId, messages) =>
+        this.repository.appendMessages(conversationId, businessId, messages),
+      appendToolRecords: (conversationId, businessId, records) =>
+        typeof this.repository.appendToolRecords === "function"
+          ? this.repository.appendToolRecords(conversationId, businessId, records)
+          : Promise.resolve(),
+    };
+    this.runtime = new AgentRuntime({
+      llm: this.llm,
+      knowledge: new ProviderKnowledgeResolver(this.knowledge),
+      conversations,
+      stateStore: this.options.stateStore ?? new SupabaseConversationStateStore(),
+      registry: new ToolRegistry(BUILTIN_TOOLS, {
+        request_human_handoff: requestHumanHandoffExecutor,
+        save_contact_details: saveContactDetailsExecutor(leads),
+      }),
+      systemActions: this.booking ? [new BookingSystemActionProvider(this.booking)] : [],
+      hooks: [new LeadCaptureHook(leads), new KnowledgeGapHook(this.repository)],
+      // Agents with a published template run the generic doctrine; the
+      // receptionist compatibility path keeps its persona, tone and playbook.
+      doctrine: (agent, channel) =>
+        agent.promptTemplate.trim()
+          ? defaultDoctrine(agent, channel)
+          : receptionistDoctrine({ business: agent.business, receptionist: agent.receptionist }),
+      events: this.options.events,
+      policy: this.options.policy,
+    });
+    return this.runtime;
+  }
+
+  /**
+   * One conversational turn for a RESOLVED agent context — the runtime
+   * boundary for the web channel. `respond()` remains as a thin, deprecated
+   * compatibility shim over it.
+   */
+  async respondForAgent(
+    ctx: ResolvedAgentRuntimeContext,
+    input: { conversationId: string; userMessage: string; channel?: "chat" | "voice"; turnId?: string },
+  ): Promise<{ reply: string; runtime: RuntimeOutput }> {
+    const trusted = {
+      businessId: ctx.business.id,
+      conversationId: input.conversationId,
+      agentId: ctx.agentId ?? null,
+      agentVersionId: ctx.agentVersionId ?? null,
+      turnId: input.turnId ?? newTurnId(),
+    };
+
+    log.info("responding", {
+      businessId: ctx.business.id,
+      conversationId: input.conversationId,
+      turnId: trusted.turnId,
+      agentId: ctx.agentId ?? undefined,
+      agentVersionId: ctx.agentVersionId ?? undefined,
+      promptAssemblerVersion: PROMPT_ASSEMBLER_VERSION,
+      agentVersion: ctx.agentVersion > 0 ? ctx.agentVersion : undefined,
+    });
+
+    const output = await this.getRuntime().run({
+      trusted,
+      agent: ctx,
+      channel: channelProfileForConversation(input.channel ?? "chat"),
+      userMessage: input.userMessage,
+    });
+    return { reply: output.reply, runtime: output };
+  }
+
+  /**
+   * @deprecated Compatibility shim for the pre-agent receptionist path.
+   * Prefer `respondForAgent` with a resolver-built context.
+   */
   async respond(params: {
     business: Business;
     receptionist: Receptionist;
     conversationId: string;
     userMessage: string;
     channel?: "chat" | "voice";
-  }): Promise<{ reply: string }> {
-    const { business, receptionist, conversationId, userMessage, channel } = params;
-
-    // History first: follow-up messages ("how much is that?") retrieve
-    // against the conversation topic, not just the literal words.
-    const history = await this.repository.getRecentMessages(conversationId, HISTORY_LIMIT);
-    const retrievalQuery = buildRetrievalQuery(history, userMessage);
-
-    const snippets = await this.knowledge
-      .search(business.id, retrievalQuery)
-      .catch((error) => {
-        // Retrieval failure degrades to profile-only answers, never a 500.
-        log.warn("knowledge search failed, continuing without context", { error });
-        return [];
-      });
-
-    // A real question with zero grounding is a knowledge gap the owner should
-    // see — the knowledge base improves in the order customers ask for it.
-    if (snippets.length === 0 && isSubstantiveQuestion(userMessage)) {
-      void this.repository
-        .trackEvent(business.id, "unanswered_question", {
-          conversationId,
-          question: userMessage.slice(0, 300),
-        })
-        .catch(() => {});
-    }
-
-    // Appointment intelligence: real availability and just-executed booking
-    // actions are injected as ground truth, so the model narrates what the
-    // engine actually did instead of inventing times. Failures degrade to a
-    // normal (booking-free) turn — scheduling must never break the chat.
-    const bookingContext = this.booking
-      ? await this.booking
-          .prepareTurn({ business, conversationId, history, userMessage })
-          .catch((error) => {
-            log.warn("booking orchestration failed, continuing without it", { error });
-            return null;
-          })
-      : null;
-
-    const basePrompt = buildSystemPrompt({ business, receptionist, knowledge: snippets, channel });
-    const systemPrompt = bookingContext
-      ? `${basePrompt}\n\n${bookingContext.promptSection}`
-      : basePrompt;
-    const messages: ChatMessage[] = [...history, { role: "user", content: userMessage }];
-
-    // Grounding telemetry: how many sources the turn was anchored to, and
-    // which prompt revision produced it — feeds answer-quality analysis.
-    log.info("responding", {
-      businessId: business.id,
-      conversationId,
-      promptVersion: PROMPT_VERSION,
-      groundingSources: snippets.length,
-      historyTurns: history.length,
+  }): Promise<{ reply: string; runtime: RuntimeOutput }> {
+    return this.respondForAgent(resolvedContextFromReceptionist(params), {
+      conversationId: params.conversationId,
+      userMessage: params.userMessage,
+      channel: params.channel,
     });
-
-    // Low temperature keeps a receptionist factual; a touch above the floor
-    // stops it repeating identical canned phrasings turn after turn.
-    // A provider outage/timeout degrades to a canned reply instead of
-    // failing the request — the widget must never surface a raw 5xx.
-    let replyContent: string;
-    let providerFailed = false;
-    try {
-      const result = await this.llm.complete(systemPrompt, messages, {
-        temperature: 0.3,
-        maxTokens: 400,
-      });
-      replyContent = result.content;
-    } catch (error) {
-      providerFailed = true;
-      log.error("llm completion failed, degrading to fallback reply", {
-        businessId: business.id,
-        conversationId,
-        provider: this.llm.name,
-        code: isAppError(error) ? error.code : undefined,
-        error,
-      });
-      replyContent = PROVIDER_FALLBACK_REPLY;
-    }
-
-    await this.repository.appendMessages(conversationId, business.id, [
-      { role: "user", content: userMessage },
-      { role: "assistant", content: replyContent },
-    ]);
-
-    // Lead capture also calls the LLM (extraction pass) — skip it this turn
-    // if the provider just failed, rather than compounding one outage with a
-    // second doomed call.
-    if (receptionist.leadCaptureEnabled && !providerFailed) {
-      const visitorMessageCount = messages.filter((m) => m.role === "user").length;
-      // A completed booking always captures the lead — the visitor just
-      // handed over exactly the details a lead needs.
-      if (
-        bookingContext?.bookedNow ||
-        visitorMessageCount % LEAD_EXTRACTION_INTERVAL === 0 ||
-        LEAD_TRIGGER_RE.test(userMessage)
-      ) {
-        await this.captureLead(business, conversationId, [
-          ...messages,
-          { role: "assistant", content: replyContent },
-        ]).catch((error) => log.warn("lead capture failed", { error }));
-      }
-    }
-
-    return { reply: replyContent };
-  }
-
-  private async captureLead(
-    business: Business,
-    conversationId: string,
-    transcript: ChatMessage[],
-  ): Promise<void> {
-    const draft = await extractLead(this.llm, transcript);
-    if (!isLeadWorthSaving(draft)) return;
-
-    const { isNew } = await this.repository.upsertConversationLead(
-      business.id,
-      conversationId,
-      draft,
-      transcript,
-    );
-
-    // Feed the automation platform: CRM sync + tenant workflows react to
-    // every captured/updated lead. Fire-and-forget — never blocks the turn.
-    void this.emitEvent({
-      businessId: business.id,
-      type: isNew ? "lead.created" : "lead.updated",
-      correlationId: conversationId,
-      payload: {
-        conversationId,
-        name: draft.name ?? "",
-        email: draft.email ?? "",
-        phone: draft.phone ?? "",
-        intent: draft.intent ?? "",
-      },
-    }).catch((error) => log.warn("business event emit failed", { error }));
-
-    if (isNew) {
-      await this.repository.trackEvent(business.id, "lead_captured");
-      const settings = await this.repository.getBusinessNotificationSettings(business.id);
-      if (settings.notifyOnLead) {
-        await this.notifications.notifyNewLead({
-          businessId: business.id,
-          businessName: business.name,
-          recipientEmail: settings.notificationEmail,
-          lead: {
-            name: draft.name ?? "",
-            email: draft.email ?? "",
-            phone: draft.phone ?? "",
-            intent: draft.intent ?? "",
-          },
-        });
-      }
-    }
   }
 }
+
+export type { ChatMessage };

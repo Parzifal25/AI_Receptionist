@@ -4,8 +4,8 @@ import {
   extractLead,
   isLeadWorthSaving,
 } from "@/core/services/lead-extractor";
-import type { ChatMessage } from "@/core/domain/types";
-import type { LLMProvider, LLMResult } from "@/core/ports/llm-provider";
+import type { ChatMessage } from "@halo/core/domain/types";
+import type { LLMProvider, LLMResult } from "@halo/ports/llm-provider";
 
 function fakeLLM(response: string | Error): LLMProvider {
   return {

@@ -1,5 +1,5 @@
 import "server-only";
-import { getServerEnv, type ServerEnv } from "@/lib/env";
+import { getServerEnv, type ServerEnv } from "@halo/platform/env";
 
 /**
  * Shared pieces of the Google Calendar connect flow (start + callback

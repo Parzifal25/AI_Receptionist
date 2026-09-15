@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { safeRedirectPath } from "@/lib/safe-redirect";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
+import { safeRedirectPath } from "@halo/platform/safe-redirect";
 
 /**
  * OAuth / email-confirmation callback: exchanges the auth code for a session

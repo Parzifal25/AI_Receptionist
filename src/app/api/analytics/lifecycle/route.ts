@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { LifecycleAnalyticsService } from "@/core/services/analytics/lifecycle-analytics-service";
+import { LifecycleAnalyticsService } from "@halo/analytics/lifecycle-analytics-service";
 import { withErrorHandling } from "@/lib/api/respond";
-import { requireBusiness } from "@/lib/auth";
+import { requireBusiness } from "@halo/tenancy/auth";
 
 export const dynamic = "force-dynamic";
 

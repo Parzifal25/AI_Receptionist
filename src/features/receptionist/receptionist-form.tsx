@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { FormError, FormSuccess } from "@/components/ui/form-feedback";
-import type { ReceptionistTone, WidgetBranding } from "@/core/domain/types";
+import type { ReceptionistTone, WidgetBranding } from "@halo/core/domain/types";
 import { updateReceptionist } from "./actions";
 import type { ActionState } from "@/features/business/actions";
 

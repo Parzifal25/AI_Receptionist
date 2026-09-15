@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BusinessEvent } from "@/core/domain/workflow";
-import type { MessagingProvider, OutboundMessage } from "@/core/ports/messaging-provider";
-import { createActionRegistry } from "@/core/services/workflows/action-registry";
-import { CrmService, type CrmStore } from "@/core/services/crm/crm-service";
-import type { ActionContext } from "@/core/services/workflows/types";
+import type { BusinessEvent } from "@halo/core/domain/workflow";
+import type { MessagingProvider, OutboundMessage } from "@halo/ports/messaging-provider";
+import { createActionRegistry } from "@halo/workflows/action-registry";
+import { CrmService, type CrmStore } from "@halo/crm/crm-service";
+import type { ActionContext } from "@halo/workflows/types";
 import { InMemoryWorkflowStore } from "../mocks/in-memory-workflow-store";
 
 const event: BusinessEvent = {

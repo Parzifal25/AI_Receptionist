@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { chunkText } from "@/core/services/chunker";
-import { getKnowledgeProvider } from "@/providers/knowledge/factory";
-import { logger } from "@/lib/logger";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
+import { chunkText } from "@halo/knowledge/chunker";
+import { getKnowledgeProvider } from "@halo/providers/knowledge/factory";
+import { logger } from "@halo/platform/logger";
 import type { ActionState } from "@/features/business/actions";
 
 const log = logger.child({ feature: "knowledge" });

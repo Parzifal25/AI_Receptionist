@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Business } from "@/core/domain/types";
-import type { Appointment, SchedulingSettings } from "@/core/domain/scheduling";
+import type { Business } from "@halo/core/domain/types";
+import type { Appointment, SchedulingSettings } from "@halo/core/domain/scheduling";
 import {
   buildLinks,
   confirmationEmailHtml,
@@ -10,7 +10,7 @@ import {
   reminderText,
   reviewRequestText,
   thankYouText,
-} from "@/core/services/lifecycle/confirmation-content";
+} from "@halo/lifecycle/confirmation-content";
 
 const business: Business = {
   id: "b1",

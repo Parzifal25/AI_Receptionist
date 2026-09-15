@@ -4,8 +4,8 @@ import type {
   WorkflowDefinition,
   WorkflowRun,
   WorkflowStepLog,
-} from "@/core/domain/workflow";
-import type { WorkflowStore } from "@/core/services/workflows/types";
+} from "@halo/core/domain/workflow";
+import type { WorkflowStore } from "@halo/workflows/types";
 
 interface StoredTimer {
   businessId: string;

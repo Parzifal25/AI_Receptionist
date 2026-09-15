@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { generateSlots, isSlotAvailable } from "@/core/services/scheduling/availability";
-import type { SchedulingSettings, StaffMember } from "@/core/domain/scheduling";
+import { generateSlots, isSlotAvailable } from "@halo/scheduling/availability";
+import type { SchedulingSettings, StaffMember } from "@halo/core/domain/scheduling";
 
 /**
  * Fixed scenario: a New York business, 9-5 Mon-Fri, 60-minute slots.

@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { AppError } from "@/core/errors/app-error";
+import { AppError } from "@halo/core/errors/app-error";
 import { WidgetRepository } from "@/core/services/widget-repository";
-import { getNotificationProvider } from "@/providers/notification/log-notification-provider";
+import { getNotificationProvider } from "@halo/providers/notification/factory";
 import { corsHeaders, isOriginAllowed, preflightResponse } from "@/lib/api/cors";
 import { clientIp, fail, withErrorHandling } from "@/lib/api/respond";
-import { widgetSessionLimiter } from "@/lib/rate-limit";
+import { widgetSessionLimiter } from "@halo/platform/rate-limit";
 
 const bodySchema = z
   .object({

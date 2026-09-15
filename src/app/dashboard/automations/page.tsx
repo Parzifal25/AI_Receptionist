@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { requireBusiness } from "@/lib/auth";
-import { SupabaseWorkflowStore } from "@/core/services/workflows/supabase-workflow-store";
-import { WORKFLOW_TEMPLATES } from "@/core/services/workflows/templates";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { SupabaseWorkflowStore } from "@halo/workflows/supabase-workflow-store";
+import { WORKFLOW_TEMPLATES } from "@halo/workflows/templates";
 import { AutomationsClient } from "./automations-client";
 
 export const metadata: Metadata = { title: "Automations — AI Receptionist" };

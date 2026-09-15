@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { AppError } from "@/core/errors/app-error";
-import { AppointmentManageService } from "@/core/services/lifecycle/manage-service";
+import { AppError } from "@halo/core/errors/app-error";
+import { AppointmentManageService } from "@halo/lifecycle/manage-service";
 import { clientIp, fail, withErrorHandling } from "@/lib/api/respond";
-import { appointmentManageLimiter } from "@/lib/rate-limit";
+import { appointmentManageLimiter } from "@halo/platform/rate-limit";
 
 export const dynamic = "force-dynamic";
 

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireBusiness } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { Card, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { canTransition } from "@/core/services/scheduling/appointment-state";
-import type { AppointmentStatus } from "@/core/domain/scheduling";
-import { formatInTz } from "@/core/services/scheduling/timezone";
+import { canTransition } from "@halo/scheduling/appointment-state";
+import type { AppointmentStatus } from "@halo/core/domain/scheduling";
+import { formatInTz } from "@halo/scheduling/timezone";
 import { updateAppointmentLifecycle } from "@/features/appointments/actions";
 
 export const metadata: Metadata = { title: "Appointments — AI Receptionist" };

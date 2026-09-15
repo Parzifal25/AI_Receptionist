@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireBusiness } from "@/lib/auth";
-import { getServerEnv } from "@/lib/env";
-import { decodeOAuthState } from "@/lib/oauth-state";
-import { getAdminClient } from "@/lib/supabase/admin";
-import { timingSafeEqualStr } from "@/lib/crypto";
-import { OAUTH_TOKEN_URLS } from "@/providers/calendar/token-source";
-import { logger } from "@/lib/logger";
+import { requireBusiness } from "@halo/tenancy/auth";
+import { getServerEnv } from "@halo/platform/env";
+import { decodeOAuthState } from "@halo/platform/oauth-state";
+import { getAdminClient } from "@halo/tenancy/supabase/admin";
+import { timingSafeEqualStr } from "@halo/platform/crypto";
+import { OAUTH_TOKEN_URLS } from "@halo/providers/calendar/token-source";
+import { logger } from "@halo/platform/logger";
 import {
   NONCE_COOKIE,
   googleRedirectUri,

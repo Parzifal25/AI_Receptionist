@@ -5,9 +5,20 @@
 ```bash
 npm test           # run once
 npm run test:watch # watch mode
+npm run typecheck  # tsc --noEmit
+npm run lint       # eslint (0 errors, 0 warnings)
+npm run preflight  # production configuration gate
+npm run check:migrations  # apply migrations + schema-drift check (needs psql + Postgres)
+npm run check:rls         # real-role tenant isolation (needs psql + Postgres)
+npm run check:neutral     # packages/ are industry-neutral and never import src/
+npm run check:architecture # runtime boundaries, closed tool registry, RLS on every table
+npm run perf:baseline     # Agent Runtime overhead with a scripted model (see PERFORMANCE_BASELINE.md)
 ```
 
-Suite layout (`tests/`), 229 tests across 27 files:
+CI (`.github/workflows/ci.yml`) runs install → lint → typecheck → tests → build →
+preflight → migration checks on every push and PR.
+
+Suite layout (`tests/`), 565 tests across 67 files:
 
 | File | Type | Covers |
 | --- | --- | --- |
@@ -36,7 +47,35 @@ Suite layout (`tests/`), 229 tests across 27 files:
 | `unit/env.test.ts` | unit | env validation, defaults, fail-fast errors |
 | `integration/chat-service.test.ts` | integration | full conversational turn with in-memory fakes for every port: persistence, lead capture + notification, capture disabled, no-contact-no-lead, booking-context injection forcing lead capture, knowledge-gap event recording |
 | `integration/booking-service.test.ts` | integration | book→confirm→remind→track workflow against an in-memory repo simulating the DB exclusion constraint: double-booking race, cancel-frees-slot, reschedule, validation, terminal-state rejection |
-| `integration/booking-orchestrator.test.ts` | integration | conversation→booking bridge: scheduling-context detection, real-slot injection, confirmed booking before reply generation, slot-taken recovery with alternatives, reschedule-not-double-book, deterministic cancel fast path, next-3-openings when an exact requested time is booked |
+| `integration/booking-orchestrator.test.ts` | integration | conversation→booking bridge: scheduling-context detection, real-slot injection, draft accumulation across turns, auto-booking when the draft completes, corrections, slot-taken recovery with alternatives, reschedule-not-double-book, deterministic cancel fast path, cancel-with-nothing-to-cancel, extraction-pass outage, next-3-openings when an exact requested time is booked |
+| `integration/booking-conversation.test.ts` | integration | end-to-end multi-turn booking conversations through ChatService: one-message booking, no re-asking, corrections, repeated confirmations, reschedule, cancellation, tool failure and recovery, no-availability honesty |
+| `integration/multi-tenant-isolation.test.ts` | integration | manage-token scoping: unknown tokens resolve to nothing; cancel/reschedule/feedback all fail closed |
+| `integration/health-route.test.ts` | integration | shallow liveness is public and leaks nothing; deep probe fails closed without a secret, rejects anonymous and wrong-secret callers, returns readiness only with the right secret |
+| `integration/composite-messaging.test.ts` | integration | composite messaging provider routing email/WhatsApp to the right sub-provider |
+| `integration/email-delivery.test.ts` | integration | Resend email delivery: authorization header, idempotency key, attachment encoding, 429 retry |
+| `integration/whatsapp-delivery.test.ts` | integration | WhatsApp Cloud API delivery: phone normalization, error propagation |
+| `integration/provider-failures.test.ts` | integration | messaging provider failure never loses a booking |
+| `integration/booking-service.test.ts` | integration | book→confirm→remind→track workflow against an in-memory repo simulating the DB exclusion constraint: double-booking race, cancel-frees-slot, reschedule, validation, terminal-state rejection |
+| `unit/booking-draft.test.ts` | unit | draft model: labelled/multi-field extraction, merge and correction semantics, commitment clearing, slot resolution, readiness |
+| `unit/composite-messaging.test.ts` | unit | composite routing and no-provider error |
+| `unit/resend-messaging.test.ts` | unit | Resend adapter: email-only support, payload shape, SHA-256 idempotency key, retry on 429/500, fail-fast on 400 |
+| `unit/whatsapp-messaging.test.ts` | unit | WhatsApp adapter: phone normalization, retry on transient failures |
+| `unit/startup-check.test.ts` | unit | production readiness: valid config, missing required vars, non-production warnings, database failure |
+| `unit/notification-factory.test.ts` | unit | all MESSAGING_PROVIDER values select the right lead-notification provider; memoization |
+| `unit/runtime/conversation-state.test.ts` | unit | Phase 2 state schema, bounded deterministic patches, malformed rows ignored, tenant-scoped store |
+| `unit/runtime/context-builder.test.ts` | unit | bounded history/summary/knowledge/tools/customer facts, deterministic budget degradation, no secrets in context |
+| `unit/runtime/prompt-composer.test.ts` | unit | persisted template as identity, section order, composer vs content version, knowledge/recap labelled as data, custom instructions subordinate, state/capabilities sections, voice mode, golden snapshot |
+| `unit/runtime/response-validator.test.ts` | unit | action-claim detection and negation, claims permitted only by verified actions, leak detection, markdown/length transforms, corrective instruction + honest fallback |
+| `unit/runtime/tool-boundary.test.ts` | unit | tool selection (granted ∩ bound ∩ channel ∩ precondition ∩ provider), intent validation, model-supplied identity/URLs/keys stripped, authorization reasons, confirmation gating, typed execution failures, closed registry |
+| `unit/runtime/memory-manager.test.ts` | unit | rolling recap folding and bounds, refresh rule, sanitization against injection, unanswered streak, escalation recorded once |
+| `unit/runtime/escalation-manager.test.ts` | unit | every typed escalation trigger and its priority/recommended action |
+| `unit/runtime/llm-adapter.test.ts` | unit | capability defaults, streaming vs completion fallback, honest tool downgrade, deadline abandonment, retry policy (never timeouts), no fabricated usage |
+| `unit/runtime/knowledge-and-channel.test.ts` | unit | channel profiles/mapping, resolver query prep, min score, budgeting keeps the top snippet, provider failure propagates |
+| `unit/booking-runtime-adapter.test.ts` | unit | scheduling outcomes → permitted claims; unrecoverable failures ask for a human |
+| `unit/llm-provider-streaming.test.ts` | unit | SSE/NDJSON readers; OpenAI-compatible and Anthropic streaming + native tool calls + wire serialization; Ollama streaming; Gemini completion-only; timeout hint |
+| `integration/runtime-orchestration.test.ts` | integration | real AgentRuntime on fakes: zero/one/multiple tool rounds, termination at max rounds, idempotent execution, intent cap, rejection, model cannot set tenant, deadline, provider outage, streaming, capability downgrade, act-then-narrate repair/fallback, tenant/version mismatch refused, degradation, transcript failure, hooks, cross-tenant history |
+| `integration/runtime-golden-transcripts.test.ts` | integration | ten golden scenarios through ChatService → runtime (real BookingOrchestrator where scheduling is involved) with snapshots: FAQ, lead qualification, missing information, booking, failed booking (slot race), unsupported request, human escalation, prompt injection, cross-tenant attack, tool failure |
+| `integration/widget-messages-security.test.ts` | integration | real messages route: runtime reply with the persisted version and unchanged envelope + usage metadata, unknown token 404, body-supplied agent/version ignored, foreign-tenant version cannot resolve, tool rows excluded from history |
 | `integration/workflow-engine.test.ts` | integration | engine against an in-memory store reproducing DB constraints: ordered execution + interpolation, condition skip/match, duplicate-event idempotency, in-run step retries, run-level retry resuming from the failed step, dead-letter after max attempts, step timeout, unregistered action, timer firing, tenant/trigger isolation |
 
 Design choice: all business logic is behind ports, so the integration tests run the real
@@ -75,7 +114,9 @@ checklist below and, in Phase 2, a Supabase-local e2e suite.
 - [ ] Send message → typing indicator → reply; transcript in dashboard
 - [ ] Reload page → same conversation continues (sessionStorage token)
 - [ ] Widget renders correctly on mobile viewport, light and dark themes
-- [ ] Kill the LLM (stop Ollama) → friendly error bubble, page unaffected; `/api/health?deep=1` → 503
+- [ ] Kill the LLM (stop Ollama) → friendly error bubble, page unaffected;
+      `GET /api/health?deep=1` with `Authorization: Bearer $CRON_SECRET` → 503 (unauthenticated
+      deep probes are rejected — the readiness detail is probe-secret-only)
 
 ### Voice
 - [ ] Mic button appears (Chrome/Edge); denied permission → typed fallback message
