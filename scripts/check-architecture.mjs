@@ -16,6 +16,11 @@
  *  4. The tool registry is a closed set with schema-validated arguments:
  *     no `z.any()` / `z.unknown()` / passthrough argument schemas.
  *  5. Every table created by a migration enables row level security.
+ *  6. Voice (Phase 3) — packages/voice depends only on core, ports,
+ *     platform, runtime, language, qualification and zod (stores/ may add
+ *     tenancy); no dynamic execution, egress or process.env in its core.
+ *     The runtime and providers never import voice (the media loop sits
+ *     above the runtime, adapters below it).
  *
  * Exits non-zero on the first violation, printing file:line.
  */
@@ -78,6 +83,40 @@ for (const file of ts("packages/providers")) {
   });
 }
 
+// 3b. The reasoning core never depends on the voice media loop.
+for (const file of ts("packages/runtime")) {
+  readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+    if (/from\s+["']@halo\/voice\//.test(line)) fail(file, i + 1, "runtime must not import voice");
+  });
+}
+for (const file of ts("packages/providers")) {
+  readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+    if (/from\s+["']@halo\/voice\//.test(line)) fail(file, i + 1, "providers must not import voice");
+  });
+}
+
+// 6. Voice package boundaries.
+const VOICE_ALLOWED = [
+  "@halo/core/", "@halo/ports/", "@halo/platform/", "@halo/runtime/", "@halo/language/",
+  "@halo/qualification/", "@halo/knowledge/", "zod", "node:crypto",
+];
+const VOICE_STORE_ALLOWED = [...VOICE_ALLOWED, "@halo/tenancy/", "@supabase/supabase-js", "server-only"];
+for (const file of ts("packages/voice")) {
+  const isStore = file.includes(`${path.sep}stores${path.sep}`);
+  const allowed = isStore ? VOICE_STORE_ALLOWED : VOICE_ALLOWED;
+  readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+    const m = line.match(/from\s+["']([^"']+)["']/);
+    if (m) {
+      const spec = m[1];
+      const ok = spec.startsWith(".") || allowed.some((a) => spec === a || spec.startsWith(a));
+      if (!ok) fail(file, i + 1, `packages/voice may not import "${spec}"`);
+    }
+    if (!isStore) {
+      for (const [re, msg] of FORBIDDEN_CORE) if (re.test(line)) fail(file, i + 1, msg.replace("runtime core", "voice core"));
+    }
+  });
+}
+
 // 4. Closed, schema-validated tool registry.
 const registry = readFileSync(path.join(root, "packages/runtime/tools/registry.ts"), "utf8");
 registry.split("\n").forEach((line, i) => {
@@ -103,4 +142,4 @@ if (failures > 0) {
   console.error(`\ncheck:architecture failed with ${failures} violation(s).`);
   process.exit(1);
 }
-console.log("check:architecture OK — runtime boundaries, provider direction, closed tool registry, RLS on every table.");
+console.log("check:architecture OK — runtime + voice boundaries, provider direction, closed tool registry, RLS on every table.");
