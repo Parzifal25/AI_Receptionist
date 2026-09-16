@@ -141,6 +141,8 @@ export interface VoiceSessionHooks {
   onStateChange?(state: VoiceSessionState): void;
   /** Perform the provider transfer. Resolve true only when the provider accepted it. */
   onTransferRequested(reason: string): Promise<boolean>;
+  /** Each transcript turn as it is finalized, so a dropped call still has one. */
+  onTranscriptTurn?(turn: CallTranscriptTurn, seq: number): void;
   /** Called once, after cleanup, with the final summary. */
   onEnded(summary: VoiceSessionSummary): void;
 }
@@ -1013,7 +1015,13 @@ export class VoiceSession {
       this.transcriptOverflow += 1;
       return;
     }
+    const seq = this.transcript.length;
     this.transcript.push(turn);
+    try {
+      this.deps.hooks.onTranscriptTurn?.(turn, seq);
+    } catch {
+      // persistence failures never break the call
+    }
   }
 
   private emit(type: CallEventType, latencyMs: number | null, detail: VoiceSessionEvent["detail"]): void {

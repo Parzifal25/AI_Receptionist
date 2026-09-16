@@ -182,7 +182,9 @@ export class WidgetRepository {
       log.error("conversation lookup failed", { error: error.message });
       throw AppError.internal();
     }
-    if (!data) throw AppError.notFound("Conversation");
+    // Phone conversations (0020) are voice-gateway records with no
+    // receptionist; a widget visitor token can never address one.
+    if (!data || data.channel === "phone") throw AppError.notFound("Conversation");
     return mapConversation(data);
   }
 

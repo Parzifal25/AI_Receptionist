@@ -144,6 +144,90 @@ expectCount(asUser(uA, `select count(*) from conversation_state where business_i
 expectCount(asAnon(`select count(*) from conversation_state;`), 0, "anonymous reads no conversation state");
 expectError(asUser(uA, `insert into conversation_state (conversation_id, business_id, state) select id, business_id, '{}'::jsonb from conversations where visitor_token = 'rls-token-a';`), "member cannot write conversation state (service role only)");
 
+// ---------------------------------------------------------------------------
+// HALO Phase 3 — voice tables (0020): isolation, service-role-only writes,
+// ownership triggers, call state graph, idempotency constraints.
+// ---------------------------------------------------------------------------
+const agentOf = (biz) => `(select id from agents where business_id = '${biz}' order by created_at limit 1)`;
+const versionOf = (biz) => `(select live_version_id from agents where business_id = '${biz}' order by created_at limit 1)`;
+psql(asService(`
+insert into phone_numbers (business_id, agent_id, provider, e164, handoff_number) values
+  ('${bizA}', ${agentOf(bizA)}, 'fake', '+914000000001', '+914000000099'),
+  ('${bizB}', ${agentOf(bizB)}, 'fake', '+914000000002', null);
+insert into conversations (business_id, channel, agent_id, agent_version_id, visitor_token)
+  values ('${bizA}', 'phone', ${agentOf(bizA)}, ${versionOf(bizA)}, 'rls-phone-a'),
+         ('${bizB}', 'phone', ${agentOf(bizB)}, ${versionOf(bizB)}, 'rls-phone-b');
+insert into calls (business_id, agent_id, agent_version_id, conversation_id, phone_number_id, direction, provider, provider_call_id, from_number, to_number, state)
+  values
+  ('${bizA}', ${agentOf(bizA)}, ${versionOf(bizA)}, (select id from conversations where visitor_token = 'rls-phone-a'), (select id from phone_numbers where e164 = '+914000000001'), 'inbound', 'fake', 'CA-A', '+919800000001', '+914000000001', 'ringing'),
+  ('${bizB}', ${agentOf(bizB)}, ${versionOf(bizB)}, (select id from conversations where visitor_token = 'rls-phone-b'), (select id from phone_numbers where e164 = '+914000000002'), 'inbound', 'fake', 'CA-B', '+919800000002', '+914000000002', 'ringing');
+insert into call_events (call_id, business_id, seq, type, at, latency_ms)
+  select id, business_id, 0, 'session_started', now(), null from calls;
+insert into call_transcript_turns (call_id, business_id, seq, turn_index, speaker, source, text, delivery, started_at, ended_at)
+  select id, business_id, 0, 0, 'caller', 'caller', 'hello', 'complete', now(), now() from calls;
+insert into conversation_outcomes (business_id, call_id, conversation_id, agent_id, agent_version_id, disposition)
+  select business_id, id, conversation_id, agent_id, agent_version_id, 'no_outcome' from calls;
+insert into phone_suppressions (business_id, e164, reason, call_id)
+  select business_id, from_number, 'do_not_call', id from calls;
+`));
+ok("voice rows seeded for both tenants (service role)");
+for (const table of ["phone_numbers", "calls", "call_events", "call_transcript_turns", "conversation_outcomes", "phone_suppressions"]) {
+  expectCount(asUser(uA, `select count(*) from ${table} where business_id = '${bizA}';`), 1, `member A reads own ${table}`);
+  expectCount(asUser(uA, `select count(*) from ${table} where business_id = '${bizB}';`), 0, `member A cannot read tenant B ${table}`);
+  expectCount(asAnon(`select count(*) from ${table};`), 0, `anonymous reads no ${table}`);
+}
+expectError(
+  asUser(uA, `insert into phone_numbers (business_id, agent_id, provider, e164) values ('${bizA}', ${agentOf(bizA)}, 'fake', '+914000000010');`),
+  "tenant admin cannot provision phone numbers (service role only)",
+);
+expectError(
+  asUser(uA, `insert into calls (business_id, agent_id, agent_version_id, direction, provider, provider_call_id, state) values ('${bizA}', ${agentOf(bizA)}, ${versionOf(bizA)}, 'inbound', 'fake', 'CA-X', 'ringing');`),
+  "member cannot write calls (service role only)",
+);
+expectCount(
+  asUser(uA, `with u as (update calls set state = 'connected' where business_id = '${bizA}' returning 1) select count(*) from u;`),
+  0,
+  "member cannot update calls (no update policy)",
+);
+expectError(
+  asService(`insert into calls (business_id, agent_id, agent_version_id, direction, provider, provider_call_id, state) values ('${bizA}', ${agentOf(bizB)}, ${versionOf(bizB)}, 'inbound', 'fake', 'CA-CROSS', 'ringing');`),
+  "service_role cannot create a tenant A call served by tenant B's agent (ownership trigger)",
+);
+expectError(
+  asService(`insert into call_events (call_id, business_id, seq, type, at) select id, '${bizB}', 5, 'dtmf', now() from calls where provider_call_id = 'CA-A';`),
+  "service_role cannot attach a call event to another tenant's call",
+);
+expectError(
+  asService(`insert into calls (business_id, agent_id, agent_version_id, direction, provider, provider_call_id, state) values ('${bizA}', ${agentOf(bizA)}, ${versionOf(bizA)}, 'inbound', 'fake', 'CA-A', 'ringing');`),
+  "duplicate provider call id rejected (idempotent start)",
+);
+expectError(
+  asService(`insert into call_events (call_id, business_id, seq, type, at) select id, business_id, 0, 'dtmf', now() from calls where provider_call_id = 'CA-A';`),
+  "duplicate call event seq rejected (idempotent flush)",
+);
+expectError(
+  asService(`insert into phone_numbers (business_id, agent_id, provider, e164) values ('${bizB}', ${agentOf(bizB)}, 'fake', '+914000000001');`),
+  "a DID cannot route to two tenants",
+);
+expectError(
+  asService(`update calls set state = 'completed' where provider_call_id = 'CA-A';`),
+  "illegal call transition ringing -> completed rejected (trigger)",
+);
+psql(asService(`update calls set state = 'connected' where provider_call_id = 'CA-A'; update calls set state = 'in_conversation' where provider_call_id = 'CA-A'; update calls set state = 'completing' where provider_call_id = 'CA-A'; update calls set state = 'completed' where provider_call_id = 'CA-A';`));
+ok("legal call path ringing -> connected -> in_conversation -> completing -> completed applied");
+expectError(
+  asService(`update calls set state = 'in_conversation' where provider_call_id = 'CA-A';`),
+  "terminal call state cannot be resurrected, even by service_role",
+);
+expectError(
+  asService(`insert into conversation_outcomes (business_id, call_id, agent_id, agent_version_id, disposition) select business_id, id, agent_id, agent_version_id, 'qualified' from calls where provider_call_id = 'CA-A';`),
+  "one outcome per call",
+);
+expectError(
+  asService(`insert into conversations (business_id, channel) values ('${bizA}', 'chat');`),
+  "a widget conversation still requires a receptionist",
+);
+
 // Cross-tenant writes: inserts violate WITH CHECK (throw); UPDATE/DELETE
 // against invisible rows are denied by filtering (0 rows mutated).
 expectError(

@@ -80,6 +80,13 @@ const assertions = [
   { table: "knowledge_documents", columns: ["id", "business_id", "title", "content", "source_type", "source_ref", "status", "created_at", "updated_at", "collection_id"] },
   // HALO Phase 2 — agent runtime conversation state (0019).
   { table: "conversation_state", columns: ["conversation_id", "business_id", "state", "state_version", "updated_at"] },
+  // HALO Phase 3 — voice / telephony (0020). Mirrors packages/voice/stores/supabase-call-store.ts.
+  { table: "phone_numbers", columns: ["id", "business_id", "agent_id", "provider", "e164", "handoff_number", "status", "label"] },
+  { table: "calls", columns: ["id", "business_id", "agent_id", "agent_version_id", "conversation_id", "phone_number_id", "direction", "provider", "provider_call_id", "from_number", "to_number", "state", "state_changed_at", "answered_at", "ended_at", "duration_seconds", "hangup_cause", "language", "usage", "cost_estimate", "recording_ref", "recording_consent_at", "correlation_id"] },
+  { table: "call_events", columns: ["id", "call_id", "business_id", "seq", "type", "at", "latency_ms", "detail"] },
+  { table: "call_transcript_turns", columns: ["id", "call_id", "business_id", "seq", "turn_index", "speaker", "source", "text", "delivered_text", "delivery", "language", "stt_confidence", "turn_id", "started_at", "ended_at"] },
+  { table: "conversation_outcomes", columns: ["id", "business_id", "conversation_id", "call_id", "agent_id", "agent_version_id", "disposition", "disposition_reason", "qualification", "appointment_id", "escalated", "do_not_call", "computed_by"] },
+  { table: "phone_suppressions", columns: ["id", "business_id", "e164", "reason", "call_id", "created_at"] },
 ];
 
 let failed = false;

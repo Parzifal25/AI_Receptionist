@@ -100,7 +100,7 @@ const VOICE_ALLOWED = [
   "@halo/core/", "@halo/ports/", "@halo/platform/", "@halo/runtime/", "@halo/language/",
   "@halo/qualification/", "@halo/knowledge/", "zod", "node:crypto",
 ];
-const VOICE_STORE_ALLOWED = [...VOICE_ALLOWED, "@halo/tenancy/", "@supabase/supabase-js", "server-only"];
+const VOICE_STORE_ALLOWED = [...VOICE_ALLOWED, "@halo/tenancy/", "@halo/agents/", "@supabase/supabase-js", "server-only"];
 for (const file of ts("packages/voice")) {
   const isStore = file.includes(`${path.sep}stores${path.sep}`);
   const allowed = isStore ? VOICE_STORE_ALLOWED : VOICE_ALLOWED;

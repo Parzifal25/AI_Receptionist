@@ -65,7 +65,7 @@ interface AgentRow {
   updated_at: string;
 }
 
-interface AgentVersionRow {
+export interface AgentVersionRow {
   id: string;
   agent_id: string;
   business_id: string;
