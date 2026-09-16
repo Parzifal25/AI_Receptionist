@@ -21,6 +21,8 @@
     "check:rls": "node scripts/check-rls.mjs",
     "check:architecture": "node scripts/check-architecture.mjs",
     "perf:baseline": "tsx scripts/perf-baseline.ts",
+    "voice-gateway": "tsx --conditions react-server services/voice-gateway/main.ts",
+    "voice:latency": "tsx scripts/voice-latency-harness.ts",
     "predev": "npm run build:widget"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",
+    "ws": "^8.21.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -37,6 +40,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "@vitest/ui": "^4.1.9",
     "esbuild": "^0.28.1",
     "eslint": "^9",

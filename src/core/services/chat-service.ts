@@ -1,5 +1,5 @@
 import "server-only";
-import type { AgentConfig } from "@halo/core/domain/agents";
+import { defaultAgentConfig, type AgentConfig } from "@halo/core/domain/agents";
 import type { Business, ChatMessage, Receptionist } from "@halo/core/domain/types";
 import type { KnowledgeProvider } from "@halo/ports/knowledge-provider";
 import type { LLMProvider } from "@halo/ports/llm-provider";
@@ -53,7 +53,7 @@ export function resolvedContextFromReceptionist(params: {
       customInstructions: params.receptionist.customInstructions,
     },
     language: { primary: params.receptionist.language || "en", fallbacks: [], codeSwitchPolicy: "allow" },
-    voice: { bargeIn: true },
+    voice: defaultAgentConfig().voice,
     knowledge: { collectionIds: [], retrievalPolicy: "hybrid" },
     tools: { grantedToolIds: [], policy: {} },
     workflows: { allowedTriggers: [] },

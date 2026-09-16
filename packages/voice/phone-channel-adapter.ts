@@ -1,5 +1,7 @@
-import type { ChatMessage } from "@halo/core/domain/types";
+import { DEFAULT_BRANDING, type ChatMessage } from "@halo/core/domain/types";
 import type { TranscriptDelivery } from "@halo/core/domain/voice";
+import type { AgentVersion } from "@halo/core/domain/agents";
+import type { Business } from "@halo/core/domain/types";
 import type { LLMProvider } from "@halo/ports/llm-provider";
 import { AgentRuntime, newTurnId, type DoctrineProvider, type RuntimePolicy } from "@halo/runtime/agent-runtime";
 import { isRuntimeCancelled } from "@halo/runtime/cancellation";
@@ -47,6 +49,45 @@ export const CONVERSATION_CLOSED_STEP = "closed";
 
 export const INTERRUPTED_MARKER = "[caller interrupted]";
 export const NOT_HEARD_MARKER = "[not heard by caller]";
+
+/**
+ * Builds the runtime's resolved agent context for a call from server-side
+ * routing. The `receptionist` field is the runtime's presentation block (name,
+ * custom instructions, lead-capture flag) — never an identity source; tenant,
+ * agent and version all come from the routed agent version.
+ */
+export function resolvedContextForCall(params: {
+  business: Business;
+  agentId: string;
+  version: AgentVersion;
+}): ResolvedAgentRuntimeContext {
+  const { business, agentId, version } = params;
+  return {
+    business,
+    agentId,
+    agentVersionId: version.id,
+    agentVersion: version.version,
+    config: version.config,
+    promptTemplate: version.promptTemplate,
+    model: version.model,
+    receptionist: {
+      id: agentId,
+      businessId: business.id,
+      name: version.config.identity.name || business.name,
+      greeting: version.config.voice.prompts.greeting,
+      tone: "friendly",
+      language: version.config.language.primary || "en",
+      customInstructions: version.config.instructions.customInstructions,
+      widgetKey: "",
+      isActive: true,
+      // Phone qualification captures contacts deterministically; the web
+      // lead-capture doctrine does not apply.
+      leadCaptureEnabled: false,
+      voiceEnabled: true,
+      branding: DEFAULT_BRANDING,
+    },
+  };
+}
 
 export interface VoiceTurnSignals {
   sttConfidence: number | null;

@@ -53,10 +53,37 @@ const languageSchema = z.object({
   codeSwitchPolicy: z.enum(["allow", "prefer-primary", "reject"]).default("allow"),
 });
 
+/**
+ * Spoken-channel prompts. These are DETERMINISTIC lines the voice runtime
+ * says itself (never model output): the opening line, which must carry the
+ * agent's AI disclosure, and the silence/failure/transfer lines. They are
+ * authored per agent in the agent's own language — the platform never
+ * translates or invents them, and a phone agent without a greeting is not
+ * answered (packages/voice/session-config.ts).
+ */
+const voicePromptsSchema = z.object({
+  greeting: z.string().max(400).default(""),
+  reprompt: z.string().max(400).default(""),
+  goodbye: z.string().max(400).default(""),
+  turnFailure: z.string().max(400).default(""),
+  transferAnnounce: z.string().max(400).default(""),
+  transferFailed: z.string().max(400).default(""),
+});
+
 const voiceSchema = z.object({
   ttsVoice: z.string().optional(),
   speakingRate: z.number().min(0.5).max(2).optional(),
   bargeIn: z.boolean().default(true),
+  /** Sustained caller speech required to interrupt the agent. */
+  bargeInMinSpeechMs: z.int().min(100).max(2_000).default(250),
+  /** Silence after speech that ends a caller utterance (local endpointing). */
+  endOfSpeechMs: z.int().min(200).max(3_000).default(700),
+  silenceTimeoutMs: z.int().min(2_000).max(60_000).default(8_000),
+  maxSilentReprompts: z.int().min(0).max(5).default(2),
+  maxCallDurationMs: z.int().min(60_000).max(3_600_000).default(900_000),
+  /** Vocabulary hints for STT (product terms, place names). Bounded. */
+  phraseHints: z.array(z.string().max(60)).max(50).default([]),
+  prompts: voicePromptsSchema.optional(),
 });
 
 const knowledgeSchema = z.object({
@@ -103,7 +130,7 @@ export interface AgentConfig {
   objective: string;
   instructions: z.infer<typeof instructionsSchema>;
   language: z.infer<typeof languageSchema>;
-  voice: z.infer<typeof voiceSchema>;
+  voice: z.infer<typeof voiceSchema> & { prompts: z.infer<typeof voicePromptsSchema> };
   knowledge: z.infer<typeof knowledgeSchema>;
   tools: z.infer<typeof toolsSchema>;
   workflows: z.infer<typeof workflowsSchema>;
@@ -120,7 +147,10 @@ export function parseAgentConfig(raw: unknown): AgentConfig | null {
     objective: d.objective ?? "",
     instructions: instructionsSchema.parse(d.instructions ?? {}),
     language: languageSchema.parse(d.language ?? {}),
-    voice: voiceSchema.parse(d.voice ?? {}),
+    voice: {
+      ...voiceSchema.parse(d.voice ?? {}),
+      prompts: voicePromptsSchema.parse(d.voice?.prompts ?? {}),
+    },
     knowledge: knowledgeSchema.parse(d.knowledge ?? {}),
     tools: toolsSchema.parse(d.tools ?? {}),
     workflows: workflowsSchema.parse(d.workflows ?? {}),
