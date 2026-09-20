@@ -104,6 +104,12 @@ const workflowsSchema = z.object({
 const guardrailsSchema = z.object({
   refusals: z.array(z.string()).default([]),
   escalationTriggers: z.array(z.string()).default([]),
+  /**
+   * Phrases that mean "I want a human", IN THE AGENT'S LANGUAGE. The runtime's
+   * built-in detector is English; a Telugu agent supplies its own phrases here
+   * rather than relying on an English regex that would silently never fire.
+   */
+  humanRequestPhrases: z.array(z.string().max(80)).max(40).default([]),
   piiRules: z.record(z.string(), z.unknown()).default({}),
 });
 

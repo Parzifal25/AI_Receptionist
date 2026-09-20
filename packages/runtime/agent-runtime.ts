@@ -604,6 +604,7 @@ export class AgentRuntime {
         actions,
         toolResults,
         guardrailTriggers: agent.config.guardrails.escalationTriggers,
+        humanRequestPhrases: agent.config.guardrails.humanRequestPhrases,
         unansweredStreak: unansweredThisTurn ? state.unansweredStreak + 1 : 0,
         validationFallbackUsed: validation.fallbackUsed,
       });

@@ -25,6 +25,13 @@ export interface EscalationInput {
   toolResults: ToolResult[];
   /** Tenant-approved trigger phrases from agent config (guardrails.escalationTriggers). */
   guardrailTriggers: string[];
+  /**
+   * Agent-language phrases meaning "I want a person" (guardrails.
+   * humanRequestPhrases). The built-in pattern below is English only, so a
+   * non-English agent MUST configure these — otherwise the detector silently
+   * never fires, which is the failure mode Phase 4 exists to remove.
+   */
+  humanRequestPhrases?: string[];
   /** Unanswered streak INCLUDING this turn. */
   unansweredStreak: number;
   /** The validator could not produce a compliant reply; the fallback was used. */
@@ -67,8 +74,13 @@ export function decideEscalation(input: EscalationInput): EscalationDecision {
     };
   }
 
-  // 3. The visitor explicitly wants a person.
-  if (HUMAN_REQUEST_RE.test(input.userMessage)) {
+  // 3. The visitor explicitly wants a person (English pattern OR the agent's
+  //    configured phrases, so this works in any language).
+  const configuredHumanRequest = (input.humanRequestPhrases ?? [])
+    .map((p) => p.trim().toLowerCase())
+    .filter((p) => p.length >= 3)
+    .some((p) => message.includes(p));
+  if (configuredHumanRequest || HUMAN_REQUEST_RE.test(input.userMessage)) {
     return {
       escalate: true,
       reason: "explicit_human_request",

@@ -57,7 +57,7 @@ export function resolvedContextFromReceptionist(params: {
     knowledge: { collectionIds: [], retrievalPolicy: "hybrid" },
     tools: { grantedToolIds: [], policy: {} },
     workflows: { allowedTriggers: [] },
-    guardrails: { refusals: [], escalationTriggers: [], piiRules: {} },
+    guardrails: defaultAgentConfig().guardrails,
   };
   return {
     business: params.business,

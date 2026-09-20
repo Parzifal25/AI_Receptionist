@@ -117,6 +117,24 @@ for (const file of ts("packages/voice")) {
   });
 }
 
+// 6b. Qualification and language packages: no dynamic execution or egress,
+// and no dependency on the application or the media loop.
+const QUALIFICATION_ALLOWED = ["@halo/core/", "@halo/ports/", "@halo/platform/", "@halo/runtime/", "@halo/language/", "zod"];
+for (const dir of ["packages/qualification", "packages/language"]) {
+  const allowed = dir === "packages/language" ? QUALIFICATION_ALLOWED.filter((a) => a !== "@halo/runtime/") : QUALIFICATION_ALLOWED;
+  for (const file of ts(dir)) {
+    readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+      const m = line.match(/from\s+["']([^"']+)["']/);
+      if (m) {
+        const spec = m[1];
+        const ok = spec.startsWith(".") || allowed.some((a) => spec === a || spec.startsWith(a));
+        if (!ok) fail(file, i + 1, `${dir} may not import "${spec}"`);
+      }
+      for (const [re, msg] of FORBIDDEN_CORE) if (re.test(line)) fail(file, i + 1, msg.replace("runtime core", dir));
+    });
+  }
+}
+
 // 4. Closed, schema-validated tool registry.
 const registry = readFileSync(path.join(root, "packages/runtime/tools/registry.ts"), "utf8");
 registry.split("\n").forEach((line, i) => {
