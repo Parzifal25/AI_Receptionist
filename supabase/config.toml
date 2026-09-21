@@ -156,11 +156,22 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+# Must match NEXT_PUBLIC_APP_URL in .env.local — the app builds
+# `emailRedirectTo` from it (src/features/auth/actions.ts), and GoTrue only
+# honours redirect targets that appear here or in additional_redirect_urls.
+# It was 127.0.0.1 while the app uses localhost: different origins to GoTrue,
+# so a confirmation link would silently fall back to site_url.
+site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# The auth callback is an exact target, so it is listed explicitly; 127.0.0.1
+# stays allowed for developers who browse there instead of localhost.
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3000/auth/callback",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

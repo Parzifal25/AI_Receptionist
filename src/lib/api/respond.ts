@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { ZodError } from "zod";
 import { AppError, isAppError } from "@halo/core/errors/app-error";
 import { logger } from "@halo/platform/logger";
@@ -40,6 +41,11 @@ export function withErrorHandling<Args extends unknown[]>(
     try {
       return await handler(...args);
     } catch (error) {
+      // Next's navigation signals (redirect/notFound from shared auth
+      // helpers like requireUser) are control flow, not failures. Swallowing
+      // them turned an unauthenticated API call into an opaque 500 and hid
+      // the real outcome; rethrow so Next completes the navigation.
+      unstable_rethrow(error);
       if (isAppError(error)) {
         if (error.status >= 500) log.error("request failed", { code: error.code, error });
         else log.warn("request rejected", { code: error.code, message: error.message });

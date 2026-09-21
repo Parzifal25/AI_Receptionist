@@ -10,8 +10,14 @@
  * Usage:
  *   node scripts/check-rls.mjs <postgres-url>
  *
- * Defaults to the local Supabase CLI database URL. Requires `psql` on PATH.
- * Exits non-zero on the first failed assertion.
+ * DESTRUCTIVE: the target database's public/auth/storage schemas are dropped
+ * and rebuilt, so it must be a throwaway (the CI Postgres service, or a
+ * local `docker run pgvector/pgvector:pg16`). It refuses to run against the
+ * Supabase CLI stack (port 54322) unless CHECK_RLS_ALLOW_DESTRUCTIVE=1,
+ * because that database holds the developer's local data — running it there
+ * silently destroys the dev environment.
+ *
+ * Requires `psql` on PATH. Exits non-zero on the first failed assertion.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -24,6 +30,24 @@ const stubsFile = path.join(root, "infrastructure", "ci", "supabase-stubs.sql");
 
 const databaseUrl =
   process.argv[2] ?? process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+
+// Guard: 54322 is the Supabase CLI's local database — a developer's working
+// environment, not a throwaway. This script drops its schemas, so refuse by
+// default rather than destroy it.
+if (/:54322\b/.test(databaseUrl) && process.env.CHECK_RLS_ALLOW_DESTRUCTIVE !== "1") {
+  console.error(
+    `check-rls refuses to run against the local Supabase stack (${databaseUrl}).\n` +
+      "This script DROPS the public/auth/storage schemas and rebuilds them, which\n" +
+      "destroys your local data. Point it at a throwaway Postgres instead:\n\n" +
+      "  docker run -d --name halo-rls-check -e POSTGRES_PASSWORD=postgres \\\n" +
+      "    -p 55433:5432 pgvector/pgvector:pg16\n" +
+      "  psql postgresql://postgres:postgres@127.0.0.1:55433/postgres \\\n" +
+      "    --set ON_ERROR_STOP=1 -f infrastructure/ci/supabase-stubs.sql\n" +
+      "  npm run check:rls -- postgresql://postgres:postgres@127.0.0.1:55433/postgres\n\n" +
+      "Set CHECK_RLS_ALLOW_DESTRUCTIVE=1 only if you really mean to wipe 54322.",
+  );
+  process.exit(1);
+}
 
 const psql = (sql, capture = false) =>
   execFileSync(
