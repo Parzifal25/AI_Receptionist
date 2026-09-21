@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026-09-21 — HALO Phase 4: Pipecat boundary and the Arunodhaya agent
+
+Pipecat becomes the real-time media layer; HALO keeps everything that decides
+what the business does. Full detail in [PIPECAT_INTEGRATION.md](PIPECAT_INTEGRATION.md)
+and [PHASE4_REPORT.md](PHASE4_REPORT.md).
+
+### Pipecat integration
+- `VoiceGateway` gains one injectable `createMediaSession`, defaulting to the
+  unchanged Phase 3 in-process engine. Routing, the call row, the state
+  machine, transcript and event persistence, outcomes, usage, capacity and
+  the transfer boundary are shared by both engines rather than reimplemented.
+- `RemoteVoiceSession` runs the conversation policy over reported facts
+  instead of audio: turn serialization, delivery truth, the handoff window,
+  silence and failure policy, and every spoken line.
+- Validated control protocol over `WSS /pipecat/control` (`VOICE_MEDIA_ENGINE=pipecat`),
+  authenticated by the Phase 3 stream token unchanged. Identity travels HALO →
+  Pipecat only; no inbound frame has a tenant, agent or conversation field.
+- Interruption is cut locally by Pipecat and reported afterwards; HALO records
+  which sentences the caller actually heard, chunk by chunk.
+- Reference worker client in `services/pipecat-worker` — **NOT VERIFIED**.
+
+### Negotiation and objections (`packages/negotiation`, industry-neutral)
+- Commercial policy schema, deterministic concession authorization, and
+  objection handling as tenant content. Nothing has a default value: a null
+  concession value is UNSET, not discretionary, and a malformed policy is
+  refused outright.
+- `offer_concession` re-checks the policy at execution time and returns no
+  permitted claim on refusal.
+
+### Language and qualification
+- The act-then-narrate guard is no longer English-only. Claim phrases, the
+  safe fallback line and human-request phrases are tenant-authored per
+  language; `claimGuardCoverage()` reports what an agent has no guard for.
+- Three qualification defects found by the golden corpus and fixed: field
+  scrambling during a read-back, free text being read back on every answer,
+  and answered-but-unconfirmed fields counting as unresolved.
+- Do-not-call lexicon gains transliteration variants.
+
+### Arunodhaya (configuration only, `src/content/tenants/arunodhaya`)
+- Agent, Telugu prompt and voice lines, qualification schema, objection
+  catalog, commercial policy, escalation rules and a structured knowledge
+  base in which **every business fact is `supplied_pending`**. The agent
+  cannot state a price, offer a discount or mention financing, and a test
+  asserts no rupee or percent figure exists anywhere in its configuration.
+- 50 golden conversations (50/50), an evaluation runner, a context-budget
+  measurement, and an idempotent demo seed/reset.
+
+### Not done, and not claimed
+No call has been placed through any engine. No STT or TTS vendor is chosen or
+scored. Telugu speech quality, real latency and the reference worker are all
+unverified. Prompt caching is still not implemented.
+
 ## 2026-09-15 — HALO Phase 2: Agent Runtime
 
 The conversational turn now runs on a generic, channel-independent Agent
