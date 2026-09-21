@@ -110,6 +110,27 @@ const guardrailsSchema = z.object({
    * rather than relying on an English regex that would silently never fire.
    */
   humanRequestPhrases: z.array(z.string().max(80)).max(40).default([]),
+  /**
+   * "I have done X" phrases IN THE AGENT'S LANGUAGE, per action claim kind.
+   * The runtime's built-in act-then-narrate guard is English regex, which
+   * over a Telugu reply matches nothing and therefore guards nothing. A
+   * non-English agent supplies its own phrases here; the platform never
+   * translates them and never guesses.
+   */
+  actionClaimPhrases: z
+    .object({
+      "appointment.book": z.array(z.string().min(2).max(120)).max(30).optional(),
+      "appointment.reschedule": z.array(z.string().min(2).max(120)).max(30).optional(),
+      "appointment.cancel": z.array(z.string().min(2).max(120)).max(30).optional(),
+      handoff: z.array(z.string().min(2).max(120)).max(30).optional(),
+      "contact.saved": z.array(z.string().min(2).max(120)).max(30).optional(),
+    })
+    .default({}),
+  /**
+   * The honest fallback line spoken when a reply cannot be validated, in the
+   * agent's language. Empty = the platform's English default.
+   */
+  safeFallbackReply: z.string().max(400).default(""),
   piiRules: z.record(z.string(), z.unknown()).default({}),
 });
 

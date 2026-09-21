@@ -77,7 +77,24 @@ export const saveContactDetailsArgs = z
     message: "a phone number or email is required",
   });
 
+export const offerConcessionArgs = z.object({
+  /** Must be one of the ids listed in the commercial policy section. */
+  concessionId: z.string().min(1).max(40),
+  reason: z.string().max(200).default(""),
+});
+
 export const BUILTIN_TOOLS = {
+  offer_concession: {
+    name: "offer_concession",
+    description:
+      "Offer the customer one of the commercial options the business has authorized, naming it by the id listed " +
+      "in the commercial policy section. The system re-checks it against the business's policy before anything is " +
+      "offered; if it is not authorized you will be told so, and you must not offer it anyway. Never use this to " +
+      "invent a figure of your own.",
+    argsSchema: offerConcessionArgs,
+    sideEffecting: true,
+    requiresConfirmation: false,
+  } satisfies ControlledToolDefinition<z.infer<typeof offerConcessionArgs>>,
   request_human_handoff: {
     name: "request_human_handoff",
     description:

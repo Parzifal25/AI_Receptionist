@@ -48,7 +48,10 @@ function walk(dir) {
 const ts = (dir) => walk(path.join(root, dir)).filter((f) => /\.(ts|tsx|mts)$/.test(f));
 
 // 1 + 2. Runtime core boundaries.
-const RUNTIME_ALLOWED = ["@halo/core/", "@halo/ports/", "@halo/platform/", "@halo/knowledge/", "zod", "node:crypto"];
+// @halo/language is a dependency-free leaf (normalization, detection,
+// deterministic parsers). The validator needs it so the act-then-narrate
+// guard works in non-English scripts; it cannot import the runtime back.
+const RUNTIME_ALLOWED = ["@halo/core/", "@halo/ports/", "@halo/platform/", "@halo/knowledge/", "@halo/language/", "zod", "node:crypto"];
 const STORE_ALLOWED = [...RUNTIME_ALLOWED, "@halo/tenancy/", "@supabase/supabase-js", "server-only"];
 const FORBIDDEN_CORE = [
   [/\beval\s*\(/, "eval() in runtime core"],
@@ -117,10 +120,10 @@ for (const file of ts("packages/voice")) {
   });
 }
 
-// 6b. Qualification and language packages: no dynamic execution or egress,
-// and no dependency on the application or the media loop.
+// 6b. Qualification, negotiation and language packages: no dynamic execution
+// or egress, and no dependency on the application or the media loop.
 const QUALIFICATION_ALLOWED = ["@halo/core/", "@halo/ports/", "@halo/platform/", "@halo/runtime/", "@halo/language/", "zod"];
-for (const dir of ["packages/qualification", "packages/language"]) {
+for (const dir of ["packages/qualification", "packages/negotiation", "packages/language"]) {
   const allowed = dir === "packages/language" ? QUALIFICATION_ALLOWED.filter((a) => a !== "@halo/runtime/") : QUALIFICATION_ALLOWED;
   for (const file of ts(dir)) {
     readFileSync(file, "utf8").split("\n").forEach((line, i) => {

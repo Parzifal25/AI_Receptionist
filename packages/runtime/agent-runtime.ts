@@ -538,6 +538,9 @@ export class AgentRuntime {
 
       checkpoint("validation");
       // ---- validation (act-then-narrate) ------------------------------------
+      // Tenant-authored, in the agent's language: without these the English
+      // claim regexes are the only guard, and they do not fire on Telugu.
+      const claimPhrases = agent.config.guardrails.actionClaimPhrases;
       const validationStart = Date.now();
       let reply: string;
       let validation: ValidationOutcome;
@@ -546,7 +549,7 @@ export class AgentRuntime {
         reply = this.policy.providerFallbackReply;
         validation = { ok: true, violations: [], regenerated: false, fallbackUsed: false };
       } else {
-        let verdict = validateReply({ reply: replyDraft, channel, actions });
+        let verdict = validateReply({ reply: replyDraft, channel, actions, claimPhrases });
         let regenerated = false;
         let fallbackUsed = false;
         if (verdict.needsRegeneration && this.policy.maxRegenerations > 0) {
@@ -564,7 +567,7 @@ export class AgentRuntime {
             regenerated = true;
             usageCalls.push(repair.usage);
             modelMs += repair.usage.latencyMs;
-            const second = validateReply({ reply: repair.result.content, channel, actions });
+            const second = validateReply({ reply: repair.result.content, channel, actions, claimPhrases });
             if (second.needsRegeneration) fallbackUsed = true;
             // Keep every violation found (for telemetry); the delivered reply
             // and its verdict come from the repair attempt.
@@ -577,7 +580,7 @@ export class AgentRuntime {
         } else if (verdict.needsRegeneration) {
           fallbackUsed = true;
         }
-        reply = fallbackUsed ? safeFallbackReply(verdict.violations) : verdict.reply;
+        reply = fallbackUsed ? safeFallbackReply(verdict.violations, agent.config.guardrails.safeFallbackReply) : verdict.reply;
         validation = {
           // ok = the DELIVERED reply passed (possibly after one repair).
           ok: !fallbackUsed && !verdict.needsRegeneration,

@@ -254,7 +254,9 @@ export type ActionClaimKind =
   | "appointment.reschedule"
   | "appointment.cancel"
   | "handoff"
-  | "contact.saved";
+  | "contact.saved"
+  /** A commercial concession the business authorized and the app recorded. */
+  | "concession.offered";
 
 /** What the model is told about a controlled capability. Never executable. */
 export interface ToolDescriptor {
