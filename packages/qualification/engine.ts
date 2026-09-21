@@ -123,6 +123,11 @@ export function applyUtterance(deps: EngineDeps, previous: QualificationSnapshot
     }
 
     // 2. A pending confirmation is answered before anything else.
+    // Whether this utterance was spent on a pending confirmation. When a
+    // confirmation is released without being answered, the utterance is
+    // still unspent and belongs to the next question.
+    let consumed = snapshot.awaitingConfirmationFieldId !== null;
+    const hadConfirmation = consumed;
     if (snapshot.awaitingConfirmationFieldId) {
       const fieldId = snapshot.awaitingConfirmationFieldId;
       const field = fieldById(deps.schema, fieldId);
@@ -154,18 +159,79 @@ export function applyUtterance(deps: EngineDeps, previous: QualificationSnapshot
         } else {
           events.push({ type: "confirmation_requested", field: fieldId, value: snapshot.fields[fieldId].value });
         }
-      } else {
-        // A correction may arrive in the same breath ("no, three thousand").
-        delete snapshot.fields[fieldId];
-        snapshot.awaitingConfirmationFieldId = null;
-        events.push({ type: "rejected", field: fieldId });
-        if (field) {
-          const retried = captureField(deps, snapshot, events, field, text);
+      } else if (field) {
+        /*
+         * Neither a clean yes nor the energy special case. Three different
+         * things arrive here and they must NOT be treated alike — the
+         * earlier version deleted the captured value first and re-extracted
+         * from whatever was said, which meant a caller who simply answered
+         * the NEXT question ("Anantapur") had it stored as their name, and
+         * every answer after that landed one field out. On a real call that
+         * silently scrambles the whole lead.
+         */
+        // A "correction" must be signalled. For a number the value itself
+        // signals it — a bare amount or phone number during a read-back is a
+        // correction and nothing else. For a name, a place or a free-text
+        // answer, almost any utterance parses as a value, so without an
+        // explicit "no" the caller is answering the NEXT question, not
+        // correcting this one.
+        const corrected = denied || RESTATABLE_FIELD_TYPES.has(field.type) ? extractValue(deps, field, text) : null;
+        if (corrected) {
+          // A correction, or the value said again ("no, three thousand").
+          events.push({ type: "rejected", field: fieldId });
+          snapshot.fields[fieldId] = corrected;
+          events.push({ type: "captured", field: fieldId, value: corrected.value, confidence: corrected.confidence });
+          if (field.confirm || corrected.confidence < CONFIRMATION_THRESHOLD) {
+            bumpAttempt(snapshot, events, field);
+            if ((snapshot.attempts[fieldId] ?? 0) >= field.maxAttempts) {
+              // Asked enough. Keep what we heard, marked unconfirmed.
+              snapshot.awaitingConfirmationFieldId = null;
+            } else {
+              events.push({ type: "confirmation_requested", field: fieldId, value: corrected.value });
+            }
+          } else {
+            snapshot.awaitingConfirmationFieldId = null;
+            applyDisqualifier(snapshot, events, field);
+            if (isTerminal(snapshot.status)) return { snapshot, events };
+          }
+        } else if (denied) {
+          // "No, that's wrong", with no correction offered. Drop it and ask
+          // again — this is the one case where deleting is right.
+          delete snapshot.fields[fieldId];
+          snapshot.awaitingConfirmationFieldId = null;
+          events.push({ type: "rejected", field: fieldId });
+          bumpAttempt(snapshot, events, field);
+        } else if (!field.confirm) {
+          // The caller has moved on and this read-back was only a
+          // low-confidence nicety. Keep what we heard, unconfirmed, and let
+          // the utterance answer whatever comes next instead of losing it.
+          snapshot.awaitingConfirmationFieldId = null;
+          applyDisqualifier(snapshot, events, field);
           if (isTerminal(snapshot.status)) return { snapshot, events };
-          if (!retried) bumpAttempt(snapshot, events, field);
+          consumed = false;
+        } else {
+          // An explicit read-back is a business requirement (a phone number,
+          // an amount): ask again, bounded, without destroying the value.
+          bumpAttempt(snapshot, events, field);
+          if ((snapshot.attempts[fieldId] ?? 0) >= field.maxAttempts) {
+            snapshot.awaitingConfirmationFieldId = null;
+          } else {
+            events.push({ type: "confirmation_requested", field: fieldId, value: snapshot.fields[fieldId]?.value ?? "" });
+          }
         }
       }
-    } else if (snapshot.pendingFieldId) {
+    }
+
+    // A released confirmation leaves the utterance unspent: the caller was
+    // answering the next question, so let the next field have it. Only in
+    // that case — outside it, a field the engine has not asked about yet
+    // must not be filled from whatever the caller happened to say.
+    if (hadConfirmation && !consumed && !snapshot.awaitingConfirmationFieldId) {
+      const next = nextField(deps.schema, snapshot);
+      snapshot.pendingFieldId = next?.id ?? null;
+    }
+
+    if (!snapshot.awaitingConfirmationFieldId && !consumed && snapshot.pendingFieldId) {
       const field = fieldById(deps.schema, snapshot.pendingFieldId);
       if (field) {
         if (intents.includes("dont_know")) {
@@ -216,7 +282,7 @@ function captureField(
   snapshot.unresolved = snapshot.unresolved.filter((id) => id !== field.id);
   events.push({ type: "captured", field: field.id, value: extracted.value, confidence: extracted.confidence });
 
-  const needsConfirmation = field.confirm || extracted.confidence < CONFIRMATION_THRESHOLD;
+  const needsConfirmation = (field.confirm || extracted.confidence < CONFIRMATION_THRESHOLD) && !isVerbatimField(field);
   if (needsConfirmation && !extracted.unknown) {
     snapshot.awaitingConfirmationFieldId = field.id;
     events.push({ type: "confirmation_requested", field: field.id, value: extracted.value });
@@ -227,6 +293,37 @@ function captureField(
 }
 
 export const CONFIRMATION_THRESHOLD = 0.8;
+
+/**
+ * Types whose value IS the caller's own words, so there is nothing to verify
+ * by reading it back. Confidence-gated read-back exists to catch a MISHEARD
+ * structured value — a digit, an amount, a name — where being wrong is
+ * materially harmful and being right is checkable. Applying it to free text
+ * produces an agent that repeats every answer back ("you said Kukatpally,
+ * is that right?"), which is the mechanical interrogation this design is
+ * supposed to avoid — and worse, it makes the caller's answer to the NEXT
+ * question arrive while a confirmation is pending, where it is taken as a
+ * correction and stored under the wrong field.
+ *
+ * An explicit `confirm: true` on such a field is still honoured.
+ */
+const VERBATIM_FIELD_TYPES = new Set<QualificationField["type"]>(["text", "time"]);
+
+/**
+ * Types whose value, said again on its own, unambiguously means "no, THIS
+ * one" during a read-back. Everything else needs an explicit denial.
+ */
+const RESTATABLE_FIELD_TYPES = new Set<QualificationField["type"]>([
+  "money",
+  "energy_or_money",
+  "capacity_kw",
+  "phone",
+  "pincode",
+]);
+
+function isVerbatimField(field: QualificationField): boolean {
+  return VERBATIM_FIELD_TYPES.has(field.type) && !field.confirm;
+}
 
 function extractValue(deps: EngineDeps, field: QualificationField, text: string): FieldValue | null {
   const pack = deps.pack;
@@ -326,8 +423,12 @@ function bumpAttempt(
   const attempt = (snapshot.attempts[field.id] ?? 0) + 1;
   snapshot.attempts[field.id] = attempt;
   if (attempt >= field.maxAttempts) {
-    if (field.required && !snapshot.unresolved.includes(field.id)) snapshot.unresolved.push(field.id);
-    events.push({ type: "unresolved", field: field.id });
+    // "Unresolved" means we never got the answer. A field that HAS a value —
+    // captured but never confirmed — is answered, just not verified, and
+    // counting it as unresolved wrongly drives the call towards a human.
+    const answered = snapshot.fields[field.id] !== undefined && !snapshot.fields[field.id].unknown;
+    if (field.required && !answered && !snapshot.unresolved.includes(field.id)) snapshot.unresolved.push(field.id);
+    if (!answered) events.push({ type: "unresolved", field: field.id });
     return;
   }
   events.push({ type: "retry", field: field.id, attempt });

@@ -58,6 +58,8 @@ export const ARUNODHAYA_OBJECTIONS = {
           "ఆమెతో మాట్లాడాలి",
           "ఇంట్లో అడగాలి",
           "కుటుంబంతో మాట్లాడాలి",
+          "aayana tho matladali",
+          "ayana tho matladali",
           "husband tho matladali",
           "wife tho matladali",
           "family tho matladali",

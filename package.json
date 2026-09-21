@@ -23,7 +23,9 @@
     "perf:baseline": "tsx scripts/perf-baseline.ts",
     "voice-gateway": "tsx --conditions react-server services/voice-gateway/main.ts",
     "voice:latency": "tsx scripts/voice-latency-harness.ts",
-    "predev": "npm run build:widget"
+    "predev": "npm run build:widget",
+    "eval:arunodhaya": "tsx --conditions react-server scripts/arunodhaya-eval.ts",
+    "phase4:context": "tsx --conditions react-server scripts/phase4-context-budget.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

@@ -116,6 +116,14 @@ export interface PhoneTurnHandlerOptions {
   transferReasons?: EscalationReason[];
   /** Observes every completed runtime output (outcome computation, telemetry). */
   onTurnOutput?: (output: RuntimeOutput) => void;
+  /**
+   * Extra bindings for built-in tools, supplied by the application (Phase 4:
+   * `offer_concession`). A tool is only ever offered to the model when an
+   * executor is bound, so this widens capability without widening the
+   * closed registry: the names still come from `BUILTIN_TOOLS`, and an
+   * unknown name is rejected by the registry rather than silently accepted.
+   */
+  toolExecutors?: Partial<Record<string, AnyToolExecutor>>;
 }
 
 interface PendingAssistant {
@@ -207,6 +215,9 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
       conversations: this.store,
       stateStore: options.stateStore,
       registry: new ToolRegistry(BUILTIN_TOOLS, {
+        ...(options.toolExecutors ?? {}),
+        // Bound last: the phone handoff semantics are not the application's
+        // to override — whether a live transfer is possible is decided here.
         request_human_handoff: phoneHandoffExecutor(options.liveHandoffAvailable),
       }),
       systemActions: options.systemActions?.(() => this.signals) ?? [],

@@ -124,6 +124,13 @@ export class QualificationSystemActionProvider implements SystemActionProvider {
       return lines.join("\n");
     }
 
+    // Surfaced BEFORE the confirmation early-return: a caller asking for a
+    // person outranks a read-back, and burying it under one is how an
+    // escalation request gets lost.
+    if (snapshot.humanRequested) {
+      lines.push("- The caller asked for a person (or too much went unanswered). Acknowledge it directly.");
+    }
+
     if (snapshot.awaitingConfirmationFieldId) {
       const field = fieldById(this.deps.schema, snapshot.awaitingConfirmationFieldId);
       const value = snapshot.fields[snapshot.awaitingConfirmationFieldId];
@@ -148,9 +155,6 @@ export class QualificationSystemActionProvider implements SystemActionProvider {
         `- ASK EXACTLY THIS NEXT, and only this: "${question}"` +
           (attempt > 0 ? " The caller's previous answer was not understood — ask again, more simply, and do not guess." : ""),
       );
-    }
-    if (snapshot.humanRequested) {
-      lines.push("- The caller asked for a person (or too much went unanswered). Acknowledge it directly.");
     }
     return lines.join("\n");
   }

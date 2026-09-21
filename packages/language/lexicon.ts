@@ -54,7 +54,15 @@ export const TELUGU_LEXICON: IntentLexicon = {
   ],
   do_not_call: [
     "కాల్ చేయకండి", "మళ్ళీ కాల్ చేయకండి", "ఫోన్ చేయకండి", "నా నంబర్ తీసేయండి", "డిస్టర్బ్ చేయకండి",
-    "call cheyakandi", "malli call cheyakandi", "phone cheyakandi", "number tiseyandi", "disturb cheyakandi",
+    "ఇంక కాల్ చేయకండి", "నాకు వద్దు", "మాకు వద్దు", "ఇలాంటి కాల్స్ వద్దు",
+    // Transliteration is not standardised: the same phrase arrives spelled
+    // several ways from the same caller, let alone from STT. A do-not-call
+    // that is missed because of a doubled consonant is a compliance failure,
+    // so the variants are listed rather than hoped for.
+    "call cheyakandi", "call cheyyakandi", "call cheyyavaddu", "call cheyavaddu",
+    "malli call cheyakandi", "malli call cheyyakandi", "inka call cheyyakandi", "inka call cheyakandi",
+    "phone cheyakandi", "phone cheyyakandi", "number tiseyandi", "number teeseyandi",
+    "disturb cheyakandi", "disturb cheyyakandi", "naaku vaddu", "naku vaddu", "maaku vaddu",
     "do not call", "don't call", "dont call again", "remove my number", "stop calling", "unsubscribe",
   ],
   wrong_number: [
