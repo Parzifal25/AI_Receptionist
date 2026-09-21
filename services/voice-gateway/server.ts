@@ -5,7 +5,9 @@ import { logger } from "@halo/platform/logger";
 import type { MediaStreamCodec, TelephonyProvider } from "@halo/ports/telephony-provider";
 import type { VoiceGateway } from "@halo/voice/gateway";
 import type { VoiceOutput } from "@halo/voice/voice-session";
+import type { PipecatBridge } from "@halo/voice/pipecat/bridge";
 import type { GatewayConfig } from "./config";
+import { attachPipecatControl } from "./pipecat-control";
 import { mintStreamToken, verifyStreamToken } from "./stream-token";
 
 /**
@@ -16,7 +18,8 @@ import { mintStreamToken, verifyStreamToken } from "./stream-token";
  * HTTP  POST /telephony/:provider/inbound   verified webhook → media-stream answer
  *       POST /telephony/:provider/status    verified webhook → call state
  *       GET  /health                        liveness + live session count
- * WS    /media                              bidirectional audio
+ * WS    /media                              bidirectional audio (in-process engine)
+ * WS    /pipecat/control                    text control plane (Pipecat engine)
  *
  * Trust: both HTTP routes verify the provider signature and FAIL CLOSED; the
  * WebSocket carries no provider signature, so it is authenticated by a
@@ -39,6 +42,8 @@ export interface GatewayServerDeps {
    * unconfigured agent must never pick up (packages/voice/session-config.ts).
    */
   canAnswer?(params: { to: string; from: string }): Promise<boolean>;
+  /** Required when `config.mediaEngine === "pipecat"`; unused otherwise. */
+  pipecat?: PipecatBridge;
   now?: () => number;
 }
 
@@ -53,6 +58,12 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
   const now = deps.now ?? Date.now;
   const wss = new WebSocketServer({ noServer: true });
   let shuttingDown = false;
+
+  if (config.mediaEngine === "pipecat" && !deps.pipecat) {
+    // Fail closed at construction: a gateway configured for Pipecat but
+    // built without the bridge would answer calls it can never serve.
+    throw new Error("voice gateway: VOICE_MEDIA_ENGINE=pipecat requires a PipecatBridge");
+  }
 
   const server = createServer((req, res) => {
     void handleHttp(req, res).catch((error) => {
@@ -115,16 +126,42 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
       config.streamTokenTtlMs,
       now(),
     );
+    const pipecat = config.mediaEngine === "pipecat";
     const answer = telephony.answerWithMediaStream({
-      streamUrl: config.publicWsUrl,
-      parameters: { token, callId: event.providerCallId, from: event.from, to: event.to },
+      // With Pipecat the provider streams audio to the worker, not to us;
+      // the worker then opens the control socket back to HALO with the same
+      // token. Tenant identity still comes only from the dialled number.
+      streamUrl: pipecat ? config.pipecatMediaWsUrl! : config.publicWsUrl,
+      parameters: {
+        token,
+        callId: event.providerCallId,
+        from: event.from,
+        to: event.to,
+        ...(pipecat ? { haloControlUrl: controlUrl(config.publicWsUrl) } : {}),
+      },
     });
     return send(res, 200, answer.contentType, answer.body);
   }
 
   server.on("upgrade", (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-    if (shuttingDown || !url.pathname.startsWith("/media")) {
+    if (shuttingDown) {
+      socket.destroy();
+      return;
+    }
+    if (deps.pipecat && url.pathname.startsWith("/pipecat/control")) {
+      const bridge = deps.pipecat;
+      wss.handleUpgrade(req, socket, head, (ws) =>
+        attachPipecatControl(ws, {
+          bridge,
+          streamTokenSecret: config.streamTokenSecret,
+          provider: telephony.name,
+          now,
+        }),
+      );
+      return;
+    }
+    if (!url.pathname.startsWith("/media")) {
       socket.destroy();
       return;
     }
@@ -256,6 +293,14 @@ function readBody(req: IncomingMessage): Promise<string> {
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
   });
+}
+
+/** Where a Pipecat worker reaches HALO's control plane for this deployment. */
+function controlUrl(publicWsUrl: string): string {
+  const url = new URL(publicWsUrl);
+  url.pathname = "/pipecat/control";
+  url.search = "";
+  return url.toString();
 }
 
 /** The provider signs the public https:// URL, not the internal bind address. */

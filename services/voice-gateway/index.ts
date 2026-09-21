@@ -9,6 +9,7 @@ import type { TelephonyProvider } from "@halo/ports/telephony-provider";
 import { ProviderKnowledgeResolver } from "@halo/runtime/knowledge-resolver";
 import { SupabaseConversationStateStore } from "@halo/runtime/stores/supabase-conversation-state-store";
 import { VoiceGateway } from "@halo/voice/gateway";
+import { PipecatBridge } from "@halo/voice/pipecat/bridge";
 import { PhoneTurnHandler, resolvedContextForCall } from "@halo/voice/phone-channel-adapter";
 import { buildSessionConfig } from "@halo/voice/session-config";
 import { SupabaseCallStore, SupabasePhoneConversationStore } from "@halo/voice/stores/supabase-call-store";
@@ -42,12 +43,18 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
   const knowledge = new ProviderKnowledgeResolver(getKnowledgeProvider());
   const llm = getLLMProvider();
 
+  // With the Pipecat engine the media loop runs in a worker and the fakes
+  // below are never opened: STT, TTS and VAD all happen there. They remain
+  // wired because the gateway's dependency list is engine-independent.
+  const pipecat = config.mediaEngine === "pipecat" ? new PipecatBridge() : null;
+
   const gateway = new VoiceGateway({
     callStore,
     telephony,
     stt: new FakeSttProvider(),
     tts: new FakeTtsProvider(),
     limits: { maxConcurrentSessions: config.maxConcurrentSessions },
+    ...(pipecat ? { createMediaSession: pipecat.createMediaSession } : {}),
     createTurnHandler: (ctx) =>
       new PhoneTurnHandler({
         agent: resolvedContextForCall({ business: ctx.route.business, agentId: ctx.route.agentId, version: ctx.route.version }),
@@ -69,10 +76,13 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
     },
   });
 
+  pipecat?.bindGateway(gateway);
+
   const server = createGatewayServer({
     config,
     gateway,
     telephony,
+    ...(pipecat ? { pipecat } : {}),
     canAnswer: async ({ to }) => {
       try {
         const route = await callStore.resolveInboundRoute(telephony.name, to);
@@ -90,7 +100,7 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
     },
   });
 
-  return { config, gateway, server, telephony };
+  return { config, gateway, server, telephony, pipecat };
 }
 
 export async function main(): Promise<void> {
@@ -100,6 +110,7 @@ export async function main(): Promise<void> {
     port,
     publicWsUrl: config.publicWsUrl,
     telephony: config.telephonyProvider,
+    mediaEngine: config.mediaEngine,
     stt: config.sttProvider,
     tts: config.ttsProvider,
   });

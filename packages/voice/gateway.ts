@@ -13,12 +13,14 @@ import { logger } from "@halo/platform/logger";
 import { audioDurationMs } from "./audio";
 import { isTerminalCallState, pathToCallState } from "./call-state";
 import type { CallRecord, CallStore, InboundRoute, OutcomeRecord } from "./call-store";
+import type { VoiceMediaSession } from "./media-session";
 import type { VoiceTurnHandler } from "./turn-handler";
 import {
   VoiceSession,
   type VoiceOutput,
   type VoiceSessionConfig,
   type VoiceSessionEvent,
+  type VoiceSessionHooks,
   type VoiceSessionSummary,
 } from "./voice-session";
 
@@ -81,11 +83,33 @@ export const DEFAULT_GATEWAY_LIMITS: GatewayLimits = Object.freeze({
   mediaReconnectMs: 5_000,
 });
 
+/**
+ * Everything a media engine needs for one call. The gateway has already
+ * resolved the tenant, the agent and the published version server-side
+ * before this is built, so an engine can never choose them.
+ */
+export interface MediaSessionRequest {
+  ctx: VoiceCallContext;
+  turns: VoiceTurnHandler;
+  output: VoiceOutput;
+  config: VoiceSessionConfig;
+  hooks: VoiceSessionHooks;
+  now: () => number;
+}
+
 export interface VoiceGatewayDeps {
   callStore: CallStore;
   stt: StreamingSttProvider;
   tts: StreamingTtsProvider;
   telephony: TelephonyProvider;
+  /**
+   * The media engine for a call. Defaults to the in-process Phase 3
+   * `VoiceSession` (STT/TTS/VAD in this process). A deployment that puts the
+   * media loop behind Pipecat supplies a remote engine here instead; nothing
+   * else in the gateway changes, because nothing else in the gateway is
+   * media-aware (docs/PIPECAT_INTEGRATION.md).
+   */
+  createMediaSession?(request: MediaSessionRequest): VoiceMediaSession;
   /** Per-call conversation handler (production: the runtime-backed phone adapter). */
   createTurnHandler(ctx: VoiceCallContext): VoiceTurnHandler;
   /** Per-call session configuration (language, prompts, endpointing) from agent config. */
@@ -103,7 +127,7 @@ export type StartSessionResult =
 interface Session {
   id: string;
   ctx: VoiceCallContext;
-  session: VoiceSession;
+  session: VoiceMediaSession;
   output: VoiceOutput;
   state: CallState;
   events: VoiceSessionEvent[];
@@ -239,7 +263,7 @@ export class VoiceGateway {
     const entry: Session = {
       id: call.id,
       ctx,
-      session: undefined as unknown as VoiceSession,
+      session: undefined as unknown as VoiceMediaSession,
       output: params.output,
       state: call.state,
       events: [],
@@ -256,16 +280,11 @@ export class VoiceGateway {
       finalized: false,
     };
 
-    const handler = this.deps.createTurnHandler(ctx);
-    const config = this.deps.sessionConfig(ctx);
-    const codecFormat = this.deps.telephony.createMediaCodec().format;
-    entry.session = new VoiceSession({
-      stt: this.deps.stt,
-      tts: this.deps.tts,
-      turns: handler,
+    const request: MediaSessionRequest = {
+      ctx,
+      turns: this.deps.createTurnHandler(ctx),
       output: proxyOutput(entry),
-      inputFormat: codecFormat,
-      config,
+      config: this.deps.sessionConfig(ctx),
       now: this.now,
       hooks: {
         onEvent: (event) => this.onSessionEvent(entry, event),
@@ -275,7 +294,10 @@ export class VoiceGateway {
           entry.finalizing = this.finalize(entry, summary);
         },
       },
-    });
+    };
+    entry.session = this.deps.createMediaSession
+      ? this.deps.createMediaSession(request)
+      : this.inProcessSession(request);
 
     this.sessions.set(entry.id, entry);
     this.byProviderCall.set(this.key(params.provider, params.providerCallId), entry.id);
@@ -407,6 +429,20 @@ export class VoiceGateway {
   // -------------------------------------------------------------------------
   // internals
   // -------------------------------------------------------------------------
+
+  /** The Phase 3 engine, unchanged: STT, TTS and VAD inside this process. */
+  private inProcessSession(request: MediaSessionRequest): VoiceMediaSession {
+    return new VoiceSession({
+      stt: this.deps.stt,
+      tts: this.deps.tts,
+      turns: request.turns,
+      output: request.output,
+      inputFormat: this.deps.telephony.createMediaCodec().format,
+      config: request.config,
+      now: request.now,
+      hooks: request.hooks,
+    });
+  }
 
   private key(provider: string, providerCallId: string): string {
     return `${provider}|${providerCallId}`;

@@ -23,6 +23,19 @@ export const gatewayConfigSchema = z
     sttProvider: z.enum(["fake"]).default("fake"),
     ttsProvider: z.enum(["fake"]).default("fake"),
     maxConcurrentSessions: z.coerce.number().int().min(1).max(500).default(50),
+    /**
+     * Where the media loop runs. `in_process` is the Phase 3 engine (STT,
+     * TTS and VAD in this process, fed by the `/media` socket). `pipecat`
+     * hands the media loop to a Pipecat worker, which streams the call from
+     * the provider and talks to HALO over `/pipecat/control`
+     * (docs/PIPECAT_INTEGRATION.md).
+     */
+    mediaEngine: z.enum(["in_process", "pipecat"]).default("in_process"),
+    /** wss:// endpoint on the Pipecat worker the provider is told to stream to. */
+    pipecatMediaWsUrl: z.string().url().optional(),
+  })
+  .refine((c) => c.mediaEngine !== "pipecat" || Boolean(c.pipecatMediaWsUrl), {
+    message: "VOICE_PIPECAT_MEDIA_WS_URL is required when VOICE_MEDIA_ENGINE=pipecat",
   })
   .refine((c) => c.telephonyProvider !== "twilio" || (c.twilioAccountSid && c.twilioAuthToken), {
     message: "TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are required for the twilio provider",
@@ -46,6 +59,8 @@ export function loadGatewayConfig(env: Record<string, string | undefined> = proc
     sttProvider: env.VOICE_STT_PROVIDER,
     ttsProvider: env.VOICE_TTS_PROVIDER,
     maxConcurrentSessions: env.VOICE_MAX_CONCURRENT_SESSIONS,
+    mediaEngine: env.VOICE_MEDIA_ENGINE,
+    pipecatMediaWsUrl: env.VOICE_PIPECAT_MEDIA_WS_URL,
   });
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join(".") || "config"}: ${i.message}`).join("; ");
