@@ -64,8 +64,11 @@ idle ─start─▶ speaking(greeting) ─▶ listening ⇄ user_speaking ─end
                    └──────────────────────────────────────────────────── speaking(reply)
   barge-in: speaking ─caller speech─▶ user_speaking   (TTS aborted, provider buffer cleared)
             thinking ─caller speech─▶ user_speaking   (turn aborted; utterances merged)
+  transfer: speaking(reply) ─▶ transferring ─announce + provider bridge─▶ ended
   any ─end()─▶ ending ─▶ ended
 ```
+
+Full transition table, timeouts and terminal rules: **`docs/VOICE_STATE_MACHINE.md`**.
 
 - **Full duplex.** Caller audio keeps reaching STT and the endpointer while the agent speaks.
 - **Barge-in** needs `bargeInMinSpeechMs` of sustained speech (default 250 ms) — or a non-empty STT
@@ -76,6 +79,16 @@ idle ─start─▶ speaking(greeting) ─▶ listening ⇄ user_speaking ─end
   the turn persists nothing and the interrupted utterance is merged with the next one
   (`"my bill is" + "three thousand"` → one turn). If an action already committed, the turn finishes
   and its reply is recorded as **not heard** — business state and transcript never disagree.
+- **Handoff is a state, not a flag.** `transferring` owns the session from the moment a
+  `transfer` directive is accepted until the bridge succeeds or fails. Caller finals keep
+  accumulating but **no new turn starts**: a turn racing the bridge could execute a business
+  action for a caller already talking to a human, or be cut off mid-action by the transfer's
+  `end()`. If the bridge fails, the caller hears the honest failure line and the speech they
+  produced during the attempt is answered — held, never dropped.
+- **One playback at a time.** `play()` preempts any unsettled playback (aborting its synthesis,
+  clearing the provider buffer and settling its transcript row) so two synthesis loops can never
+  share the wire, fight over the single playback watchdog or settle each other's rows. The
+  invariant is structural rather than a rule every call site must remember.
 - **Silence** budget: reprompt up to `maxSilentReprompts`, then a goodbye and hang-up.
 - **Failures** are bounded: one STT reconnect, one TTS retry before first byte, a turn timeout, a
   guard against handlers that ignore their abort signal, and a ceiling on consecutive turn

@@ -26,6 +26,8 @@ import { isTurnCancelled, type VoiceDirective, type VoiceTurnHandler, type Voice
  *                     └───────────────────────────────────────────────────────── speaking(reply)
  *   barge-in: speaking ─caller speech─▶ user_speaking  (TTS aborted, provider buffer cleared)
  *             thinking ─caller speech─▶ user_speaking  (turn aborted; utterances merged if uncommitted)
+ *   transfer: speaking(reply) ─▶ transferring ─announce+provider bridge─▶ ended
+ *             (no new turn may start while a handoff is in flight)
  *   any ─end()─▶ ending ─▶ ended
  *
  * Guarantees:
@@ -34,6 +36,11 @@ import { isTurnCancelled, type VoiceDirective, type VoiceTurnHandler, type Voice
  *   - every async continuation checks a generation, so a cancelled TTS
  *     stream, an aborted turn or a late STT event can never drive a newer
  *     phase;
+ *   - at most ONE playback is active at any time: `play()` preempts an
+ *     unsettled one rather than letting two synthesis loops share the wire;
+ *   - a human handoff owns the session (`transferring`) for its whole
+ *     duration, so no turn can execute a business action for a caller who
+ *     is already being bridged;
  *   - `interrupt()` and `end()` are idempotent;
  *   - every buffer, retry and loop is bounded by `VoiceSessionConfig`;
  *   - failure never produces a success narration: the session only ever
