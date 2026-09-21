@@ -124,6 +124,16 @@ interface Session {
 export class VoiceGateway {
   private readonly sessions = new Map<string, Session>();
   private readonly byProviderCall = new Map<string, string>();
+  /**
+   * Single-flight guard for `startSession`. Registration happens after two
+   * awaits (route resolution, call upsert), so without this a duplicate
+   * provider `start` frame or a replayed stream token could drive two
+   * concurrent starts for ONE call: both pass the `byProviderCall` check,
+   * both build a VoiceSession, and the second overwrites the first in the
+   * registry — leaving a live, unreachable session with an open STT stream
+   * and armed timers speaking into the same socket.
+   */
+  private readonly starting = new Map<string, Promise<StartSessionResult>>();
   private readonly limits: GatewayLimits;
   private readonly now: () => number;
 
@@ -143,6 +153,36 @@ export class VoiceGateway {
    * call re-attaches instead of starting a second session.
    */
   async startSession(params: {
+    provider: string;
+    providerCallId: string;
+    from: string;
+    to: string;
+    direction?: "inbound" | "outbound";
+    output: VoiceOutput;
+  }): Promise<StartSessionResult> {
+    if (params.provider !== this.deps.telephony.name) return { ok: false, reason: "provider_mismatch" };
+    const key = this.key(params.provider, params.providerCallId);
+    const inFlight = this.starting.get(key);
+    if (inFlight) {
+      // A concurrent start for the same call already owns the setup. Wait for
+      // it and attach this socket to the one session it produced.
+      const result = await inFlight;
+      if (!result.ok) return result;
+      const entry = this.sessions.get(result.sessionId);
+      if (!entry) return result;
+      this.attachMedia(entry, params.output);
+      return { ...result, reattached: true };
+    }
+    const attempt = this.beginSession(params);
+    this.starting.set(key, attempt);
+    try {
+      return await attempt;
+    } finally {
+      this.starting.delete(key);
+    }
+  }
+
+  private async beginSession(params: {
     provider: string;
     providerCallId: string;
     from: string;

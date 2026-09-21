@@ -40,8 +40,12 @@ export class InMemoryCallStore implements CallStore {
   }
 
   async createOrGetCall(input: NewCall): Promise<{ call: CallRecord; created: boolean }> {
-    const existing = await this.getCallByProviderId(input.provider, input.providerCallId);
-    if (existing) return { call: existing, created: false };
+    // Check-and-insert with NO await in between. The Supabase store gets this
+    // atomicity from the `calls_provider_call_unique` constraint (insert, then
+    // recover on 23505); this double must uphold the same contract or tests
+    // would pass on a guarantee production does not share.
+    const existing = this.findByProviderId(input.provider, input.providerCallId);
+    if (existing) return { call: { ...existing }, created: false };
     const call = {
       id: randomUUID(),
       businessId: input.businessId,
@@ -63,8 +67,14 @@ export class InMemoryCallStore implements CallStore {
   }
 
   async getCallByProviderId(provider: string, providerCallId: string): Promise<CallRecord | null> {
+    const call = this.findByProviderId(provider, providerCallId);
+    return call ? { ...call } : null;
+  }
+
+  /** Synchronous lookup, so create-if-absent has no await to race through. */
+  private findByProviderId(provider: string, providerCallId: string) {
     for (const call of this.calls.values()) {
-      if (call.provider === provider && call.providerCallId === providerCallId) return { ...call };
+      if (call.provider === provider && call.providerCallId === providerCallId) return call;
     }
     return null;
   }

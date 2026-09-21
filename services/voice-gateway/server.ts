@@ -134,6 +134,9 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
   function attachMedia(ws: WebSocket): void {
     const codec: MediaStreamCodec = telephony.createMediaCodec();
     let sessionId: string | null = null;
+    /** Latched synchronously: `sessionId` is only set after an await, so a
+     *  duplicate `start` frame would otherwise enter the async path twice. */
+    let starting = false;
     let closed = false;
 
     const output: VoiceOutput = {
@@ -148,7 +151,8 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
       if (isBinary) return; // media-stream protocols are JSON text frames
       for (const event of codec.decode(data.toString())) {
         if (event.type === "start") {
-          if (sessionId) continue;
+          if (sessionId || starting) continue;
+          starting = true;
           void startSession(event.providerCallId, event.parameters);
           continue;
         }

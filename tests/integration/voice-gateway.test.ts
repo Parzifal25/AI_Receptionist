@@ -211,3 +211,56 @@ describe("VoiceGateway", () => {
     }
   });
 });
+
+describe("VoiceGateway — duplicate start races", () => {
+  /**
+   * Regression: `startSession` registers the session only after two awaits
+   * (route resolution, call upsert), so two concurrent starts for ONE call
+   * both passed the dedupe check. That produced two call rows, two
+   * conversations and two live VoiceSessions — the first of them orphaned in
+   * the registry but still holding an STT stream, armed timers and the media
+   * socket. Reachable from a duplicate provider `start` frame or a stream
+   * token replayed inside its TTL.
+   */
+  it("collapses two simultaneous starts for one provider call into one session", async () => {
+    const g = buildGateway({ handler: new ScriptedTurnHandler() });
+    const [a, b] = await Promise.all([
+      g.connect({ providerCallId: "CA-RACE" }),
+      g.connect({ providerCallId: "CA-RACE" }),
+    ]);
+    await g.settle(3000);
+
+    expect(a.result.ok && b.result.ok).toBe(true);
+    if (!a.result.ok || !b.result.ok) throw new Error("both starts should succeed");
+    // One session, one call row, one conversation — and exactly one reattach.
+    expect(g.gateway.activeSessions).toBe(1);
+    expect(a.result.sessionId).toBe(b.result.sessionId);
+    expect(g.callStore.calls.size).toBe(1);
+    expect([a.result.reattached, b.result.reattached].filter(Boolean)).toHaveLength(1);
+    expect(g.callStore.conversations.size).toBe(1);
+
+    await g.gateway.endSession(a.result.sessionId, "caller_hangup");
+    expect(g.gateway.activeSessions).toBe(0);
+  });
+
+  it("is idempotent in the call store under a concurrent upsert", async () => {
+    const g = buildGateway({ handler: new ScriptedTurnHandler() });
+    const input = {
+      businessId: g.routeA.business.id,
+      agentId: g.routeA.agentId,
+      agentVersionId: g.routeA.version.id,
+      phoneNumberId: g.routeA.phoneNumberId,
+      direction: "inbound" as const,
+      provider: "fake",
+      providerCallId: "CA-DUP",
+      fromNumber: "+919800000001",
+      toNumber: TENANT_A_DID,
+      state: "ringing" as const,
+      language: "te",
+    };
+    const [x, y] = await Promise.all([g.callStore.createOrGetCall(input), g.callStore.createOrGetCall(input)]);
+    expect(x.call.id).toBe(y.call.id);
+    expect([x.created, y.created].filter(Boolean)).toHaveLength(1);
+    expect(g.callStore.calls.size).toBe(1);
+  });
+});
