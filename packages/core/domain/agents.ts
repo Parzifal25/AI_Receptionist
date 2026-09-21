@@ -124,6 +124,7 @@ const guardrailsSchema = z.object({
       "appointment.cancel": z.array(z.string().min(2).max(120)).max(30).optional(),
       handoff: z.array(z.string().min(2).max(120)).max(30).optional(),
       "contact.saved": z.array(z.string().min(2).max(120)).max(30).optional(),
+      "concession.offered": z.array(z.string().min(2).max(120)).max(30).optional(),
     })
     .default({}),
   /**
