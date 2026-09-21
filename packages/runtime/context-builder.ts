@@ -37,6 +37,35 @@ export const DEFAULT_CONTEXT_LIMITS: ContextLimits = Object.freeze({
   maxTotalChars: 32_000,
 });
 
+/**
+ * Voice context budget (Phase 3, docs/VOICE_TOKEN_BUDGET.md).
+ *
+ * A phone turn is not a chat turn. The caller is waiting in silence, so
+ * time-to-first-token is the dominant cost, and prompt size is the part of it
+ * we control. The same layering as `DEFAULT_CONTEXT_LIMITS` is kept — this is
+ * a re-budgeting of the existing builder, not a second code path — with each
+ * layer sized for what can actually be said aloud in one turn:
+ *
+ *   - knowledge is cut hardest (6 snippets/7200 chars → 3/2400): an agent can
+ *     speak one or two facts per turn, so the rest is paid for and discarded;
+ *   - messages are short because replies are capped at 450 spoken chars, so
+ *     the per-message cap drops with them;
+ *   - `maxToolDescriptors` is deliberately UNCHANGED: trimming knowledge
+ *     costs detail, but dropping a tool descriptor silently removes a
+ *     capability the agent was configured to have.
+ */
+export const VOICE_CONTEXT_LIMITS: ContextLimits = Object.freeze({
+  maxRecentMessages: 10,
+  maxHistoryFetch: 24,
+  maxMessageChars: 600,
+  maxSummaryChars: 800,
+  maxKnowledgeSnippets: 3,
+  maxKnowledgeChars: 2400,
+  maxToolDescriptors: DEFAULT_CONTEXT_LIMITS.maxToolDescriptors,
+  maxCustomerFacts: 6,
+  maxTotalChars: 9_000,
+});
+
 export interface BuildContextParams {
   trusted: TrustedRequestContext;
   agent: ResolvedAgentRuntimeContext;

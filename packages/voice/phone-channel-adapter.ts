@@ -5,6 +5,7 @@ import type { Business } from "@halo/core/domain/types";
 import type { LLMProvider } from "@halo/ports/llm-provider";
 import { AgentRuntime, newTurnId, type DoctrineProvider, type RuntimePolicy } from "@halo/runtime/agent-runtime";
 import { isRuntimeCancelled } from "@halo/runtime/cancellation";
+import { VOICE_CONTEXT_LIMITS } from "@halo/runtime/context-builder";
 import { PHONE_VOICE_PROFILE } from "@halo/runtime/channel-profile";
 import type {
   EscalationReason,
@@ -212,7 +213,9 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
       hooks: options.hooks,
       doctrine: options.doctrine,
       events: options.events,
-      policy: { turnTimeoutMs: 12_000, maxToolRounds: 1, ...options.policy },
+      // Voice-sized context budget: the caller waits in silence, so prompt
+      // size is the part of time-to-first-token we control (§VOICE_TOKEN_BUDGET).
+      policy: { turnTimeoutMs: 12_000, maxToolRounds: 1, contextLimits: VOICE_CONTEXT_LIMITS, ...options.policy },
     });
   }
 

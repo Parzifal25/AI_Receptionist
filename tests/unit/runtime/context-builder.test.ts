@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChatMessage, KnowledgeSnippet } from "@halo/core/domain/types";
-import { WEB_CHAT_PROFILE } from "@halo/runtime/channel-profile";
-import { buildConversationContext, DEFAULT_CONTEXT_LIMITS } from "@halo/runtime/context-builder";
+import { PHONE_VOICE_PROFILE, WEB_CHAT_PROFILE } from "@halo/runtime/channel-profile";
+import { buildConversationContext, DEFAULT_CONTEXT_LIMITS, VOICE_CONTEXT_LIMITS } from "@halo/runtime/context-builder";
 import { applyStatePatch, emptyConversationState } from "@halo/runtime/conversation-state";
 import { emptyKnowledge } from "@halo/runtime/knowledge-resolver";
 import { makeAgent, makeTrusted } from "../../mocks/runtime-fakes";
@@ -118,5 +118,43 @@ describe("context builder (Phase 2, WS3)", () => {
     });
     expect(context.customer?.facts).toHaveLength(2);
     expect(context.customer?.name?.length).toBe(120);
+  });
+});
+
+describe("voice context budget (Phase 3, §VOICE_TOKEN_BUDGET)", () => {
+  /**
+   * The phone channel used to inherit the web-chat budget, so a latency-
+   * critical spoken turn shipped the same context as a chat turn where the
+   * user is reading. This pins the re-budgeting.
+   */
+  const midCall = () => ({
+    channel: PHONE_VOICE_PROFILE,
+    history: Array.from({ length: 30 }, (_, i) => ({
+      role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      content: i % 2 === 0 ? "Caller says something of about this length on the phone." : "x".repeat(430),
+    })),
+    knowledge: { ...emptyKnowledge(), snippets: Array.from({ length: 8 }, (_, i) => snippet(i, 900)) },
+  });
+
+  it("is materially smaller than the chat budget on the same mid-call context", () => {
+    const params = midCall();
+    const chat = build({ ...params, limits: DEFAULT_CONTEXT_LIMITS });
+    const voice = build({ ...params, limits: VOICE_CONTEXT_LIMITS });
+    expect(voice.budget.totalChars).toBeLessThan(chat.budget.totalChars * 0.7);
+    expect(voice.recentMessages.length).toBeLessThan(chat.recentMessages.length);
+    expect(voice.knowledge.snippets.length).toBeLessThan(chat.knowledge.snippets.length);
+  });
+
+  it("enforces every voice layer cap", () => {
+    const voice = build({ ...midCall(), limits: VOICE_CONTEXT_LIMITS });
+    expect(voice.recentMessages.length).toBeLessThanOrEqual(VOICE_CONTEXT_LIMITS.maxRecentMessages);
+    expect(voice.knowledge.snippets.length).toBeLessThanOrEqual(VOICE_CONTEXT_LIMITS.maxKnowledgeSnippets);
+    expect(voice.knowledge.charsUsed).toBeLessThanOrEqual(VOICE_CONTEXT_LIMITS.maxKnowledgeChars);
+    expect(voice.budget.totalChars).toBeLessThanOrEqual(VOICE_CONTEXT_LIMITS.maxTotalChars);
+    for (const m of voice.recentMessages) expect(m.content.length).toBeLessThanOrEqual(VOICE_CONTEXT_LIMITS.maxMessageChars);
+  });
+
+  it("does NOT trim tool descriptors: a dropped tool removes a capability, not just detail", () => {
+    expect(VOICE_CONTEXT_LIMITS.maxToolDescriptors).toBe(DEFAULT_CONTEXT_LIMITS.maxToolDescriptors);
   });
 });
