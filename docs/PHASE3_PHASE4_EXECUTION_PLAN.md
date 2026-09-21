@@ -87,24 +87,39 @@ Columns: **ID · Objective · Files/packages · Depends · Validation · Status 
 
 | ID | Objective | Files / packages | Depends | Validation | Status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| P4-01 | `packages/language`: NFC + ZWJ/ZWNJ-for-matching normalization, Telugu/Devanagari digit folding, script-based language detection (te / en / te-en code-switch, confidence), `LanguagePack` registry with loud downgrade for unsupported languages | `packages/language/*` | — | vitest corpora | MOCK-VERIFIED | `call-store.ts`, `supabase-call-store.ts`; concurrent-upsert test added |
-| P4-02 | Deterministic parsers with test corpora first: numerals (Telugu script, romanized, English, Indian grouping, lakh/crore, "2k"), money (₹/Rs/రూపాయలు), energy units vs amount disambiguation, capacity (kW/"kv" ASR error/కిలోవాట్), Indian mobile numbers (incl. spoken digit words, "double"), pincode, names (original preserved, honorifics stripped only for matching), affirm/deny/human-request/do-not-call/repeat lexicons | `packages/language/parsers/*` | P4-01 | vitest | MOCK-VERIFIED | `gateway.ts`; 14 integration tests. Single-flight fix 2026-09-21 |
-| P4-03 | Generic qualification engine: zod schema (field types, ordered per-language questions, confirm-back, disqualifiers, clarification + max attempts → escalation), deterministic extraction bound to the pending question, raw utterance kept beside normalized value; runtime `SystemActionProvider` supplying ground truth | `packages/qualification/*` | P4-02, P3-06 | vitest | MOCK-VERIFIED | `twilio-media-stream-provider.ts`; signature + codec contract tests |
-| P4-04 | Deterministic disposition/outcome computation (§P5.4) incl. DNC suppression, separate from call state | `packages/qualification/disposition.ts` | P4-03 | vitest | MOCK-VERIFIED | `services/voice-gateway/*`; real local WebSocket integration test |
-| P4-05 | Site-visit booking step through the EXISTING `BookingService` (slot offer, Telugu/Tenglish slot selection, idempotent booking key, typed `slot_taken` alternatives, never narrated before success) | `packages/qualification/booking-step.ts` + app adapter | P4-03 | vitest with in-memory scheduling | MOCK-VERIFIED | `tests/integration/voice-*.test.ts`; `npm run voice:latency` recorded |
-| P4-06 | Telugu/Tenglish time expressions (రేపు, ఎల్లుండి, weekdays, ఉదయం/సాయంత్రం) normalized for the existing `when-parser` | `packages/language/parsers/time-expressions.ts` | P4-01 | vitest | TODO | |
-| P4-07 | Arunodhaya configuration (outside `packages/`): tenant, agent identity/objective, Telugu prompt template, voice settings, qualification schema, allowed tools, knowledge sources (⟨SUPPLIED⟩ placeholders only), appointment rules, escalation rules, outcome categories, agent version | `src/content/tenants/arunodhaya/*` | P4-03..P4-06 | vitest (config parses; no fabricated price/subsidy/timeline numbers) | TODO | |
-| P4-08 | Reproducible, resettable demo: idempotent seed + reset scoped to the demo tenant slug; refuses non-local DB without explicit flag | `scripts/demo/arunodhaya-{seed,reset}.ts` | P3-07, P4-07 | run against docker PG; re-run idempotent | TODO | |
-| P4-09 | Golden Telugu/Tenglish call suites through the gateway with fakes: happy path, code-switching, silence, barge-in, misrecognition/low confidence, repeated answers, disqualifier, DNC, escalation, provider failure (no false success), disconnect mid-turn still yields outcome | `tests/integration/arunodhaya-*.test.ts` | P3-09, P4-07 | vitest + snapshots | TODO | |
-| P4-10 | Mock demo runner, runbook, reports, limitations | `scripts/demo/arunodhaya-simulate.ts`, `docs/{ARUNODHAYA_DEMO_RUNBOOK,PHASE4_REPORT,KNOWN_LIMITATIONS}.md` | P4-09 | runner output recorded | TODO | |
+| P4-01 | `packages/language`: NFC + ZWJ/ZWNJ-for-matching normalization, Telugu/Devanagari digit folding, script-based language detection (te / en / te-en code-switch, confidence), `LanguagePack` registry with loud downgrade for unsupported languages | `packages/language/*` | — | vitest corpora | MOCK-VERIFIED | `packages/language/{normalize,detect,lexicon,language-pack}.ts`; corpora tests |
+| P4-02 | Deterministic parsers with test corpora first: numerals (Telugu script, romanized, English, Indian grouping, lakh/crore, "2k"), money (₹/Rs/రూపాయలు), energy units vs amount disambiguation, capacity (kW/"kv" ASR error/కిలోవాట్), Indian mobile numbers (incl. spoken digit words, "double"), pincode, names (original preserved, honorifics stripped only for matching), affirm/deny/human-request/do-not-call/repeat lexicons | `packages/language/parsers/*` | P4-01 | vitest | MOCK-VERIFIED | `packages/language/parsers/*`; corpora tests. DNC transliteration variants added 2026-09-21 |
+| P4-03 | Generic qualification engine: zod schema (field types, ordered per-language questions, confirm-back, disqualifiers, clarification + max attempts → escalation), deterministic extraction bound to the pending question, raw utterance kept beside normalized value; runtime `SystemActionProvider` supplying ground truth | `packages/qualification/*` | P4-02, P3-06 | vitest | MOCK-VERIFIED | `packages/qualification/*`; 3 defects found by the golden corpus and fixed — `PHASE4_REPORT.md` §6.2–6.4 |
+| P4-04 | Deterministic disposition/outcome computation (§P5.4) incl. DNC suppression, separate from call state | `packages/qualification/disposition.ts` | P4-03 | vitest | MOCK-VERIFIED | `packages/qualification/disposition.ts`; exercised by the golden corpus |
+| P4-05 | Site-visit booking step through the EXISTING `BookingService` (slot offer, Telugu/Tenglish slot selection, idempotent booking key, typed `slot_taken` alternatives, never narrated before success) | `packages/qualification/booking-step.ts` + app adapter | P4-03 | vitest with in-memory scheduling | MOCK-VERIFIED | `packages/qualification/booking-step.ts`; **no booking tool is bound on the phone path yet** |
+| P4-06 | Telugu/Tenglish time expressions (రేపు, ఎల్లుండి, weekdays, ఉదయం/సాయంత్రం) normalized for the existing `when-parser` | `packages/language/parsers/time-expressions.ts` | P4-01 | vitest | MOCK-VERIFIED | `time-expressions.ts`; used by the `time` field type and the golden corpus |
+| P4-07 | Arunodhaya configuration (outside `packages/`): tenant, agent identity/objective, Telugu prompt template, voice settings, qualification schema, allowed tools, knowledge sources (⟨SUPPLIED⟩ placeholders only), appointment rules, escalation rules, outcome categories, agent version | `src/content/tenants/arunodhaya/*` | P4-03..P4-06 | vitest (config parses; no fabricated price/subsidy/timeline numbers) | MOCK-VERIFIED | `src/content/tenants/arunodhaya/*`; 16 tests incl. an assertion that no rupee/percent figure exists anywhere — `ARUNODHAYA_AGENT.md` |
+| P4-08 | Reproducible, resettable demo: idempotent seed + reset scoped to the demo tenant slug; refuses non-local DB without explicit flag | `scripts/demo/arunodhaya.ts` | P3-07, P4-07 | run against docker PG; re-run idempotent | VERIFIED | Exercised against a fresh pgvector PG16: seed → re-seed (no change) → reset → re-seed → route resolves (active agent, active DID, published live version). Remote and unconfirmed-reset guards both refuse. **Reset deactivates rather than deletes** — published versions are immutable by trigger and Postgres refuses the cascade, which is correct |
+| P4-09 | Golden Telugu/Tenglish call suites through the gateway with fakes: happy path, code-switching, silence, barge-in, misrecognition/low confidence, repeated answers, disqualifier, DNC, escalation, provider failure (no false success), disconnect mid-turn still yields outcome | `tests/golden/arunodhaya/*`, `tests/integration/arunodhaya-golden.test.ts` | P3-09, P4-07 | vitest | MOCK-VERIFIED | 50 conversations, 50/50. Media-loop behaviours (silence, barge-in, disconnect) are covered separately against both engines — `remote-session.test.ts`, `pipecat-gateway.test.ts` |
+| P4-10 | Mock demo runner, runbook, reports, limitations | `scripts/arunodhaya-eval.ts`, `scripts/phase4-context-budget.ts`, `docs/{PIPECAT_INTEGRATION,ARUNODHAYA_AGENT,ARUNODHAYA_NEGOTIATION_POLICY,ARUNODHAYA_LEARNING_LOOP,PHASE4_REPORT}.md` | P4-09 | runner output recorded | DONE | `npm run eval:arunodhaya` 50/50; `npm run phase4:context` recorded in `PHASE4_REPORT.md` §11 |
 | P4-11 | Multilingual retrieval (§P3.2–P3.5: embedding bake-off, 1024-dim model-tagged embeddings, simple/trigram FTS, ≥200-query native eval set) | — | decision memo 0001, native reviewers | — | BLOCKED | no embedding decision, no native eval set |
 | P4-12 | Real Telugu STT/TTS quality, native-speaker scoring, ≥20 scored live calls | — | credentials, native panel | — | BLOCKED | |
+
+### Phase 4 — Pipecat integration (added 2026-09-21)
+
+| ID | Objective | Files / packages | Depends | Validation | Status | Evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| P4-20 | Audit Phase 3 against source; establish what Pipecat may own and what must not be duplicated | `docs/PIPECAT_INTEGRATION.md` | P3-12 | source review | DONE | §1 of that document |
+| P4-21 | Media-engine seam in the gateway (`createMediaSession`), defaulting to the unchanged Phase 3 engine | `packages/voice/{media-session,gateway}.ts` | P4-20 | tsc, check:architecture, 782 Phase 3 tests unchanged | MOCK-VERIFIED | one injectable factory; compile-time proof `VoiceSession` satisfies the seam |
+| P4-22 | Validated control protocol (identity downward only, no audio, version-gated) | `packages/voice/pipecat/protocol.ts` | P4-21 | vitest | MOCK-VERIFIED | 10 protocol tests |
+| P4-23 | `RemoteVoiceSession`: conversation policy over reported facts | `packages/voice/pipecat/remote-session.ts` | P4-22 | vitest | MOCK-VERIFIED | 16 tests; re-entrancy defect found and fixed — `PHASE4_REPORT.md` §6.1 |
+| P4-24 | Bridge + control socket; stream-token authentication reused unchanged | `packages/voice/pipecat/bridge.ts`, `services/voice-gateway/pipecat-control.ts` | P4-23 | vitest over a real local WebSocket | MOCK-VERIFIED | 8 integration tests incl. cross-tenant refusal |
+| P4-25 | Reference Pipecat worker client | `services/pipecat-worker/*` | P4-22 | python unittest | **NOT VERIFIED** | 10 protocol tests; never run against a real pipeline |
+| P4-26 | Objection handling + negotiation authorization, industry-neutral | `packages/negotiation/*` | P4-03 | vitest, check:neutral | MOCK-VERIFIED | 25 tests; `ARUNODHAYA_NEGOTIATION_POLICY.md` |
+| P4-27 | Multilingual act-then-narrate guard and safe fallback | `packages/runtime/response-validator.ts`, `core/domain/agents.ts` | P4-01 | vitest | MOCK-VERIFIED | 7 tests — `PHASE4_REPORT.md` §6.5 |
+| P4-28 | Phase 4 security properties as tests | `tests/integration/phase4-security.test.ts` | P4-24 | vitest | MOCK-VERIFIED | 9 tests |
+| P4-29 | Real Pipecat call: PSTN → worker → HALO → runtime → TTS → PSTN, with per-stage latency | runbook only | credentials, vendors | manual procedure | **BLOCKED** | `PHASE4_REPORT.md` §8 |
 
 ### Cross-cutting
 
 | ID | Objective | Validation | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| X-01 | Full regression after every batch | tsc, eslint, vitest, build, preflight:ci, check:neutral, check:architecture, check:migrations, check:rls | DONE | All green 2026-09-21; 782 tests (baseline 774) |
+| X-01 | Full regression after every batch | tsc, eslint, vitest, build, preflight:ci, check:neutral, check:architecture, check:migrations, check:rls | DONE | All green 2026-09-21; **932 tests** (Phase 3 baseline 782, +150, 0 regressions) plus 10 python tests |
 | X-02 | Logical commits per coherent validated batch (no push) | `git log` | DONE | `fb5de62`, `ec856db`, `adc1089` (not pushed) |
 | X-03 | Update ARCHITECTURE/RUNTIME/SECURITY/TESTING/CHANGELOG/packages README + memory | doc review | PARTIAL | VOICE_* docs + PHASE3_REPORT/BASELINE written; CHANGELOG/README not yet |
 
@@ -148,3 +163,22 @@ its own, measured at a 47.8% context reduction (`adc1089`).
 Risk noted, deliberately not changed: a stream token replayed inside its TTL can
 reattach and redirect call audio. Restricting it needs evidence about real
 provider reconnect behavior. See `docs/PHASE3_REPORT.md` §10.
+
+### 2026-09-21 — Phase 4: Pipecat boundary and the Arunodhaya agent
+
+The audit found the gateway had exactly one media-aware line, which decided
+the size of the integration: an injectable engine factory rather than a
+parallel call lifecycle. `docs/PIPECAT_INTEGRATION.md` records the boundary
+and the reasoning, including why interruption is Pipecat's and why every
+spoken word is HALO's.
+
+Six defects were found and fixed, five of them by writing the golden corpus
+rather than by review: a re-entrancy hazard in the remote engine, qualification
+field scrambling during a read-back, free text being read back on every
+answer, answered-but-unconfirmed fields counting as unresolved, the
+act-then-narrate guard not existing in Telugu at all, and missing
+do-not-call transliteration variants. All are described in
+`docs/PHASE4_REPORT.md` §6 and pinned by regression tests.
+
+Nothing here has been validated against a real call, a real vendor or a real
+Pipecat pipeline, and the report says so in every section where it matters.
