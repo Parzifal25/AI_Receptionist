@@ -40,7 +40,16 @@ import { isTurnCancelled, type VoiceDirective, type VoiceTurnHandler, type Voice
  *     speaks handler replies or deterministic policy prompts.
  */
 
-export type VoiceSessionState = "idle" | "listening" | "user_speaking" | "thinking" | "speaking" | "ending" | "ended";
+export type VoiceSessionState =
+  | "idle"
+  | "listening"
+  | "user_speaking"
+  | "thinking"
+  | "speaking"
+  /** A human handoff is in flight: no new turn may start until it resolves. */
+  | "transferring"
+  | "ending"
+  | "ended";
 
 export interface VoicePrompts {
   /** Opening line: identity + AI disclosure (spoken before any data is collected). */
@@ -445,8 +454,8 @@ export class VoiceSession {
   }
 
   private onFinal(): void {
-    if (this.state === "thinking" || this.state === "speaking") {
-      // Held until the current reply/turn settles (barge-in handles cut-in).
+    if (this.state === "thinking" || this.state === "speaking" || this.state === "transferring") {
+      // Held until the current reply/turn/handoff settles (barge-in handles cut-in).
       return;
     }
     if (this.finalWaitTimer) {
@@ -470,6 +479,8 @@ export class VoiceSession {
 
   private commitUtterance(): void {
     if (this.state === "ending" || this.state === "ended") return;
+    // Held (not dropped): resumed by afterPlayback once the handoff resolves.
+    if (this.state === "transferring") return;
     if (this.turnInFlight) return; // committed when the in-flight turn settles
     const finals = this.finals;
     this.finals = [];
@@ -663,6 +674,19 @@ export class VoiceSession {
     speechEndedAt?: number;
   }): Promise<void> {
     if (this.state === "ended") return;
+    // INVARIANT: at most one playback is ever active. Two concurrent
+    // playbacks would talk over each other on the wire, fight over the
+    // single `playbackWatchdog` slot and settle each other's transcript
+    // rows. Rather than trusting every call site to have settled the
+    // previous utterance, preempt it here so the invariant is structural.
+    const active = this.playback;
+    if (active && !active.settled) {
+      active.controller.abort();
+      this.deps.output.clear();
+      this.clearTimer("playbackWatchdog");
+      this.settlePlayback(active, "interrupted");
+      this.emit("tts_cancel", null, { reason: "superseded" });
+    }
     const chunks = chunkForSpeech(params.text);
     if (chunks.length === 0) {
       if (params.turnId) await this.safeRecordDelivery(params.turnId, "complete", "");
@@ -670,7 +694,7 @@ export class VoiceSession {
       return;
     }
     this.clearTimer("silenceTimer");
-    if (this.state !== "ending") this.setState("speaking");
+    if (this.state !== "ending" && this.state !== "transferring") this.setState("speaking");
     const generation = ++this.playGeneration;
     let resolveDone!: () => void;
     const done = new Promise<void>((resolve) => (resolveDone = resolve));
@@ -855,12 +879,23 @@ export class VoiceSession {
   private async afterPlayback(directive: VoiceDirective): Promise<void> {
     if (this.state === "ended") return;
     if (this.state === "ending") return;
+    // Re-entrancy guard: the transfer sequence below plays its own policy
+    // prompts, and each of those completes into afterPlayback. Only the
+    // outer transfer sequence may drive the session while it owns the call.
+    if (this.state === "transferring") return;
     if (directive.kind === "end_call") {
       await this.end("agent_completed");
       return;
     }
     if (directive.kind === "transfer") {
       this.transferRequested = true;
+      // Claim the session for the whole handoff BEFORE any await. While
+      // `transferring`, caller finals accumulate but no new turn starts: a
+      // turn racing the bridge could execute a business action for a caller
+      // who is already talking to a human, or be cut off mid-action by the
+      // `end("transferred")` below.
+      this.setState("transferring");
+      this.clearTimer("silenceTimer");
       // Deterministic, honest announcement: the caller always hears that a
       // transfer is being attempted, whatever the model's reply said.
       await this.play({ kind: "policy", text: this.config.prompts.transferAnnounce, turnId: null, directive: { kind: "continue" } });
@@ -878,6 +913,10 @@ export class VoiceSession {
         await this.end("transferred");
         return;
       }
+      if (this.isClosing()) return;
+      // Handoff failed: release the session so the apology resumes the
+      // normal listen loop and any held caller speech is picked up.
+      this.setState("listening");
       await this.play({ kind: "policy", text: this.config.prompts.transferFailed, turnId: null, directive: { kind: "continue" } });
       return;
     }
@@ -944,8 +983,20 @@ export class VoiceSession {
       this.sttGeneration++;
       const stream = this.sttStream;
       this.sttStream = null;
-      await stream?.close().catch(() => {});
-      await this.deps.turns.close().catch(() => {});
+      // Finalization is the one path that must always reach `onEnded`: a
+      // provider close that rejects — or throws synchronously, which
+      // `.catch()` would not catch — must not strand the call without an
+      // outcome.
+      try {
+        await stream?.close();
+      } catch {
+        // already tearing down
+      }
+      try {
+        await this.deps.turns.close();
+      } catch {
+        // already tearing down
+      }
       const summary: VoiceSessionSummary = {
         endReason: reason,
         transcript: this.transcript,

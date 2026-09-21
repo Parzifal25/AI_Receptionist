@@ -331,4 +331,93 @@ describe("VoiceSession — silence, failures, directives", () => {
   });
 });
 
+describe("VoiceSession — handoff window and playback exclusivity", () => {
+  /**
+   * Regression: a slow provider transfer left the session in `listening`, so
+   * caller speech during the bridge started a NEW runtime turn. That turn
+   * could execute a business action for a caller already being handed to a
+   * human, and `end("transferred")` would cut it off mid-flight.
+   */
+  it("starts no new turn while a handoff is in flight, and answers held speech only after it fails", async () => {
+    const handler = new ScriptedTurnHandler().then(
+      { reply: "Let me get you a person.", directive: { kind: "transfer", reason: "explicit_human_request" } },
+      { reply: "Answering the held question." },
+    );
+    let resolveTransfer!: (ok: boolean) => void;
+    const h = buildSession({ handler, transfer: () => new Promise<boolean>((r) => (resolveTransfer = r)) });
+    h.session.start();
+    await h.settle(3000);
+
+    await h.caller.say("I want a human");
+    await h.settle(3000);
+    expect(h.session.getState()).toBe("transferring");
+
+    // Caller keeps talking while the bridge is being set up.
+    await h.caller.say("Actually, one more thing");
+    await h.settle(2000);
+    expect(h.session.getState()).toBe("transferring");
+    expect(handler.requests).toHaveLength(1); // no turn ran during the handoff
+
+    resolveTransfer(false);
+    await h.settle(6000);
+    // Held speech is answered, not dropped — and only after the honest apology.
+    expect(handler.requests).toHaveLength(2);
+    expect(handler.requests[1].utterance).toContain("one more thing");
+    const spoken = h.tts.requests.map((r) => r.text);
+    expect(spoken.indexOf(TEST_PROMPTS.transferFailed)).toBeLessThan(spoken.indexOf("Answering the held question."));
+  });
+
+  it("succeeds the handoff without running a queued turn", async () => {
+    const handler = new ScriptedTurnHandler().then(
+      { reply: "Connecting you.", directive: { kind: "transfer", reason: "explicit_human_request" } },
+      { reply: "This turn must never run." },
+    );
+    let resolveTransfer!: (ok: boolean) => void;
+    const h = buildSession({ handler, transfer: () => new Promise<boolean>((r) => (resolveTransfer = r)) });
+    h.session.start();
+    await h.settle(3000);
+    await h.caller.say("Get me a human");
+    await h.settle(3000);
+    await h.caller.say("Hello are you there");
+    await h.settle(1000);
+
+    resolveTransfer(true);
+    await h.settle(3000);
+    expect(handler.requests).toHaveLength(1);
+    expect(h.ended[0]).toMatchObject({ endReason: "transferred", transferred: true });
+  });
+
+  /**
+   * Regression: `play()` overwrote `this.playback` without settling the
+   * previous one, so two synthesis loops wrote to the media socket at once
+   * (garbled speech), fought over the single `playbackWatchdog` slot and
+   * settled each other's transcript rows.
+   */
+  it("never lets two playbacks be active at once", async () => {
+    const handler = new ScriptedTurnHandler().then(
+      { reply: "Hold on please.", directive: { kind: "transfer", reason: "explicit_human_request" } },
+      { reply: "A deliberately long second reply that is still speaking when the handoff resolves." },
+    );
+    let resolveTransfer!: (ok: boolean) => void;
+    const h = buildSession({ handler, transfer: () => new Promise<boolean>((r) => (resolveTransfer = r)) });
+    h.session.start();
+    await h.settle(3000);
+    await h.caller.say("Human please");
+    await h.settle(3000);
+    resolveTransfer(false);
+    await h.settle(200);
+    await h.caller.say("Tell me more");
+    await h.settle(400); // long reply mid-playback
+
+    // At every point, started playbacks minus settled ones is at most one.
+    const timeline = h.events.filter((e) => e.type === "tts_start" || e.type === "tts_complete" || e.type === "tts_cancel");
+    let open = 0;
+    for (const e of timeline) {
+      open += e.type === "tts_start" ? 1 : -1;
+      expect(open).toBeLessThanOrEqual(1);
+      expect(open).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
 void TurnCancelledError;
