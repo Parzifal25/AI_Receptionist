@@ -40,3 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 public/widget.js
+
+# Python bytecode from the reference Pipecat worker
+__pycache__/
+*.pyc
