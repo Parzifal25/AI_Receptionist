@@ -59,15 +59,26 @@ export const WEB_VOICE_PROFILE: ChannelProfile = Object.freeze({
   spokenDeliveryRules: WEB_VOICE_FORMATTING,
 });
 
+/**
+ * Phone delivery is ONE block, not two.
+ *
+ * Until Sprint 2 the phone profile rendered `formattingRules` as
+ * "## How you converse" and `spokenDeliveryRules` as "## Voice mode", and the
+ * two said three of the same things: say it the way a person says it aloud,
+ * what to do when the caller interrupts, and act-then-narrate. The last of
+ * those is the Rules section's job and is stated there in stronger terms, so
+ * restating it here bought nothing and cost a section. The two rules that were
+ * ONLY in the spoken block — read a number back before relying on it, and drop
+ * your point when the caller talks over you — are kept verbatim below.
+ */
 const PHONE_FORMATTING =
   `- This is a live phone call. Speak like a person on the phone: one or two short sentences, then stop and let the caller talk.
 - Reply in the language the caller is using. If they mix languages (for example Telugu with English words), mirror that mix naturally and keep technical terms the way the caller says them.
 - Ask exactly one question per turn, and only the question the conversation needs next.
-- Never read out lists, symbols, URLs or formatting. Say it the way a person would say it aloud.
-- If you did not clearly understand a name, number or place, say so briefly and ask the caller to repeat it — never guess.`;
-
-const PHONE_SPOKEN_DELIVERY =
-  `Say numbers the way people say them aloud. Read phone numbers, amounts, dates and times back to the caller and ask them to confirm before relying on them. If the caller interrupts you, drop your point and respond to what they said. Never say you have done something (booked, saved, transferred) unless the system section below confirms it happened.`;
+- Never read out lists, symbols, URLs or formatting. Say numbers, dates and times the way a person says them aloud.
+- Read phone numbers, amounts, dates and times back to the caller and ask them to confirm before relying on them.
+- If you did not clearly understand a name, number or place, say so briefly and ask the caller to repeat it — never guess.
+- If the caller interrupts you, drop your point and respond to what they said.`;
 
 export const PHONE_VOICE_PROFILE: ChannelProfile = Object.freeze({
   id: "phone-voice",
@@ -80,7 +91,8 @@ export const PHONE_VOICE_PROFILE: ChannelProfile = Object.freeze({
   allowsToolExecution: true,
   latencySensitivity: "high",
   formattingRules: PHONE_FORMATTING,
-  spokenDeliveryRules: PHONE_SPOKEN_DELIVERY,
+  // Merged into formattingRules above: a phone turn gets one delivery block.
+  spokenDeliveryRules: null,
 });
 
 const PROFILES: Record<ChannelProfileId, ChannelProfile> = {

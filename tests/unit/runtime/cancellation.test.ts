@@ -95,6 +95,12 @@ describe("runtime cancellation (Phase 3 barge-in support)", () => {
     expect(channelProfile("phone-voice")).toBe(PHONE_VOICE_PROFILE);
     expect(PHONE_VOICE_PROFILE).toMatchObject({ channel: "phone", modality: "voice", supportsInterruption: true, supportsMarkdown: false });
     expect(PHONE_VOICE_PROFILE.maxReplyChars).toBeLessThanOrEqual(600);
-    expect(PHONE_VOICE_PROFILE.spokenDeliveryRules).toMatch(/confirm/i);
+    // Sprint 2 merged the phone profile's two delivery blocks into one, because
+    // they restated each other. Assert the delivery guidance the caller depends
+    // on, wherever the profile now carries it: read a number back before
+    // relying on it, and yield the moment the caller talks over you.
+    const delivery = `${PHONE_VOICE_PROFILE.formattingRules}\n${PHONE_VOICE_PROFILE.spokenDeliveryRules ?? ""}`;
+    expect(delivery).toMatch(/confirm/i);
+    expect(delivery).toMatch(/interrupt/i);
   });
 });

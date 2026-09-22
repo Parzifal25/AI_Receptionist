@@ -126,7 +126,10 @@ async function measure(label: string, opts: { phase4: boolean; voice: boolean })
     tools: context.tools,
     systemSections: context.systemSections,
     customer: context.customer,
-    doctrine: genericDoctrine(),
+    doctrine: genericDoctrine(channel),
+    // Production wiring: every provider that declares `tools: true` receives
+    // these same descriptors natively, so the composer does not repeat them.
+    toolsNativelyOffered: true,
   });
 
   const bySection = new Map(prompt.sections.map((s) => [s.id, s.text.length]));

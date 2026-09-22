@@ -112,8 +112,8 @@ export const DEFAULT_RUNTIME_POLICY: RuntimePolicy = Object.freeze({
 export type DoctrineProvider = (agent: ResolvedAgentRuntimeContext, channel: ChannelProfile) => PromptDoctrine;
 
 /** Generic doctrine plus contact-capture behaviour when the agent captures leads. */
-export const defaultDoctrine: DoctrineProvider = (agent) => {
-  const doctrine = genericDoctrine();
+export const defaultDoctrine: DoctrineProvider = (agent, channel) => {
+  const doctrine = genericDoctrine(channel);
   if (agent.receptionist.leadCaptureEnabled) doctrine.extras.push(LEAD_CAPTURE_DOCTRINE);
   return doctrine;
 };
@@ -335,6 +335,13 @@ export class AgentRuntime {
         systemSections: context.systemSections,
         customer: context.customer,
         doctrine: this.doctrine(agent, channel),
+        // The same descriptors go to the provider as native tool definitions
+        // below (`tools:` on every model call), so the composer does not also
+        // spell them out in prose. When the provider cannot take native tools
+        // `selectTools` returns no descriptors at all, so there is nothing to
+        // describe either way — the flag states the fact rather than letting
+        // the composer assume it.
+        toolsNativelyOffered: capabilities.tools,
       });
       const contextMs = Date.now() - contextStart - retrievalMs - actionsMs;
       events.emit("context.built", {
