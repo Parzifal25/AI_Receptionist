@@ -22,12 +22,30 @@ Configuration is validated at startup and **fails closed** (`config.ts`):
 | `TELEPHONY_PROVIDER` | yes | `twilio` (reference adapter) or `fake` (deterministic, for local/demo). |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | with `twilio` | Account + webhook signing key. |
 | `VOICE_FAKE_WEBHOOK_SECRET` | with `fake` | Signing key for the fake provider (≥16 chars). |
-| `VOICE_STT_PROVIDER`, `VOICE_TTS_PROVIDER` | no (`fake`) | Only `fake` exists: no vendor has been selected or credentialed (plan §P4). |
+| `VOICE_STT_PROVIDER` | no (`fake`) | `fake` or `sarvam`. A real vendor requires its credential below, or the process refuses to start. |
+| `VOICE_STT_API_KEY` | with a real vendor | Vendor credential. Server-side only; never reaches a browser or a URL. |
+| `VOICE_STT_MODEL`, `VOICE_STT_MODE`, `VOICE_STT_BASE_URL` | no | Vendor model, output mode (`transcribe`\|`verbatim`\|`translit`\|`codemix`) and endpoint override. |
+| `VOICE_TTS_PROVIDER` | no (`fake`) | `fake` or `sarvam`. |
+| `VOICE_TTS_API_KEY` | with a real vendor | Vendor credential. |
+| `VOICE_TTS_DEFAULT_VOICE` | with a real vendor | Voice used when an agent version sets no `voice.ttsVoice`. **No default** — which voice a tenant's callers hear is a decision, not a fallback. |
+| `VOICE_TTS_MODEL`, `VOICE_TTS_BASE_URL` | no | Vendor model and endpoint override. |
 | `VOICE_MAX_CONCURRENT_SESSIONS` | no (50) | Hard ceiling on live calls in this process. |
 | `VOICE_GATEWAY_PORT` | no (8787) | Listen port. |
 
 Supabase credentials come from the shared platform env (`NEXT_PUBLIC_SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`) exactly as the app uses them.
+
+Selecting a real vendor is a configuration decision, **not a quality claim**: no
+vendor has been exercised against its live endpoint from this repository, so Telugu
+accuracy, voice quality and real latency remain unmeasured
+([`KNOWN_LIMITATIONS.md`](../../docs/KNOWN_LIMITATIONS.md)).
+
+## Running a call on this laptop
+
+`scripts/local-call.ts` puts a real microphone and speaker on a real call over the
+fake-carrier protocol — the fastest way to hear what a change actually does. It is
+development infrastructure and proves nothing about telephony:
+[`docs/LOCAL_VOICE_LOOP.md`](../../docs/LOCAL_VOICE_LOOP.md).
 
 ## Provisioning a number
 
