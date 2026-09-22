@@ -1,9 +1,8 @@
 import { logger } from "@halo/platform/logger";
 import { getKnowledgeProvider } from "@halo/providers/knowledge/factory";
 import { getLLMProvider } from "@halo/providers/llm/factory";
-import { FakeSttProvider } from "@halo/providers/voice-fakes/fake-stt-provider";
 import { FakeTelephonyProvider } from "@halo/providers/voice-fakes/fake-telephony-provider";
-import { FakeTtsProvider } from "@halo/providers/voice-fakes/fake-tts-provider";
+import { createSttProvider, createTtsProvider } from "@halo/providers/voice-vendors/factory";
 import { TwilioMediaStreamProvider } from "@halo/providers/telephony/twilio-media-stream-provider";
 import type { TelephonyProvider } from "@halo/ports/telephony-provider";
 import { ProviderKnowledgeResolver } from "@halo/runtime/knowledge-resolver";
@@ -19,12 +18,15 @@ import { createGatewayServer } from "./server";
 /**
  * HALO voice gateway — production wiring.
  *
- * STT and TTS are the deterministic FAKES: the Phase 4 vendor evaluation
- * (plan §P4 — Telugu WER, MOS, latency over an Indian phone line) has not run
- * and no vendor credentials exist in this repository. The process therefore
- * runs end to end, and everything above the ports is real, but it cannot
- * transcribe or speak real audio until a vendor adapter is added.
- * See docs/KNOWN_LIMITATIONS.md.
+ * STT and TTS are selected by configuration (`VOICE_STT_PROVIDER` /
+ * `VOICE_TTS_PROVIDER`) and built by the speech factories. The default is
+ * still the deterministic FAKE pair, so an unconfigured deployment behaves
+ * exactly as it did before Phase 4.5; setting a real vendor requires its
+ * credential or the process refuses to start.
+ *
+ * Selecting a real vendor is not a quality claim. Telugu WER, TTS MOS and
+ * real end-to-end latency over an Indian phone line remain UNMEASURED —
+ * see docs/KNOWN_LIMITATIONS.md before reporting any of them.
  */
 
 const log = logger.child({ service: "voice-gateway" });
@@ -43,16 +45,29 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
   const knowledge = new ProviderKnowledgeResolver(getKnowledgeProvider());
   const llm = getLLMProvider();
 
-  // With the Pipecat engine the media loop runs in a worker and the fakes
-  // below are never opened: STT, TTS and VAD all happen there. They remain
-  // wired because the gateway's dependency list is engine-independent.
+  // With the Pipecat engine the media loop runs in a worker and the speech
+  // providers below are never opened: STT, TTS and VAD all happen there.
+  // They remain wired because the gateway's dependency list is
+  // engine-independent.
   const pipecat = config.mediaEngine === "pipecat" ? new PipecatBridge() : null;
 
   const gateway = new VoiceGateway({
     callStore,
     telephony,
-    stt: new FakeSttProvider(),
-    tts: new FakeTtsProvider(),
+    stt: createSttProvider({
+      provider: config.sttProvider,
+      ...(config.sttApiKey ? { apiKey: config.sttApiKey } : {}),
+      ...(config.sttModel ? { model: config.sttModel } : {}),
+      ...(config.sttMode ? { mode: config.sttMode } : {}),
+      ...(config.sttBaseUrl ? { baseUrl: config.sttBaseUrl } : {}),
+    }),
+    tts: createTtsProvider({
+      provider: config.ttsProvider,
+      ...(config.ttsApiKey ? { apiKey: config.ttsApiKey } : {}),
+      ...(config.ttsModel ? { model: config.ttsModel } : {}),
+      ...(config.ttsDefaultVoice ? { defaultSpeaker: config.ttsDefaultVoice } : {}),
+      ...(config.ttsBaseUrl ? { baseUrl: config.ttsBaseUrl } : {}),
+    }),
     limits: { maxConcurrentSessions: config.maxConcurrentSessions },
     ...(pipecat ? { createMediaSession: pipecat.createMediaSession } : {}),
     createTurnHandler: (ctx) =>
