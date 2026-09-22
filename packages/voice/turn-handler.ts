@@ -31,6 +31,29 @@ export type VoiceDirective =
   /** The conversation reached its end; hang up after this reply is spoken. */
   | { kind: "end_call"; reason: string };
 
+/**
+ * Phase 4.5 — the inside of a turn, in media-loop terms.
+ *
+ * `agent_turn` is a single number covering retrieval, context assembly,
+ * every model call and validation, which is not enough to tell a slow
+ * prompt from a slow model. These four fill that hole without the media
+ * loop learning anything about prompts, tools or tenants.
+ */
+export interface VoiceTurnTimings {
+  /** Handler entry → model context ready (retrieval + assembly + system actions). */
+  contextReadyMs: number;
+  /**
+   * Handler entry → first usable model output. `null` means the provider did
+   * not stream, so there is no first-token signal to report — never zero,
+   * which would read as "instant".
+   */
+  firstTokenMs: number | null;
+  /** Time inside model calls, all rounds. */
+  modelMs: number;
+  /** Time validating the draft reply (act-then-narrate and the repair ladder). */
+  validationMs: number;
+}
+
 export interface VoiceTurnResult {
   /** Runtime correlation id; also the key for `recordDelivery`. */
   turnId: string;
@@ -39,6 +62,8 @@ export interface VoiceTurnResult {
   usage: { modelCalls: number; inputTokens?: number; outputTokens?: number };
   /** The runtime degraded (provider fallback, knowledge/state failure). */
   degraded: boolean;
+  /** Optional: handlers that cannot break a turn down simply omit it. */
+  timings?: VoiceTurnTimings;
 }
 
 /** Thrown by a handler whose turn was aborted before it committed anything. */

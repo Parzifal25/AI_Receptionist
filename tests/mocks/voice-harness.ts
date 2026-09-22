@@ -101,6 +101,9 @@ export class ScriptedTurnHandler implements VoiceTurnHandler {
       directive: r.directive ?? { kind: "continue" },
       usage: r.usage ?? { modelCalls: 1, inputTokens: 10, outputTokens: 5 },
       degraded: r.degraded ?? false,
+      // Phase 4.5: a handler may report the inside of its turn. Omitted by
+      // default, because most scripted handlers have nothing to break down.
+      ...(r.timings ? { timings: r.timings } : {}),
     };
   }
 

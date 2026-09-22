@@ -69,6 +69,10 @@ export const CALL_EVENT_TYPES = [
   "endpoint",
   "stt_partial",
   "stt_final",
+  /** Phase 4.5: model context assembled and the first model call is about to go out. */
+  "context_ready",
+  /** Phase 4.5: first usable model output. Absent when the provider did not stream. */
+  "llm_first_token",
   "agent_turn",
   "tts_start",
   "tts_first_byte",

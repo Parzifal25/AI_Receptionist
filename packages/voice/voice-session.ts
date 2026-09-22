@@ -601,12 +601,34 @@ export class VoiceSession {
 
     if (result && current) {
       this.consecutiveFailures = 0;
+      // Phase 4.5: split the turn before summarizing it, so a slow call can
+      // be diagnosed. `agent_turn` alone cannot tell a bloated prompt from a
+      // slow model. Marks are placed relative to end-of-speech, which is
+      // what the caller actually experiences as waiting.
+      const timings = result.timings;
+      if (timings) {
+        this.emit("context_ready", startedAt - params.speechEndedAt + timings.contextReadyMs, {
+          turnIndex,
+          contextMs: timings.contextReadyMs,
+        });
+        if (timings.firstTokenMs !== null) {
+          this.emit("llm_first_token", startedAt - params.speechEndedAt + timings.firstTokenMs, {
+            turnIndex,
+            sinceTurnStartMs: timings.firstTokenMs,
+          });
+        }
+      }
       this.emit("agent_turn", this.now() - startedAt, {
         turnIndex,
         replyChars: result.reply.length,
         directive: result.directive.kind,
         degraded: result.degraded,
         modelCalls: result.usage.modelCalls,
+        // Present but null = the provider did not stream, so there is no
+        // first-token signal. Absent = the handler reports no breakdown.
+        ...(timings
+          ? { contextMs: timings.contextReadyMs, firstTokenMs: timings.firstTokenMs, modelMs: timings.modelMs, validationMs: timings.validationMs }
+          : {}),
       });
       this.lastDirective = result.directive.kind;
       this.trackConfidence(params.confidence);

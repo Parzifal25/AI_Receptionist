@@ -2,7 +2,7 @@ import { DEFAULT_BRANDING, type ChatMessage } from "@halo/core/domain/types";
 import type { TranscriptDelivery } from "@halo/core/domain/voice";
 import type { AgentVersion } from "@halo/core/domain/agents";
 import type { Business } from "@halo/core/domain/types";
-import type { LLMProvider } from "@halo/ports/llm-provider";
+import type { LLMDelta, LLMProvider } from "@halo/ports/llm-provider";
 import { AgentRuntime, newTurnId, type DoctrineProvider, type RuntimePolicy } from "@halo/runtime/agent-runtime";
 import { isRuntimeCancelled } from "@halo/runtime/cancellation";
 import { VOICE_CONTEXT_LIMITS } from "@halo/runtime/context-builder";
@@ -23,6 +23,7 @@ import {
   type VoiceTurnHandler,
   type VoiceTurnRequest,
   type VoiceTurnResult,
+  type VoiceTurnTimings,
 } from "./turn-handler";
 
 /**
@@ -204,6 +205,9 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
   private readonly store: DeferredAssistantStore;
   private signals: VoiceTurnSignals = { sttConfidence: null, language: null, turnIndex: 0 };
   private transferIssued = false;
+  /** Per-turn first-token marks. Turns are strictly serialized by the session. */
+  private turnStartedAt = 0;
+  private firstDeltaAt: number | null = null;
   private readonly transferReasons: Set<EscalationReason>;
 
   constructor(private readonly options: PhoneTurnHandlerOptions) {
@@ -221,6 +225,15 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
         request_human_handoff: phoneHandoffExecutor(options.liveHandoffAvailable),
       }),
       systemActions: options.systemActions?.(() => this.signals) ?? [],
+      // OBSERVATION ONLY. Passing a delta consumer makes `invokeModel` prefer
+      // the provider's streaming API, which still accumulates the complete
+      // result before returning — the reply is validated whole, exactly as
+      // before, and nothing is spoken from a delta. The single purpose is
+      // time-to-first-usable-output, which is otherwise unobservable and is
+      // the largest latency item HALO controls. Speaking deltas before
+      // validation would trade act-then-narrate for latency; that is not
+      // this change, and must not become it by accident.
+      onDelta: (delta: LLMDelta) => this.markFirstDelta(delta),
       hooks: options.hooks,
       doctrine: options.doctrine,
       events: options.events,
@@ -235,6 +248,8 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
     // not heard before the next turn reads history.
     if (this.store.hasPending()) await this.store.resolve(null, "not_delivered", "");
     this.signals = { sttConfidence: request.sttConfidence, language: request.language, turnIndex: request.turnIndex };
+    this.turnStartedAt = Date.now();
+    this.firstDeltaAt = null;
     const agent = this.options.agent;
     const turnId = newTurnId();
     let output: RuntimeOutput;
@@ -272,6 +287,32 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
         ...(output.usage.outputTokens !== undefined ? { outputTokens: output.usage.outputTokens } : {}),
       },
       degraded: output.degraded.provider || output.degraded.knowledge || output.degraded.state,
+      timings: this.timingsFor(output),
+    };
+  }
+
+  /**
+   * Records when the model produced its first usable output. Text and tool
+   * calls both count: on a tool round the call IS the first useful thing the
+   * model emitted. Usage and finish-reason deltas do not.
+   */
+  private markFirstDelta(delta: LLMDelta): void {
+    if (this.firstDeltaAt !== null) return;
+    if (delta.type !== "text" && delta.type !== "tool_call") return;
+    this.firstDeltaAt = Date.now();
+  }
+
+  private timingsFor(output: RuntimeOutput): VoiceTurnTimings {
+    const t = output.timings;
+    return {
+      // The runtime reports assembly, retrieval and system actions
+      // separately; together they are "context ready".
+      contextReadyMs: Math.max(0, Math.round(t.contextMs + t.retrievalMs + t.actionsMs)),
+      // null, never 0: a provider that did not stream has no first-token
+      // signal, and reporting zero would read as an instant response.
+      firstTokenMs: this.firstDeltaAt === null ? null : Math.max(0, this.firstDeltaAt - this.turnStartedAt),
+      modelMs: Math.max(0, Math.round(t.modelMs)),
+      validationMs: Math.max(0, Math.round(t.validationMs)),
     };
   }
 
