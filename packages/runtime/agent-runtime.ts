@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ChatMessage } from "@halo/core/domain/types";
 import { AppError, isAppError } from "@halo/core/errors/app-error";
 import { isSubstantiveQuestion } from "@halo/knowledge/retrieval-query";
+import { estimateTokens } from "@halo/language/tokens";
 import { describeCapabilities, type LLMDelta, type LLMMessage, type LLMProvider } from "@halo/ports/llm-provider";
 import { logger } from "@halo/platform/logger";
 import { isRuntimeCancelled, RuntimeCancelledError } from "./cancellation";
@@ -344,6 +345,7 @@ export class AgentRuntime {
         toolsNativelyOffered: capabilities.tools,
       });
       const contextMs = Date.now() - contextStart - retrievalMs - actionsMs;
+      const promptEstimate = estimateTokens(composed.text);
       events.emit("context.built", {
         recentMessages: context.recentMessages.length,
         summaryChars: context.summary.length,
@@ -351,6 +353,18 @@ export class AgentRuntime {
         tools: context.tools.map((t) => t.name),
         systemSections: context.systemSections.length,
         promptChars: composed.text.length,
+        /*
+         * The rendered prompt in the unit the provider charges in — an
+         * ESTIMATE, not a provider count, and named so wherever it is read.
+         * `promptBytes` is the cheap alarm that goes with it: around 1.0
+         * bytes per character means a Latin prompt, around 3.0 means the
+         * character budget above has stopped meaning anything.
+         */
+        promptBytes: promptEstimate.bytes,
+        promptTokensEstimated: promptEstimate.estimatedTokens,
+        tokenEstimator: promptEstimate.estimator,
+        // The builder's own components, which is what the budget enforces on.
+        contextTokensEstimated: context.budget.tokens.estimatedInputTokens,
         totalChars: context.budget.totalChars,
         trimmed: context.budget.trimmed,
         latencyMs: contextMs,

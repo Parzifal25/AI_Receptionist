@@ -107,8 +107,14 @@ describe("context builder (Phase 2, WS3)", () => {
     expect(context.trusted.businessId).toBe("biz-a");
     expect(context.agent.versionId).toBe("av-a-1");
     expect(context.agent.promptTemplate).toContain("Riley");
-    // No secrets or credentials exist anywhere in the context object.
-    expect(JSON.stringify(context)).not.toMatch(/service_role|api[_-]?key|password|token/i);
+    // No secrets or credentials exist anywhere in the context object. The
+    // pattern names credentials specifically rather than the bare word
+    // "token", because since Sprint 2 the budget legitimately reports token
+    // COUNTS; every credential-shaped name it used to catch is still caught,
+    // and several more are now named explicitly.
+    expect(JSON.stringify(context)).not.toMatch(
+      /service_role|api[_-]?key|password|secret|bearer|credential|(?:access|refresh|auth|session|id)[_-]?token/i,
+    );
   });
 
   it("bounds authorized customer facts", () => {

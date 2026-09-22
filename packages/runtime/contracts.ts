@@ -1,6 +1,7 @@
 import type { AgentChannel, AgentConfig } from "@halo/core/domain/agents";
 import type { Business, ChatMessage, KnowledgeSnippet, Receptionist } from "@halo/core/domain/types";
 import type { ConversationState, ConversationStatePatch } from "./conversation-state";
+import type { TokenBudgetReport } from "./token-budget";
 
 /**
  * HALO Phase 2 — Agent Runtime contracts.
@@ -193,6 +194,16 @@ export interface ContextLimits {
   maxCustomerFacts: number;
   /** Ceiling on the whole assembled context (system prompt + history), in characters. */
   maxTotalChars: number;
+  /**
+   * Ceiling on the same components in ESTIMATED tokens
+   * (`@halo/language/tokens`). A character is not a token, and on Telugu it
+   * is nowhere near one, so both ceilings are enforced and a component is
+   * reduced when either binds. The token figure is an estimate, never a
+   * provider count.
+   */
+  maxInputTokens: number;
+  /** Tokens held back for the reply; never spent on context. */
+  reservedOutputTokens: number;
 }
 
 export interface KnowledgeContext {
@@ -238,6 +249,12 @@ export interface ConversationContext {
     totalChars: number;
     /** Which components were trimmed to respect the budget, in order. */
     trimmed: string[];
+    /**
+     * The token side of the same budget. Every figure in it is an ESTIMATE
+     * (see `packages/runtime/token-budget.ts`); nothing here is reported by
+     * a provider.
+     */
+    tokens: TokenBudgetReport;
   };
 }
 

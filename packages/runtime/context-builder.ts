@@ -1,4 +1,5 @@
 import type { ChatMessage } from "@halo/core/domain/types";
+import { truncateChars } from "@halo/language/truncate";
 import type {
   ActionRecord,
   ChannelProfile,
@@ -11,6 +12,13 @@ import type {
   TrustedRequestContext,
 } from "./contracts";
 import type { ConversationState } from "./conversation-state";
+import {
+  buildTokenBudgetReport,
+  measureComponent,
+  type ComponentUsage,
+  type ReducibleComponent,
+  type TokenBudgetPolicy,
+} from "./token-budget";
 
 /**
  * HALO Phase 2 — bounded context builder (Workstream 3).
@@ -35,6 +43,12 @@ export const DEFAULT_CONTEXT_LIMITS: ContextLimits = Object.freeze({
   maxToolDescriptors: 8,
   maxCustomerFacts: 8,
   maxTotalChars: 32_000,
+  // 32,000 characters is ~8,000 tokens of English and ~32,000 of Telugu. The
+  // token ceiling is what actually binds a multilingual turn, and it is set
+  // from what a chat turn has been measured to cost, with headroom — not
+  // from the character ceiling divided by four.
+  maxInputTokens: 12_000,
+  reservedOutputTokens: 1_024,
 });
 
 /**
@@ -64,6 +78,17 @@ export const VOICE_CONTEXT_LIMITS: ContextLimits = Object.freeze({
   maxToolDescriptors: DEFAULT_CONTEXT_LIMITS.maxToolDescriptors,
   maxCustomerFacts: 6,
   maxTotalChars: 9_000,
+  /*
+   * A phone turn's estimated token cost is dominated by the Telugu system-
+   * action sections, which are verified ground truth and are never trimmed.
+   * The measured Phase 4 voice prompt estimates at roughly 4.4K tokens
+   * (`npm run sprint2:tokens`), so 6,000 leaves the current configuration
+   * untouched while still bounding the case this ceiling exists for: a
+   * tenant who authors the template, the knowledge base or the history in
+   * Telugu, where the character budget stops meaning anything.
+   */
+  maxInputTokens: 6_000,
+  reservedOutputTokens: 512,
 });
 
 export interface BuildContextParams {
@@ -81,8 +106,13 @@ export interface BuildContextParams {
   limits?: Partial<ContextLimits>;
 }
 
+/**
+ * Character trimming that never splits a codepoint or a Telugu syllable.
+ * `slice` would: it counts UTF-16 code units, so it can orphan a vowel sign
+ * or a surrogate half and change what the caller actually said.
+ */
 function trimText(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max) : text;
+  return text.length > max ? truncateChars(text, max) : text;
 }
 
 /** Only visitor/assistant rows reach the model as history. */
@@ -160,6 +190,55 @@ export function buildConversationContext(params: BuildContextParams): Conversati
     trimmed.push("budget:history");
   }
 
+  /*
+   * The same degradation again, in the unit that binds a multilingual turn.
+   *
+   * Characters bound what this code hands around; ESTIMATED tokens bound what
+   * the provider will accept, and on Telugu the two differ by about 4x. A
+   * context that passed the loop above can still be far over the token
+   * ceiling, so it is enforced separately, in the same order, with the same
+   * floor of two messages — and never against the fixed components, because
+   * dropping a verified system action or a tool descriptor removes a fact or
+   * a capability rather than some detail.
+   *
+   * `npm run sprint2:tokens` prints what this costs per language.
+   */
+  const tokenPolicy: TokenBudgetPolicy = {
+    maxInputTokens: limits.maxInputTokens,
+    reservedOutputTokens: limits.reservedOutputTokens,
+  };
+  const measure = (): ComponentUsage[] => [
+    measureComponent("prompt_template", agent.promptTemplate),
+    measureComponent(
+      "custom_instructions",
+      agent.config.instructions.customInstructions || agent.receptionist.customInstructions,
+    ),
+    measureComponent("system_actions", params.systemSections.join("\n")),
+    measureComponent("tools", tools.map((t) => `${t.name}${t.description}`).join("\n")),
+    measureComponent("customer", customer ? customer.facts.join("\n") : ""),
+    measureComponent("knowledge", knowledgeSnippets.map((s) => s.content).join("\n")),
+    measureComponent("summary", summary),
+    measureComponent("history", recentMessages.map((m) => m.content).join("\n")),
+  ];
+  const present = (): Set<ReducibleComponent> => {
+    const set = new Set<ReducibleComponent>();
+    if (knowledgeSnippets.length > 0) set.add("knowledge");
+    if (summary.length > 0) set.add("summary");
+    if (recentMessages.length > 2) set.add("history");
+    return set;
+  };
+  let tokenReport = buildTokenBudgetReport({ components: measure(), policy: tokenPolicy, present: present() });
+  // Bounded by construction: each pass removes one unit of the named
+  // component, and the component is dropped from `present` once empty.
+  while (tokenReport.nextToReduce !== null) {
+    const target = tokenReport.nextToReduce;
+    if (target === "knowledge") knowledgeSnippets = knowledgeSnippets.slice(0, -1);
+    else if (target === "summary") summary = "";
+    else recentMessages = recentMessages.slice(1);
+    trimmed.push(`tokens:${target}`);
+    tokenReport = buildTokenBudgetReport({ components: measure(), policy: tokenPolicy, present: present() });
+  }
+
   const dedupedTrimmed = [...new Set(trimmed)];
 
   return {
@@ -187,12 +266,14 @@ export function buildConversationContext(params: BuildContextParams): Conversati
       snippets: knowledgeSnippets,
       sources: knowledgeSnippets.map((s) => s.title),
       charsUsed: knowledgeSnippets.reduce((n, s) => n + s.content.length, 0),
-      truncated: params.knowledge.truncated || dedupedTrimmed.some((t) => t.startsWith("knowledge") || t === "budget:knowledge"),
+        truncated:
+        params.knowledge.truncated ||
+        dedupedTrimmed.some((t) => t.startsWith("knowledge") || t === "budget:knowledge" || t === "tokens:knowledge"),
     },
     tools,
     systemSections: params.systemSections,
     verifiedActions: params.verifiedActions,
     customer,
-    budget: { limits, totalChars: total(), trimmed: dedupedTrimmed },
+    budget: { limits, totalChars: total(), trimmed: dedupedTrimmed, tokens: tokenReport },
   };
 }
