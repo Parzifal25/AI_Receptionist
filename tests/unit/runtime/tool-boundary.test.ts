@@ -190,3 +190,111 @@ describe("tool boundary — intents and authorization", () => {
     expect(() => new ToolRegistry(BUILTIN_TOOLS, { fetch_url: okExecutor })).toThrow(/unknown tool/);
   });
 });
+
+/**
+ * HALO Phase 4.5 Sprint 2 — a Telugu yes inside the existing state machine.
+ *
+ * The point of these is that recognising "సరే" changed exactly one conjunct.
+ * Every other condition still has to hold, and a yes with nothing pending
+ * still authorizes nothing.
+ */
+describe("tool boundary — multilingual confirmation (Phase 4.5 Sprint 2)", () => {
+  const confirmReg = new ToolRegistry(
+    { book_it: { name: "book_it", description: "d", argsSchema: z.object({}), sideEffecting: true, requiresConfirmation: true } },
+    { book_it: okExecutor },
+  );
+
+  function gate(userMessage: string, overrides: Partial<Parameters<typeof authorizeIntent>[0]> = {}) {
+    const converted = toToolIntent({ call: { id: "c", name: "book_it", arguments: {} }, registry: confirmReg, turnId: "t", round: 0 });
+    if (!("intent" in converted)) throw new Error("expected intent");
+    return authorizeIntent({
+      intent: converted.intent,
+      registry: confirmReg,
+      offered: ["book_it"],
+      channel: WEB_CHAT_PROFILE,
+      state: applyStatePatch(emptyConversationState(), {
+        pendingConfirmation: { toolName: "book_it", arguments: {}, requestedAt: "2026-01-01" },
+      }),
+      userMessage,
+      executedKeys: new Set<string>(),
+      execution,
+      ...overrides,
+    });
+  }
+
+  it("lets a Telugu and a Tenglish yes confirm a side-effecting tool", () => {
+    for (const yes of ["సరే", "అవును, చేయండి", "ఓకే", "sare", "cheyyandi", "meeru cheppinatlu cheyyandi"]) {
+      expect(gate(yes)).toEqual({ allowed: true });
+    }
+  });
+
+  it("refuses a Telugu rejection, hedge, question or backchannel", () => {
+    for (const notYes of ["వద్దు", "ఇంకా ఆలోచిస్తాను", "తెలియదు", "సరే చూద్దాం", "సరేనా?", "అలాగా", "vaddu", "teliyadu"]) {
+      expect(gate(notYes)).toMatchObject({ allowed: false, reason: "confirmation_required" });
+    }
+  });
+
+  it("does not let a yes in ANY language stand in for the pending confirmation", () => {
+    // Nothing pending: a yes is just a word.
+    expect(gate("సరే", { state: emptyConversationState() })).toMatchObject({
+      allowed: false,
+      reason: "confirmation_required",
+    });
+    // Pending, but for a different action.
+    const otherPending = applyStatePatch(emptyConversationState(), {
+      pendingConfirmation: { toolName: "something_else", arguments: {}, requestedAt: "2026-01-01" },
+    });
+    expect(gate("అవును", { state: otherPending })).toMatchObject({
+      allowed: false,
+      reason: "confirmation_required",
+    });
+  });
+
+  it("keeps every other gate ahead of the confirmation check", () => {
+    // A perfect Telugu yes cannot buy its way past authorization it fails.
+    expect(gate("సరే", { offered: [] })).toMatchObject({ allowed: false, reason: "not_granted" });
+    expect(gate("సరే", { registry: new ToolRegistry({ book_it: confirmReg.definition("book_it")! }, {}) })).toMatchObject({
+      allowed: false,
+      reason: "not_bound",
+    });
+    expect(gate("సరే", { channel: { ...WEB_CHAT_PROFILE, allowsToolExecution: false } })).toMatchObject({
+      allowed: false,
+      reason: "channel_disallowed",
+    });
+  });
+
+  it("leaves a tool that needs no confirmation exactly as it was", () => {
+    const openReg = new ToolRegistry(
+      { look_up: { name: "look_up", description: "d", argsSchema: z.object({}), sideEffecting: false, requiresConfirmation: false } },
+      { look_up: okExecutor },
+    );
+    const converted = toToolIntent({ call: { id: "c", name: "look_up", arguments: {} }, registry: openReg, turnId: "t", round: 0 });
+    if (!("intent" in converted)) throw new Error("expected intent");
+    const base = {
+      intent: converted.intent,
+      registry: openReg,
+      offered: ["look_up"],
+      channel: WEB_CHAT_PROFILE,
+      state: emptyConversationState(),
+      executedKeys: new Set<string>(),
+      execution,
+    };
+    // Neither a Telugu "no" nor anything else gates a tool with no gate.
+    expect(authorizeIntent({ ...base, userMessage: "వద్దు" })).toEqual({ allowed: true });
+    expect(authorizeIntent({ ...base, userMessage: "" })).toEqual({ allowed: true });
+  });
+
+  it("accepts an injected detector without opening any other part of authorization", () => {
+    const never = () => false;
+    expect(gate("సరే", { confirmationDetector: never })).toMatchObject({
+      allowed: false,
+      reason: "confirmation_required",
+    });
+    const always = () => true;
+    // Still refused: the detector is one conjunct, and nothing is pending.
+    expect(gate("anything", { confirmationDetector: always, state: emptyConversationState() })).toMatchObject({
+      allowed: false,
+      reason: "confirmation_required",
+    });
+  });
+});

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isExplicitConfirmation, type ConfirmationDetector } from "@halo/language/confirmation";
 import type { LLMToolCall } from "@halo/ports/llm-provider";
 import { toolCallArguments } from "../llm-adapter";
 import type {
@@ -35,9 +36,21 @@ export const TOOL_BOUNDARY_LIMITS = {
   maxRawArgsChars: 4000,
 } as const;
 
-/** Deterministic "yes" detection for confirmation-gated tools. */
-const CONFIRMATION_RE =
-  /^\s*(?:yes|yeah|yep|yup|sure|ok(?:ay)?|correct|confirm(?:ed)?|please do|go ahead|do it|that's right|sounds good|absolutely|of course)\b/i;
+/**
+ * Deterministic "yes" detection for confirmation-gated tools.
+ *
+ * Until Sprint 2 this was an English-only regular expression, so a caller who
+ * said "సరే" could not confirm anything: the guard did not reject them, it
+ * simply never matched, and the action stayed blocked with no sign that the
+ * language was the reason. `classifyConfirmation` replaces it with a
+ * multilingual, rule-ordered reading that still treats rejection, hedging and
+ * question forms as "not a yes" — and the English contract is unchanged,
+ * because the same start-anchored rule still applies to English utterances.
+ *
+ * It remains ONE conjunct of the authorization below, never a shortcut past
+ * it: a confirmation must already be pending AND must name this exact tool.
+ */
+const defaultConfirmationDetector: ConfirmationDetector = isExplicitConfirmation;
 
 export interface SelectToolsParams {
   registry: ToolRegistry;
@@ -161,6 +174,13 @@ export interface AuthorizeParams {
   /** Idempotency keys already executed this turn. */
   executedKeys: Set<string>;
   execution: ToolExecutionContext;
+  /**
+   * How a "yes" is recognised. Defaults to the multilingual deterministic
+   * detector; injectable so a deployment in a language this repository does
+   * not ship can supply its own WITHOUT any of the surrounding authorization
+   * becoming configurable.
+   */
+  confirmationDetector?: ConfirmationDetector;
 }
 
 export function authorizeIntent(params: AuthorizeParams): ToolAuthorization {
@@ -185,8 +205,9 @@ export function authorizeIntent(params: AuthorizeParams): ToolAuthorization {
   }
   if (def.requiresConfirmation) {
     const pending = params.state.pendingConfirmation;
+    const detectConfirmation = params.confirmationDetector ?? defaultConfirmationDetector;
     const confirmed =
-      pending !== null && pending.toolName === intent.name && CONFIRMATION_RE.test(params.userMessage);
+      pending !== null && pending.toolName === intent.name && detectConfirmation(params.userMessage);
     if (!confirmed) {
       return {
         allowed: false,
