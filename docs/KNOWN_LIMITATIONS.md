@@ -91,13 +91,23 @@ Two local-loop artefacts, both the client's and neither HALO's:
 
 ## Context and tokens
 
-- `ContextLimits` counts **characters**, not tokens. For a Telugu-dominant
-  prompt the same characters are roughly 2–3× the tokens, so a prompt inside
-  its character budget can be well outside its token budget. Not yet fixed;
-  see `docs/PHASE4_5_FEASIBILITY.md` §B4.
-- `maxTotalChars` bounds the builder's inputs, not the rendered prompt. The
-  measured gap is ~4,600 characters (composer headings, the rules block, tool
-  JSON schemas).
+- Token counts are **ESTIMATES**. Since Phase 4.5 Sprint 2 `ContextLimits`
+  carries `maxInputTokens` alongside `maxTotalChars`, and both are enforced —
+  but the token figure comes from a script-weighted heuristic
+  (`packages/language/tokens.ts`), not a tokenizer and not a provider. The
+  weights are reasoned, not measured, and are deliberately pessimistic on
+  non-Latin script: they may over-charge Telugu, and the cost of that is a
+  knowledge snippet dropped earlier than strictly necessary. A real provider's
+  reported `input_tokens` is what replaces them; `context.built` already
+  carries the estimate so the comparison is a subtraction.
+- The audit's "2.70" figure (§B4) is **bytes per character, not characters per
+  token**. No characters-per-token measurement for Telugu exists in this
+  repository.
+- `maxTotalChars` and `maxInputTokens` bound the builder's inputs, not the
+  rendered prompt. The measured gap is ~3,100 characters (composer headings,
+  the rules block, tool JSON schemas). `context.built` reports the rendered
+  prompt's characters, bytes and estimated tokens separately so the gap is
+  visible.
 - Prompt caching is **not implemented**, and the current section order leaves
   almost no contiguous cacheable prefix on a mid-call turn (§B3).
 
@@ -107,11 +117,17 @@ Two local-loop artefacts, both the client's and neither HALO's:
   only `?` and English interrogative openers, so on a Telugu call
   `knowledgeGap` is always false and the unanswered-question escalation path
   cannot fire.
-- `CONFIRMATION_RE` (`packages/runtime/tools/boundary.ts`) is English-only, so
-  a Telugu "సరే" does not confirm a confirmation-gated tool.
+- Confirmation detection **was** English-only and is no longer:
+  `packages/language/confirmation.ts` (Phase 4.5 Sprint 2) reads Telugu and
+  romanized Telugu, and refuses rejection, hedging, question forms and
+  backchannels. What remains is that its phrase lists are **curated, not
+  exhaustive** — Telugu transliteration is not standardised, so a yes spelled
+  a way that is not listed reads as "no answer" and does not confirm. That is
+  the safe direction and it is also a missed confirmation on a real call; it
+  can only be tuned against real STT output.
 
-Both are the failure pattern recorded in Phase 4 §6.5, and
-`packages/language/` already ships the lexicon that fixes them.
+The first is the failure pattern recorded in Phase 4 §6.5, and
+`packages/language/` already ships the lexicon that fixes it.
 
 ## Other
 

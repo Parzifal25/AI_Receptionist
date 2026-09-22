@@ -1,5 +1,70 @@
 # Changelog
 
+## 2026-09-22 — HALO Phase 4.5 Sprint 2: tokens and Telugu reliability
+
+Three bounded repairs to the Agent Runtime. Full detail in
+[PHASE4_5_SPRINT2_REPORT.md](PHASE4_5_SPRINT2_REPORT.md).
+
+**No vendor, no model, no microphone was involved.** Every token figure below
+is an estimate and is named as one; no latency claim is made, because nothing
+in the media path changed.
+
+### The prompt says each thing once
+- Four duplications removed, each only where something else carries it in
+  full: the prose tool list (the provider gets the same names, descriptions
+  and schemas natively), the phone profile's second delivery block, three
+  web-shaped situations on a phone call, and the retrieved-documents rule on
+  turns with nothing retrieved.
+- Rendered voice prompt **11,612 → 10,090** characters; golden corpus p50
+  **11,514 → 9,992** over 197 real turns. Nothing tenant-authored was touched.
+- Two further duplications were found and deliberately **left**: the never-say
+  list in the commercial policy (removing a safety line to save characters is
+  the change most likely to be wrong) and the tenant template's overlap with
+  the doctrine (tenant content, flagged for tenant review).
+
+### The budget is in tokens now, not characters
+- A Telugu character is not a Latin one: measured here, the same ~500
+  characters of conversation history estimate at **128 tokens in English and
+  436 in Telugu**. A turn could sit inside `maxTotalChars` and be far outside
+  the real context window with nothing reporting a problem — the English-only
+  guard failure, one layer down.
+- `@halo/language/tokens` estimates by script and rounds against us on
+  non-Latin text on purpose: over-estimating drops a snippet, under-estimating
+  overruns a context window mid-call.
+- `@halo/language/truncate` stops `slice` from splitting a surrogate pair or
+  tearing a Telugu vowel sign off its base letter — ఇల్లు cut short is not a
+  shorter word, it is a different one.
+- Both ceilings are enforced, in the same order as before: knowledge, recap,
+  oldest turns, never below the last two. Tenant content, verified system
+  actions and tool descriptors are never reduced; an exhausted budget is
+  reported over budget instead.
+- The audit's "2.70" is bytes per character, not characters per token. No
+  characters-per-token measurement for Telugu exists here yet; `context.built`
+  now carries the estimate so a real provider call can replace it.
+
+### A Telugu caller can confirm an action
+- Confirmation for a gated tool was an English regular expression, so "సరే"
+  never matched and the action stayed blocked with nothing recording why.
+- Six-way deterministic reading — affirmative, rejection, uncertain, question,
+  acknowledgement, none — with rejection, hedging and question forms all read
+  *before* agreement. "సరే చూద్దాం" ("okay, let us see") contains a yes and is
+  not one.
+- It does **not** reuse the general affirm lexicon: "ఉంది", "కావాలి" and
+  "చెప్పండి" are affirmative in conversation and are not consent to book,
+  cancel or transfer anything.
+- English keeps its start-anchored rule unchanged; Telugu is matched anywhere,
+  because Telugu is verb-final and the authorizing verb comes last.
+- Exactly one conjunct of the authorization changed. A confirmation must still
+  be pending and must still name the exact tool, and tests pin that a perfect
+  Telugu yes cannot pass any other gate.
+
+### Unchanged
+Prompt caching, section order, LLM→TTS streaming, Pipecat, telephony, the call
+and session state machines, both speech adapters, the tool registry, the
+response validator, the golden corpus and the tenant configuration. Arunodhaya
+evaluation 50/50 with identical dispositions; 104 files / 1,056 tests pass
+(from 101 / 999), with no test deleted, skipped or weakened.
+
 ## 2026-09-22 — HALO Phase 4.5 Sprint 1: the real voice loop
 
 The first end-to-end path from a real microphone to a real speaker through
