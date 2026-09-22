@@ -1,5 +1,63 @@
 # Changelog
 
+## 2026-09-22 — HALO Phase 4.5 Sprint 1: the real voice loop
+
+The first end-to-end path from a real microphone to a real speaker through
+HALO. Full detail in [PHASE4_5_SPRINT1_REPORT.md](PHASE4_5_SPRINT1_REPORT.md);
+how to run it in [LOCAL_VOICE_LOOP.md](LOCAL_VOICE_LOOP.md).
+
+**Nothing here has been run against a live speech vendor.** No credentials
+exist in this repository. Selecting a vendor is a configuration decision, not
+a quality claim — Telugu accuracy, voice quality and real latency all remain
+unmeasured ([KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)).
+
+### Real speech vendors
+- First real STT and TTS adapters (`packages/providers/voice-vendors/`), both
+  behind the existing ports, both passing the same contract kit as the fakes.
+  Chosen because one vendor accepts μ-law 8 kHz telephony audio *and*
+  documents Telugu plus code-mixed input; Deepgram nova-3 transcribes Telugu
+  but excludes it from `language=multi`, so Tenglish within one utterance is
+  unavailable there.
+- Vendor selection is configuration, defaulting to the fakes, and **fails
+  closed**: a real vendor without its credential — or TTS without a voice —
+  refuses startup rather than answering a call it cannot serve.
+- The STT endpoint emits **no transcription confidence**, so the adapter
+  reports `null` and declares `reportsConfidence: false`. Consequence: HALO's
+  low-confidence read-back of misheard names and numbers does not fire with
+  this vendor. Inventing a confidence would switch that behaviour on using
+  evidence that does not exist.
+
+### The local loop
+- `scripts/local-call.ts` — a laptop pretending to be a phone carrier, over
+  the protocol `FakeTelephonyProvider` already defines. Development
+  infrastructure: no new server, no second voice path, no `packages/` change.
+- It proves vendors, the model, Telugu behaviour and real latency. It proves
+  **nothing about telephony** — no PSTN transport, no carrier jitter, no
+  Pipecat worker. A good local demo is not a working phone call.
+
+### Latency
+- `context_ready` and `llm_first_token` (migration 0023) split `agent_turn`,
+  which was one number covering retrieval, context, every model call and
+  validation — enough to see a slow call, not enough to diagnose one.
+- `llm_first_token` is emitted only when the provider streamed; otherwise
+  `agent_turn.firstTokenMs` is explicitly `null`, never zero.
+- The phone path now passes an **observation-only** delta consumer.
+  `invokeModel` still accumulates the complete result before returning, so
+  the reply is validated whole and act-then-narrate is untouched.
+
+### Telugu / Tenglish
+- A manual smoke set (`tests/fixtures/voice-smoke-utterances.ts`): eight
+  caller behaviours × three language varieties, every non-English line drawn
+  from text already in the repository. It invents no Arunodhaya fact — all of
+  them are `supplied_pending` — and a test enforces that, including the
+  premise.
+
+### Unchanged
+Context size (11,612 rendered chars, measured before and after), the golden
+corpus (50/50), the runtime, the validator, the tool boundary, tenant
+isolation and the Pipecat path. 94 test files / 932 tests → 101 / 999; none
+deleted or weakened.
+
 ## 2026-09-21 — HALO Phase 4: Pipecat boundary and the Arunodhaya agent
 
 Pipecat becomes the real-time media layer; HALO keeps everything that decides
