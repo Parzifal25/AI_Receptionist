@@ -4,6 +4,7 @@ import { AnthropicProvider } from "./anthropic-provider";
 import { GeminiProvider } from "./gemini-provider";
 import { OllamaProvider } from "./ollama-provider";
 import { OpenAICompatibleProvider } from "./openai-compatible-provider";
+import { FallbackLLMRouter } from "./fallback-router";
 
 const DEFAULT_BASE_URLS: Record<string, string> = {
   openai: "https://api.openai.com/v1",
@@ -23,6 +24,14 @@ export function getLLMProvider(): LLMProvider {
   const env = getServerEnv();
 
   switch (env.LLM_PROVIDER) {
+    case "cloud":
+      cached = new FallbackLLMRouter([
+        { model: "openai/gpt-oss-120b", provider: new OpenAICompatibleProvider("groq", DEFAULT_BASE_URLS.groq, requireKey(env.GROQ_LLM_API_KEY, "groq"), "openai/gpt-oss-120b", env.LLM_TIMEOUT_MS) },
+        { model: "qwen/qwen3.8-27b", provider: new OpenAICompatibleProvider("groq", DEFAULT_BASE_URLS.groq, requireKey(env.GROQ_LLM_API_KEY, "groq"), "qwen/qwen3.8-27b", env.LLM_TIMEOUT_MS) },
+        { model: "anthropic/claude-sonnet-4.6", provider: new OpenAICompatibleProvider("openrouter", "https://openrouter.ai/api/v1", requireKey(env.OPENROUTER_LLM_API_KEY, "openrouter"), "anthropic/claude-sonnet-4.6", env.LLM_TIMEOUT_MS) },
+        { model: "qwen/qwen3.8-27b", provider: new OpenAICompatibleProvider("openrouter", "https://openrouter.ai/api/v1", requireKey(env.OPENROUTER_LLM_API_KEY, "openrouter"), "qwen/qwen3.8-27b", env.LLM_TIMEOUT_MS) },
+      ]);
+      break;
     case "ollama":
       cached = new OllamaProvider(env.OLLAMA_BASE_URL, env.LLM_MODEL, env.LLM_TIMEOUT_MS);
       break;

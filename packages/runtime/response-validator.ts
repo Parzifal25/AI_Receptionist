@@ -300,6 +300,71 @@ export function validateReply(params: ValidateReplyParams): ValidateReplyResult 
   };
 }
 
+// ---------------------------------------------------------------------------
+// Segment validation (Phase 4.5 Sprint 3 — safe LLM streaming)
+// ---------------------------------------------------------------------------
+
+export interface ValidateSegmentParams {
+  segment: string;
+  channel: ChannelProfile;
+  actions: ActionRecord[];
+  claimPhrases?: ActionClaimPhrases;
+}
+
+export interface SegmentVerdict {
+  /** False → the segment must NEVER be spoken; live streaming is revoked for the turn. */
+  ok: boolean;
+  /** The segment after transform repairs (markdown strip). */
+  segment: string;
+  violations: ValidationViolation[];
+}
+
+/**
+ * Validates ONE candidate speech segment with the SAME guard set the
+ * whole-reply validator enforces — act-then-narrate, leak markers, channel
+ * formatting — at the granularity the streaming pipeline can act on. This
+ * is deliberately implemented on top of the shared detectors rather than a
+ * parallel rule set: a segment and the same text inside a full reply are
+ * judged identically.
+ *
+ * Streaming contract: a segment that passes is claim-free, leak-free and
+ * channel-clean, so speaking it early is safe no matter how the rest of the
+ * reply turns out — the repair ladder exists for claims and leaks, none of
+ * which a passed segment contains. A failing segment revokes live speech
+ * for the turn; the buffered baseline path then owns the reply.
+ */
+export function validateSegment(params: ValidateSegmentParams): SegmentVerdict {
+  const violations: ValidationViolation[] = [];
+  let segment = params.segment.trim();
+  if (!segment) {
+    return { ok: false, segment, violations: [{ kind: "empty_reply", detail: "empty segment", repairable: "fallback" }] };
+  }
+  for (const marker of LEAK_MARKERS) {
+    if (segment.includes(marker)) {
+      violations.push({ kind: "instruction_leak", detail: `contains "${marker}"`, repairable: "regenerate" });
+      break;
+    }
+  }
+  const permitted = permittedClaimKinds(params.actions);
+  for (const claim of detectActionClaims(segment, params.claimPhrases ?? {})) {
+    if (!ENFORCED_CLAIM_KINDS.includes(claim.kind)) continue;
+    if (permitted.has(claim.kind)) continue;
+    violations.push({ kind: "unsupported_action_claim", detail: `${claim.kind}: "${claim.excerpt}"`, repairable: "regenerate" });
+  }
+  if (!params.channel.supportsMarkdown && MARKDOWN_RE.test(segment)) {
+    const stripped = stripMarkdown(segment);
+    if (stripped !== segment) {
+      violations.push({ kind: "markdown_not_supported", detail: "markdown removed", repairable: "transform" });
+      segment = stripped;
+    }
+  }
+  if (segment.length > params.channel.maxReplyChars) {
+    violations.push({ kind: "max_length", detail: `${segment.length} > ${params.channel.maxReplyChars} chars`, repairable: "transform" });
+    segment = trimToSentenceBoundary(segment, params.channel.maxReplyChars);
+  }
+  return { ok: !violations.some((v) => v.repairable !== "transform"), segment, violations };
+}
+
 /** The corrective section appended to the system prompt for the single regeneration attempt. */
 export function correctiveInstruction(violations: ValidationViolation[]): string {
   const lines = ["## Correction required (system)"];

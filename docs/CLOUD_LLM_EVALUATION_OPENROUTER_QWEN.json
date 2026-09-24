@@ -1,0 +1,403 @@
+{
+  "candidate": "openrouter-qwen",
+  "fingerprint": "9d2a6d6fe322e98e72fe0774a8b9a08511062359e4039422c3022ef373b98dc7",
+  "syntheticOnly": true,
+  "updatedAt": "2026-09-24T08:27:58.924Z",
+  "results": [
+    {
+      "case": "savings_english",
+      "availability": "provider_failed",
+      "quality": null,
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "cloud",
+        "model": "",
+        "modelCalls": 0,
+        "fallbackCount": 0,
+        "modelLatencyMs": 0,
+        "toolRounds": 0,
+        "calls": []
+      },
+      "timings": {
+        "contextMs": 9,
+        "retrievalMs": 0,
+        "modelMs": 0,
+        "actionsMs": 4,
+        "validationMs": 0,
+        "totalMs": 10899
+      },
+      "requests": [
+        {
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 1279,
+          "promptChars": 9882,
+          "estimatedInputTokens": 3233,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:27:22.604Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:27:22.604Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.failed",
+          "at": "2026-09-24T08:27:33.470Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 10865,
+          "failureCategory": "provider_unavailable"
+        },
+        {
+          "type": "llm.exhausted",
+          "at": "2026-09-24T08:27:33.470Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "failureCategory": "provider_unavailable"
+        }
+      ],
+      "tools": [],
+      "syntheticReply": null,
+      "escalation": false
+    },
+    {
+      "case": "savings_telugu",
+      "availability": "provider_failed",
+      "quality": null,
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "cloud",
+        "model": "",
+        "modelCalls": 0,
+        "fallbackCount": 0,
+        "modelLatencyMs": 0,
+        "toolRounds": 0,
+        "calls": []
+      },
+      "timings": {
+        "contextMs": 1,
+        "retrievalMs": 0,
+        "modelMs": 0,
+        "actionsMs": 2,
+        "validationMs": 0,
+        "totalMs": 8301
+      },
+      "requests": [
+        {
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 792,
+          "promptChars": 9880,
+          "estimatedInputTokens": 3258,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:27:33.496Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:27:33.496Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.failed",
+          "at": "2026-09-24T08:27:41.787Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 8290,
+          "failureCategory": "provider_unavailable"
+        },
+        {
+          "type": "llm.exhausted",
+          "at": "2026-09-24T08:27:41.787Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "failureCategory": "provider_unavailable"
+        }
+      ],
+      "tools": [],
+      "syntheticReply": null,
+      "escalation": false
+    },
+    {
+      "case": "savings_tenglish",
+      "availability": "provider_failed",
+      "quality": null,
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "cloud",
+        "model": "",
+        "modelCalls": 0,
+        "fallbackCount": 0,
+        "modelLatencyMs": 0,
+        "toolRounds": 0,
+        "calls": []
+      },
+      "timings": {
+        "contextMs": 5,
+        "retrievalMs": 0,
+        "modelMs": 0,
+        "actionsMs": 2,
+        "validationMs": 0,
+        "totalMs": 5847
+      },
+      "requests": [
+        {
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 1042,
+          "promptChars": 9882,
+          "estimatedInputTokens": 3233,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:27:41.811Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:27:41.811Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.failed",
+          "at": "2026-09-24T08:27:47.641Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 5830,
+          "failureCategory": "provider_unavailable"
+        },
+        {
+          "type": "llm.exhausted",
+          "at": "2026-09-24T08:27:47.641Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "failureCategory": "provider_unavailable"
+        }
+      ],
+      "tools": [],
+      "syntheticReply": null,
+      "escalation": false
+    },
+    {
+      "case": "negotiation",
+      "availability": "provider_failed",
+      "quality": null,
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "cloud",
+        "model": "",
+        "modelCalls": 0,
+        "fallbackCount": 0,
+        "modelLatencyMs": 0,
+        "toolRounds": 0,
+        "calls": []
+      },
+      "timings": {
+        "contextMs": 3,
+        "retrievalMs": 1,
+        "modelMs": 0,
+        "actionsMs": 2,
+        "validationMs": 0,
+        "totalMs": 5124
+      },
+      "requests": [
+        {
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 1093,
+          "promptChars": 9884,
+          "estimatedInputTokens": 3234,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:27:47.667Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:27:47.667Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.failed",
+          "at": "2026-09-24T08:27:52.783Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 5116,
+          "failureCategory": "provider_unavailable"
+        },
+        {
+          "type": "llm.exhausted",
+          "at": "2026-09-24T08:27:52.783Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "failureCategory": "provider_unavailable"
+        }
+      ],
+      "tools": [],
+      "syntheticReply": null,
+      "escalation": false
+    },
+    {
+      "case": "handoff",
+      "availability": "provider_failed",
+      "quality": null,
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "cloud",
+        "model": "",
+        "modelCalls": 0,
+        "fallbackCount": 0,
+        "modelLatencyMs": 0,
+        "toolRounds": 0,
+        "calls": []
+      },
+      "timings": {
+        "contextMs": 2,
+        "retrievalMs": 0,
+        "modelMs": 0,
+        "actionsMs": 1,
+        "validationMs": 0,
+        "totalMs": 6138
+      },
+      "requests": [
+        {
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 1591,
+          "promptChars": 9958,
+          "estimatedInputTokens": 3252,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:27:52.791Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:27:52.791Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.failed",
+          "at": "2026-09-24T08:27:58.923Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 6132,
+          "failureCategory": "provider_unavailable"
+        },
+        {
+          "type": "llm.exhausted",
+          "at": "2026-09-24T08:27:58.923Z",
+          "provider": "openrouter",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "failureCategory": "provider_unavailable"
+        }
+      ],
+      "tools": [],
+      "syntheticReply": null,
+      "escalation": false
+    }
+  ]
+}

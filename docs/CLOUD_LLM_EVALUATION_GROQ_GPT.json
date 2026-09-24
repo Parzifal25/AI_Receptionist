@@ -1,0 +1,501 @@
+{
+  "candidate": "groq-gpt",
+  "fingerprint": "8705fefce0ee4e3c8610a5adfa5a2cf9eab5fb8c0f5012180ee43eb3a1885975",
+  "syntheticOnly": true,
+  "updatedAt": "2026-09-24T08:49:23.982Z",
+  "results": [
+    {
+      "case": "savings_english",
+      "availability": "success",
+      "quality": {
+        "findings": [],
+        "status": "screen_pass",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "openai/gpt-oss-120b",
+        "modelCalls": 1,
+        "fallbackCount": 0,
+        "inputTokens": 2544,
+        "outputTokens": 185,
+        "totalTokens": 2729,
+        "modelLatencyMs": 1067,
+        "toolRounds": 0,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "openai/gpt-oss-120b",
+            "purpose": "reply",
+            "latencyMs": 1067,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 974,
+            "inputTokens": 2544,
+            "outputTokens": 185,
+            "totalTokens": 2729
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 8,
+        "retrievalMs": 0,
+        "modelMs": 1067,
+        "actionsMs": 6,
+        "validationMs": 15,
+        "totalMs": 1108
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "httpStatus": 200,
+          "headersLatencyMs": 540,
+          "promptChars": 9882,
+          "estimatedInputTokens": 3233,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:45:06.870Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:45:06.871Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:45:07.845Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 974
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:45:07.936Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 1065,
+          "httpStatus": 200,
+          "inputTokens": 2544,
+          "outputTokens": 185,
+          "totalTokens": 2729
+        }
+      ],
+      "tools": [],
+      "syntheticReply": "మీ బిల్లులో ఎంత తగ్గుతుందో ఖచ్చితంగా చెప్పలేను, కానీ మా టీమ్ మీకు సరిగ్గా సమాచారం ఇవ్వగలరు. మీ పేరు చెప్తారా?",
+      "escalation": false
+    },
+    {
+      "case": "savings_telugu",
+      "availability": "success",
+      "quality": {
+        "findings": [],
+        "status": "screen_pass",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "openai/gpt-oss-120b",
+        "modelCalls": 1,
+        "fallbackCount": 0,
+        "inputTokens": 2548,
+        "outputTokens": 268,
+        "totalTokens": 2816,
+        "modelLatencyMs": 1144,
+        "toolRounds": 0,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "openai/gpt-oss-120b",
+            "purpose": "reply",
+            "latencyMs": 1144,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 1062,
+            "inputTokens": 2548,
+            "outputTokens": 268,
+            "totalTokens": 2816
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 3,
+        "retrievalMs": 0,
+        "modelMs": 1144,
+        "actionsMs": 2,
+        "validationMs": 1,
+        "totalMs": 1152
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "httpStatus": 200,
+          "headersLatencyMs": 437,
+          "promptChars": 9880,
+          "estimatedInputTokens": 3258,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:46:10.858Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:46:10.858Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:46:11.920Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 1062
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:46:12.001Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 1143,
+          "httpStatus": 200,
+          "inputTokens": 2548,
+          "outputTokens": 268,
+          "totalTokens": 2816
+        }
+      ],
+      "tools": [],
+      "syntheticReply": "బిల్ ఎంత తగ్గుతుందో ఖచ్చితంగా చెప్పలేను, మా టీమ్ మీకు ఖచ్చితమైన సమాచారం ఇస్తారు. మీ పేరు చెప్తారా?",
+      "escalation": false
+    },
+    {
+      "case": "savings_tenglish",
+      "availability": "success",
+      "quality": {
+        "findings": [],
+        "status": "screen_pass",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "openai/gpt-oss-120b",
+        "modelCalls": 1,
+        "fallbackCount": 0,
+        "inputTokens": 2549,
+        "outputTokens": 250,
+        "totalTokens": 2799,
+        "modelLatencyMs": 1125,
+        "toolRounds": 0,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "openai/gpt-oss-120b",
+            "purpose": "reply",
+            "latencyMs": 1125,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 1003,
+            "inputTokens": 2549,
+            "outputTokens": 250,
+            "totalTokens": 2799
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 5,
+        "retrievalMs": 0,
+        "modelMs": 1125,
+        "actionsMs": 2,
+        "validationMs": 0,
+        "totalMs": 1136
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "httpStatus": 200,
+          "headersLatencyMs": 422,
+          "promptChars": 9882,
+          "estimatedInputTokens": 3233,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:47:14.782Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:47:14.782Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:47:15.785Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 1003
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:47:15.905Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 1123,
+          "httpStatus": 200,
+          "inputTokens": 2549,
+          "outputTokens": 250,
+          "totalTokens": 2799
+        }
+      ],
+      "tools": [],
+      "syntheticReply": "నేను ఒక ఆటోమేటెడ్ అసిస్టెంట్‌ని. బిల్లులో ఎంత తగ్గుతుందో ఖచ్చితంగా చెప్పలేను, మా టీమ్ మీ పరిస్థితి ఆధారంగా ఖచ్చితమైన సంఖ్యను అందిస్తారు. మీ పేరు చెప్తారా?",
+      "escalation": false
+    },
+    {
+      "case": "negotiation",
+      "availability": "success",
+      "quality": {
+        "findings": [
+          "financial_number_requires_verified_source"
+        ],
+        "status": "review_required",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "openai/gpt-oss-120b",
+        "modelCalls": 1,
+        "fallbackCount": 0,
+        "inputTokens": 2549,
+        "outputTokens": 211,
+        "totalTokens": 2760,
+        "modelLatencyMs": 1025,
+        "toolRounds": 0,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "openai/gpt-oss-120b",
+            "purpose": "reply",
+            "latencyMs": 1025,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 927,
+            "inputTokens": 2549,
+            "outputTokens": 211,
+            "totalTokens": 2760
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 2,
+        "retrievalMs": 1,
+        "modelMs": 1025,
+        "actionsMs": 1,
+        "validationMs": 0,
+        "totalMs": 1031
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "httpStatus": 200,
+          "headersLatencyMs": 432,
+          "promptChars": 9884,
+          "estimatedInputTokens": 3234,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:48:18.667Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:48:18.667Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:48:19.594Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 927
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:48:19.691Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 1024,
+          "httpStatus": 200,
+          "inputTokens": 2549,
+          "outputTokens": 211,
+          "totalTokens": 2760
+        }
+      ],
+      "tools": [],
+      "syntheticReply": "నేను ఆటోమేటెడ్ అసిస్టెంట్. మీరు చెప్పిన ₹20,000 డిస్కౌంట్ గురించి ఖచ్చితమైన సమాచారం మా టీమ్‌ నుండి పొందాలి. మీ పేరు చెప్తారా?",
+      "escalation": false
+    },
+    {
+      "case": "handoff",
+      "availability": "provider_failed",
+      "quality": null,
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "cloud",
+        "model": "",
+        "modelCalls": 0,
+        "fallbackCount": 0,
+        "modelLatencyMs": 0,
+        "toolRounds": 0,
+        "calls": []
+      },
+      "timings": {
+        "contextMs": 2,
+        "retrievalMs": 0,
+        "modelMs": 0,
+        "actionsMs": 1,
+        "validationMs": 0,
+        "totalMs": 1408
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "httpStatus": 200,
+          "headersLatencyMs": 282,
+          "promptChars": 9958,
+          "estimatedInputTokens": 3252,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:49:22.577Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:49:22.577Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.failed",
+          "at": "2026-09-24T08:49:23.975Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 1398,
+          "failureCategory": "provider_unavailable"
+        },
+        {
+          "type": "llm.exhausted",
+          "at": "2026-09-24T08:49:23.975Z",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "attempt": 1,
+          "fallback": false,
+          "failureCategory": "provider_unavailable"
+        }
+      ],
+      "tools": [],
+      "syntheticReply": null,
+      "escalation": false
+    }
+  ]
+}

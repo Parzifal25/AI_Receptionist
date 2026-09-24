@@ -3,6 +3,8 @@ import { availableConcessions, disclosableQuotes, emptyNegotiationSnapshot } fro
 import { matchObjections } from "@halo/negotiation/objections";
 import { emptySnapshot, nextField } from "@halo/qualification/engine";
 import { loadArunodhaya, pendingFactGuidance, requireArunodhaya } from "@/content/tenants/arunodhaya";
+import { validateReply } from "@halo/runtime/response-validator";
+import { PHONE_VOICE_PROFILE } from "@halo/runtime/channel-profile";
 
 /**
  * Phase 4 — the Arunodhaya configuration must parse through the platform's
@@ -39,6 +41,32 @@ describe("arunodhaya configuration", () => {
     expect(config.guardrails.safeFallbackReply).toMatch(/[ఀ-౿]/);
     // Escalation cannot depend on an English regex on a Telugu call.
     expect(config.guardrails.humanRequestPhrases.some((p) => /[ఀ-౿]/.test(p))).toBe(true);
+  });
+
+  it("rejects a PROMISED (future-tense) Telugu concession with no tool behind it", () => {
+    const { config } = requireArunodhaya();
+    // Verbatim from the live cloud evaluation: Groq qwen3.8-27b narrated an
+    // unauthorized future concession and the past-tense-only phrases missed it.
+    const qwenViolation = "అవును, ₹20,000 discount ఇస్తాం — కానీ ఈరోజే book చేసుకోవాలి. మీ పేరు చెప్తారా?";
+    const result = validateReply({
+      reply: qwenViolation,
+      channel: PHONE_VOICE_PROFILE,
+      actions: [],
+      claimPhrases: config.guardrails.actionClaimPhrases,
+    });
+    expect(result.violations.some((v) => v.kind === "unsupported_action_claim")).toBe(true);
+  });
+
+  it("still permits a concession claim when offer_concession actually succeeded", () => {
+    const { config } = requireArunodhaya();
+    const result = validateReply({
+      reply: "మీ కోసం ఉచిత సర్వే తగ్గింపు ఇస్తాం.",
+      channel: PHONE_VOICE_PROFILE,
+      actions: [{ source: "tool", name: "offer_concession", status: "succeeded",
+        claimsPermitted: ["concession.offered"], summary: "free survey concession offered" }],
+      claimPhrases: config.guardrails.actionClaimPhrases,
+    });
+    expect(result.violations.some((v) => v.kind === "unsupported_action_claim")).toBe(false);
   });
 
   it("asks a real Telugu question first, and asks exactly one", () => {

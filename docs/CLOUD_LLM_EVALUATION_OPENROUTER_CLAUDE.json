@@ -1,0 +1,104 @@
+{
+  "candidate": "openrouter-claude",
+  "fingerprint": "a3014462dde8568e2079ea43d43c2eaf2e80002bef94b0fba2cfb480a98a1d91",
+  "syntheticOnly": true,
+  "updatedAt": "2026-09-24T08:27:13.206Z",
+  "results": [
+    {
+      "case": "savings_english",
+      "availability": "account_blocked",
+      "quality": null,
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "cloud",
+        "model": "",
+        "modelCalls": 0,
+        "fallbackCount": 0,
+        "modelLatencyMs": 0,
+        "toolRounds": 0,
+        "calls": []
+      },
+      "timings": {
+        "contextMs": 6,
+        "retrievalMs": 1,
+        "modelMs": 0,
+        "actionsMs": 5,
+        "validationMs": 0,
+        "totalMs": 593
+      },
+      "requests": [
+        {
+          "provider": "openrouter",
+          "model": "anthropic/claude-sonnet-4.6",
+          "httpStatus": 402,
+          "headersLatencyMs": 553,
+          "promptChars": 9882,
+          "estimatedInputTokens": 3233,
+          "error": {
+            "category": "billing_limit",
+            "status": 402,
+            "limitSource": "openrouter_credits"
+          }
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:27:12.627Z",
+          "provider": "openrouter",
+          "model": "anthropic/claude-sonnet-4.6",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:27:12.627Z",
+          "provider": "openrouter",
+          "model": "anthropic/claude-sonnet-4.6",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.failed",
+          "at": "2026-09-24T08:27:13.185Z",
+          "provider": "openrouter",
+          "model": "anthropic/claude-sonnet-4.6",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 558,
+          "failureCategory": "billing_limit",
+          "limitSource": "openrouter_credits",
+          "httpStatus": 402
+        }
+      ],
+      "tools": [],
+      "syntheticReply": null,
+      "escalation": false
+    },
+    {
+      "case": "savings_telugu",
+      "availability": "not_run_account_blocked",
+      "quality": "not_evaluated"
+    },
+    {
+      "case": "savings_tenglish",
+      "availability": "not_run_account_blocked",
+      "quality": "not_evaluated"
+    },
+    {
+      "case": "negotiation",
+      "availability": "not_run_account_blocked",
+      "quality": "not_evaluated"
+    },
+    {
+      "case": "handoff",
+      "availability": "not_run_account_blocked",
+      "quality": "not_evaluated"
+    }
+  ]
+}

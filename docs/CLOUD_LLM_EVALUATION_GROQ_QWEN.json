@@ -1,0 +1,594 @@
+{
+  "candidate": "groq-qwen",
+  "fingerprint": "50b0d1747fd86387789351384b7a9d2fe4beee7bdc362aec026133a0b29277c8",
+  "syntheticOnly": true,
+  "updatedAt": "2026-09-24T08:44:40.614Z",
+  "results": [
+    {
+      "case": "savings_english",
+      "availability": "success",
+      "quality": {
+        "findings": [],
+        "status": "screen_pass",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "qwen/qwen3.8-27b",
+        "modelCalls": 1,
+        "fallbackCount": 0,
+        "inputTokens": 3043,
+        "outputTokens": 66,
+        "totalTokens": 3109,
+        "modelLatencyMs": 626,
+        "toolRounds": 0,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "qwen/qwen3.8-27b",
+            "purpose": "reply",
+            "latencyMs": 626,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 542,
+            "inputTokens": 3043,
+            "outputTokens": 66,
+            "totalTokens": 3109
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 16,
+        "retrievalMs": 2,
+        "modelMs": 626,
+        "actionsMs": 9,
+        "validationMs": 26,
+        "totalMs": 701
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 522,
+          "promptChars": 9882,
+          "estimatedInputTokens": 3233,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:40:23.930Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:40:23.931Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:40:24.474Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 542
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:40:24.554Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 623,
+          "httpStatus": 200,
+          "inputTokens": 3043,
+          "outputTokens": 66,
+          "totalTokens": 3109
+        }
+      ],
+      "tools": [],
+      "syntheticReply": "I'm the automated assistant at Arunodhaya Solar. I can't give you a number on that — it depends on your setup, and I don't want to guess. Can I take your name and have the team confirm the exact figure for you?\n\nమీ పేరు చెప్తారా?",
+      "escalation": false
+    },
+    {
+      "case": "savings_telugu",
+      "availability": "success",
+      "quality": {
+        "findings": [],
+        "status": "screen_pass",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "qwen/qwen3.8-27b",
+        "modelCalls": 1,
+        "fallbackCount": 0,
+        "inputTokens": 3057,
+        "outputTokens": 99,
+        "totalTokens": 3156,
+        "modelLatencyMs": 551,
+        "toolRounds": 0,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "qwen/qwen3.8-27b",
+            "purpose": "reply",
+            "latencyMs": 551,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 372,
+            "inputTokens": 3057,
+            "outputTokens": 99,
+            "totalTokens": 3156
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 4,
+        "retrievalMs": 0,
+        "modelMs": 551,
+        "actionsMs": 5,
+        "validationMs": 1,
+        "totalMs": 564
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 364,
+          "promptChars": 9880,
+          "estimatedInputTokens": 3258,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:41:27.909Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:41:27.909Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:41:28.281Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 372
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:41:28.459Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 550,
+          "httpStatus": 200,
+          "inputTokens": 3057,
+          "outputTokens": 99,
+          "totalTokens": 3156
+        }
+      ],
+      "tools": [],
+      "syntheticReply": "మీరు ఆటోమేటెడ్ అసిస్టెంట్‌గా మాట్లాడుతున్నారు, అరూణోదయ సోలార్‌లో. బిల్ ఎంత తగ్గుతుందో ఖచ్చితంగా చెప్పలేను — అది మీ ఇల్లు, మీ వాడకం మీద ఆధారపడి ఉంటుంది. మీ పేరు చెప్తారా?",
+      "escalation": false
+    },
+    {
+      "case": "savings_tenglish",
+      "availability": "success",
+      "quality": {
+        "findings": [
+          "financial_answer_not_qualified_or_deferred"
+        ],
+        "status": "review_required",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "qwen/qwen3.8-27b",
+        "modelCalls": 1,
+        "fallbackCount": 0,
+        "inputTokens": 3047,
+        "outputTokens": 46,
+        "totalTokens": 3093,
+        "modelLatencyMs": 477,
+        "toolRounds": 0,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "qwen/qwen3.8-27b",
+            "purpose": "reply",
+            "latencyMs": 477,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 390,
+            "inputTokens": 3047,
+            "outputTokens": 46,
+            "totalTokens": 3093
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 4,
+        "retrievalMs": 0,
+        "modelMs": 477,
+        "actionsMs": 2,
+        "validationMs": 0,
+        "totalMs": 487
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 386,
+          "promptChars": 9882,
+          "estimatedInputTokens": 3233,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:42:31.712Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:42:31.712Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:42:32.102Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 390
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:42:32.188Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 476,
+          "httpStatus": 200,
+          "inputTokens": 3047,
+          "outputTokens": 46,
+          "totalTokens": 3093
+        }
+      ],
+      "tools": [],
+      "syntheticReply": "మీరు ఏమి అడుగుతున్నారో అర్థమైంది — solar పెట్టిన తర్వాత bill ఎంత తగ్గుతుందని అడుగుతున్నారు.",
+      "escalation": false
+    },
+    {
+      "case": "negotiation",
+      "availability": "success",
+      "quality": {
+        "findings": [
+          "financial_number_requires_verified_source",
+          "financial_answer_not_qualified_or_deferred"
+        ],
+        "status": "review_required",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "qwen/qwen3.8-27b",
+        "modelCalls": 1,
+        "fallbackCount": 0,
+        "inputTokens": 3053,
+        "outputTokens": 57,
+        "totalTokens": 3110,
+        "modelLatencyMs": 501,
+        "toolRounds": 0,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "qwen/qwen3.8-27b",
+            "purpose": "reply",
+            "latencyMs": 501,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 396,
+            "inputTokens": 3053,
+            "outputTokens": 57,
+            "totalTokens": 3110
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 4,
+        "retrievalMs": 1,
+        "modelMs": 501,
+        "actionsMs": 3,
+        "validationMs": 0,
+        "totalMs": 512
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 394,
+          "promptChars": 9884,
+          "estimatedInputTokens": 3234,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:43:35.611Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:43:35.611Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:43:36.007Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 396
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:43:36.111Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 500,
+          "httpStatus": 200,
+          "inputTokens": 3053,
+          "outputTokens": 57,
+          "totalTokens": 3110
+        }
+      ],
+      "tools": [],
+      "syntheticReply": "అయ్యో, ₹20,000 తగ్గింపు ఇవ్వడానికి నాకు అధికారం లేదు. మీరు book చేయాలనుకుంటే, మీ పేరు చెప్తారా?",
+      "escalation": false
+    },
+    {
+      "case": "handoff",
+      "availability": "success",
+      "quality": {
+        "findings": [],
+        "status": "screen_pass",
+        "nativeLanguageReview": "required"
+      },
+      "validation": {
+        "ok": true,
+        "violations": [],
+        "regenerated": false,
+        "fallbackUsed": false
+      },
+      "usage": {
+        "provider": "groq",
+        "model": "qwen/qwen3.8-27b",
+        "modelCalls": 2,
+        "fallbackCount": 0,
+        "inputTokens": 5740,
+        "outputTokens": 134,
+        "totalTokens": 5874,
+        "modelLatencyMs": 1110,
+        "toolRounds": 1,
+        "calls": [
+          {
+            "provider": "groq",
+            "model": "qwen/qwen3.8-27b",
+            "purpose": "reply",
+            "latencyMs": 632,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 521,
+            "inputTokens": 3062,
+            "outputTokens": 63,
+            "totalTokens": 3125
+          },
+          {
+            "provider": "groq",
+            "model": "qwen/qwen3.8-27b",
+            "purpose": "tool_round",
+            "latencyMs": 478,
+            "streamed": true,
+            "attempt": 1,
+            "fallbackCount": 0,
+            "timeToFirstTokenMs": 341,
+            "inputTokens": 2678,
+            "outputTokens": 71,
+            "totalTokens": 2749
+          }
+        ]
+      },
+      "timings": {
+        "contextMs": 1,
+        "retrievalMs": 1,
+        "modelMs": 1110,
+        "actionsMs": 8,
+        "validationMs": 0,
+        "totalMs": 1125
+      },
+      "requests": [
+        {
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 516,
+          "promptChars": 9958,
+          "estimatedInputTokens": 3252,
+          "error": null
+        },
+        {
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "httpStatus": 200,
+          "headersLatencyMs": 151,
+          "promptChars": 10218,
+          "estimatedInputTokens": 3041,
+          "error": null
+        }
+      ],
+      "attempts": [
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:44:39.494Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:44:39.494Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:44:40.015Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 521
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:44:40.126Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 632,
+          "httpStatus": 200,
+          "inputTokens": 3062,
+          "outputTokens": 63,
+          "totalTokens": 3125
+        },
+        {
+          "type": "llm.requested",
+          "at": "2026-09-24T08:44:40.134Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.started",
+          "at": "2026-09-24T08:44:40.134Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false
+        },
+        {
+          "type": "llm.first_token",
+          "at": "2026-09-24T08:44:40.475Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 341
+        },
+        {
+          "type": "llm.completed",
+          "at": "2026-09-24T08:44:40.611Z",
+          "provider": "groq",
+          "model": "qwen/qwen3.8-27b",
+          "attempt": 1,
+          "fallback": false,
+          "latencyMs": 477,
+          "httpStatus": 200,
+          "inputTokens": 2678,
+          "outputTokens": 71,
+          "totalTokens": 2749
+        }
+      ],
+      "tools": [
+        {
+          "name": "request_human_handoff",
+          "status": "succeeded",
+          "rejection": null
+        }
+      ],
+      "syntheticReply": "మీ కోసం నోట్ చేసుకున్నాను. ప్రస్తుతం ఎవరూ లైవ్‌గా కాల్ తీసుకోలేరు, కానీ మా టీమ్ త్వరలో మీకు కాల్ చేస్తుంది.\n\nమీ పేరు చెప్తారా?",
+      "escalation": true
+    }
+  ]
+}

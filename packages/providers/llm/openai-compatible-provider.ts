@@ -12,6 +12,7 @@ import type {
 import { AppError } from "@halo/core/errors/app-error";
 import { logger } from "@halo/platform/logger";
 import { parseToolArguments, readSseEvents } from "./sse";
+import { providerResponseError, type ProviderErrorBody } from "./provider-error";
 
 interface OpenAIToolCall {
   id?: string;
@@ -19,7 +20,7 @@ interface OpenAIToolCall {
   function?: { name?: string; arguments?: string };
 }
 
-interface OpenAIChatResponse {
+interface OpenAIChatResponse extends ProviderErrorBody {
   choices?: Array<{
     message?: { content?: string | null; tool_calls?: OpenAIToolCall[] };
     finish_reason?: string | null;
@@ -27,7 +28,7 @@ interface OpenAIChatResponse {
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
-interface OpenAIStreamChunk {
+interface OpenAIStreamChunk extends ProviderErrorBody {
   choices?: Array<{
     delta?: {
       content?: string | null;
@@ -102,8 +103,8 @@ export class OpenAICompatibleProvider implements LLMProvider {
   }
 
   private signal(options: LLMCompletionOptions): AbortSignal {
-    if (options.abortSignal) return options.abortSignal;
-    return AbortSignal.timeout(Math.min(options.timeoutMs ?? this.timeoutMs, this.timeoutMs));
+    const timeout = AbortSignal.timeout(Math.min(options.timeoutMs ?? this.timeoutMs, this.timeoutMs));
+    return options.abortSignal ? AbortSignal.any([options.abortSignal, timeout]) : timeout;
   }
 
   private body(
@@ -144,13 +145,14 @@ export class OpenAICompatibleProvider implements LLMProvider {
         signal,
       });
     } catch (error) {
-      this.log.error("llm request failed", { error });
-      throw AppError.provider("AI service is unreachable");
+      const category = signal.aborted || (error instanceof Error && error.name === "TimeoutError")
+        ? "timeout" : "connection";
+      this.log.warn("llm request failed", { category });
+      throw AppError.provider("AI service is unreachable", { category });
     }
     if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      this.log.error("llm returned error", { status: response.status, body: text.slice(0, 500) });
-      throw AppError.provider("AI service returned an error");
+      const body = await response.json().catch(() => ({})) as ProviderErrorBody;
+      throw providerResponseError(response.status, body, response.headers);
     }
     return response;
   }
@@ -162,6 +164,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   ): Promise<LLMResult> {
     const response = await this.request(this.body(systemPrompt, messages, options, false), this.signal(options));
     const data = (await response.json()) as OpenAIChatResponse;
+    if (data.error) throw providerResponseError(Number(data.error.code) || 502, data, response.headers);
     const choice = data.choices?.[0];
     const content = choice?.message?.content?.trim() ?? "";
     const toolCalls: LLMToolCall[] = (choice?.message?.tool_calls ?? [])
@@ -176,6 +179,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     return {
       content,
       model: this.model,
+      httpStatus: response.status,
       usage:
         data.usage?.prompt_tokens !== undefined && data.usage?.completion_tokens !== undefined
           ? { promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens }
@@ -190,21 +194,25 @@ export class OpenAICompatibleProvider implements LLMProvider {
     messages: Array<ChatMessage | LLMMessage>,
     options: LLMCompletionOptions = {},
   ): AsyncIterable<LLMDelta> {
-    const response = await this.request(this.body(systemPrompt, messages, options, true), this.signal(options));
+    const signal = this.signal(options);
+    const response = await this.request(this.body(systemPrompt, messages, options, true), signal);
     if (!response.body) throw AppError.provider("AI service returned no stream");
 
     const pending = new Map<number, { id: string; name: string; args: string }>();
     let finishReason: LLMFinishReason = "stop";
     let usage: LLMDelta | null = null;
+    let finished = false;
 
+    try {
     for await (const event of readSseEvents(response.body)) {
-      if (event.data === "[DONE]") break;
+      if (event.data === "[DONE]") { finished = true; break; }
       let chunk: OpenAIStreamChunk;
       try {
         chunk = JSON.parse(event.data) as OpenAIStreamChunk;
       } catch {
-        continue;
+        throw AppError.provider("AI service returned invalid stream data", { category: "invalid_response", status: response.status });
       }
+      if (chunk.error) throw providerResponseError(Number(chunk.error.code) || 502, chunk, response.headers);
       if (chunk.usage?.prompt_tokens !== undefined && chunk.usage.completion_tokens !== undefined) {
         usage = {
           type: "usage",
@@ -223,8 +231,13 @@ export class OpenAICompatibleProvider implements LLMProvider {
         pending.set(index, entry);
       }
       const mapped = mapFinishReason(choice.finish_reason);
-      if (mapped) finishReason = mapped;
+      if (mapped) { finishReason = mapped; finished = true; }
     }
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw AppError.provider("AI stream interrupted", { category: signal.aborted ? "timeout" : "connection", status: response.status });
+    }
+    if (!finished) throw AppError.provider("AI service returned an incomplete stream", { category: "connection", status: response.status });
 
     for (const [index, entry] of [...pending.entries()].sort(([a], [b]) => a - b)) {
       if (!entry.name) continue;
@@ -234,7 +247,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
       };
     }
     if (usage) yield usage;
-    yield { type: "done", finishReason };
+    yield { type: "done", finishReason, httpStatus: response.status };
   }
 
   async isHealthy(): Promise<boolean> {

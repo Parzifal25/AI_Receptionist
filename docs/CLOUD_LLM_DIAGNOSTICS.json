@@ -1,0 +1,229 @@
+{
+  "at": "2026-09-23T20:38:01.015Z",
+  "records": [
+    {
+      "kind": "key",
+      "status": 200,
+      "limit": null,
+      "remaining": null,
+      "usage": 0.0045468,
+      "freeTier": true
+    },
+    {
+      "kind": "credits",
+      "status": 200,
+      "totalCredits": 0,
+      "totalUsage": 0.171293653
+    },
+    {
+      "kind": "models",
+      "provider": "groq",
+      "status": 200,
+      "models": [
+        {
+          "model": "openai/gpt-oss-120b",
+          "available": true
+        },
+        {
+          "model": "qwen/qwen3.8-27b",
+          "available": true
+        }
+      ]
+    },
+    {
+      "kind": "completion",
+      "provider": "groq",
+      "model": "openai/gpt-oss-120b",
+      "size": "short",
+      "status": 200,
+      "latencyMs": 926,
+      "promptChars": null,
+      "maxTokens": 400,
+      "usage": {
+        "input": 74,
+        "output": 262,
+        "total": 336
+      },
+      "error": null,
+      "evidence": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-remaining-tokens": "7526",
+        "x-ratelimit-reset-requests": "1m26.4s",
+        "x-ratelimit-reset-tokens": "3.554s"
+      }
+    },
+    {
+      "kind": "completion",
+      "provider": "groq",
+      "model": "openai/gpt-oss-120b",
+      "size": "full",
+      "status": 200,
+      "latencyMs": 995,
+      "promptChars": 9834,
+      "maxTokens": 400,
+      "usage": {
+        "input": 2544,
+        "output": 295,
+        "total": 2839
+      },
+      "error": null,
+      "evidence": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "998",
+        "x-ratelimit-remaining-tokens": "4842",
+        "x-ratelimit-reset-requests": "2m52.8s",
+        "x-ratelimit-reset-tokens": "23.685s"
+      }
+    },
+    {
+      "kind": "completion",
+      "provider": "groq",
+      "model": "qwen/qwen3.8-27b",
+      "size": "short",
+      "status": 200,
+      "latencyMs": 108,
+      "promptChars": null,
+      "maxTokens": 400,
+      "usage": {
+        "input": 15,
+        "output": 10,
+        "total": 25
+      },
+      "error": null,
+      "evidence": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-remaining-tokens": "7746",
+        "x-ratelimit-reset-requests": "1m26.4s",
+        "x-ratelimit-reset-tokens": "1.905s"
+      }
+    },
+    {
+      "kind": "completion",
+      "provider": "groq",
+      "model": "qwen/qwen3.8-27b",
+      "size": "full",
+      "status": 200,
+      "latencyMs": 415,
+      "promptChars": 9834,
+      "maxTokens": 400,
+      "usage": {
+        "input": 3043,
+        "output": 55,
+        "total": 3098
+      },
+      "error": null,
+      "evidence": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "998",
+        "x-ratelimit-remaining-tokens": "4546",
+        "x-ratelimit-reset-requests": "2m52.8s",
+        "x-ratelimit-reset-tokens": "25.905s"
+      }
+    },
+    {
+      "kind": "models",
+      "provider": "openrouter",
+      "status": 200,
+      "models": [
+        {
+          "model": "anthropic/claude-sonnet-4.6",
+          "available": true
+        },
+        {
+          "model": "qwen/qwen3.8-27b",
+          "available": true
+        }
+      ]
+    },
+    {
+      "kind": "completion",
+      "provider": "openrouter",
+      "model": "anthropic/claude-sonnet-4.6",
+      "size": "short",
+      "status": 402,
+      "latencyMs": 49,
+      "promptChars": null,
+      "maxTokens": 400,
+      "usage": null,
+      "error": {
+        "category": "billing_limit",
+        "status": 402,
+        "limitSource": "openrouter_credits"
+      },
+      "evidence": {
+        "mentionsCredits": true,
+        "mentionsMaxTokens": true,
+        "mentionsAffordability": true
+      },
+      "headers": {}
+    },
+    {
+      "kind": "completion",
+      "provider": "openrouter",
+      "model": "anthropic/claude-sonnet-4.6",
+      "size": "full",
+      "status": 402,
+      "latencyMs": 185,
+      "promptChars": 9834,
+      "maxTokens": 400,
+      "usage": null,
+      "error": {
+        "category": "billing_limit",
+        "status": 402,
+        "limitSource": "openrouter_credits"
+      },
+      "evidence": {
+        "mentionsCredits": true,
+        "mentionsMaxTokens": true,
+        "mentionsAffordability": true
+      },
+      "headers": {}
+    },
+    {
+      "kind": "completion",
+      "provider": "openrouter",
+      "model": "qwen/qwen3.8-27b",
+      "size": "short",
+      "status": 200,
+      "latencyMs": 1405,
+      "promptChars": null,
+      "maxTokens": 400,
+      "usage": {
+        "input": 55,
+        "output": 27,
+        "total": 82
+      },
+      "error": null,
+      "evidence": null,
+      "headers": {}
+    },
+    {
+      "kind": "completion",
+      "provider": "openrouter",
+      "model": "qwen/qwen3.8-27b",
+      "size": "full",
+      "status": 200,
+      "latencyMs": 4921,
+      "promptChars": 9834,
+      "maxTokens": 400,
+      "usage": {
+        "input": 3269,
+        "output": 333,
+        "total": 3602
+      },
+      "error": null,
+      "evidence": null,
+      "headers": {}
+    }
+  ]
+}

@@ -408,6 +408,7 @@ export class AgentRuntime {
             deadlineAt,
             purpose: round === 0 ? "reply" : "tool_round",
             retry: this.policy.modelRetry,
+            onRouteEvent: ({ type, ...data }) => events.emit(`llm.${type}`, data),
             onDelta: this.deps.onDelta,
             signal: committed ? undefined : signal,
           });
@@ -433,6 +434,10 @@ export class AgentRuntime {
         events.emit("model.completed", {
           round,
           latencyMs: invocation.usage.latencyMs,
+          provider: invocation.usage.provider,
+          model: invocation.usage.model,
+          fallbackCount: invocation.usage.fallbackCount ?? 0,
+          timeToFirstTokenMs: invocation.usage.timeToFirstTokenMs ?? null,
           streamed: invocation.usage.streamed,
           toolCalls: calls.length,
           inputTokens: invocation.usage.inputTokens ?? null,
@@ -583,6 +588,7 @@ export class AgentRuntime {
               deadlineAt,
               purpose: "repair",
               retry: { ...this.policy.modelRetry, attempts: 1 },
+              onRouteEvent: ({ type, ...data }) => events.emit(`llm.${type}`, data),
               signal: committed ? undefined : signal,
             });
             regenerated = true;
@@ -693,7 +699,7 @@ export class AgentRuntime {
         toolResults,
         validation,
         escalation,
-        usage: aggregateUsage(this.deps.llm.name, agent.model?.model, usageCalls, toolRounds),
+        usage: aggregateUsage(usageCalls[0]?.provider ?? this.deps.llm.name, agent.model?.model, usageCalls, toolRounds),
         events: events.events,
         timings: { contextMs, retrievalMs, modelMs, actionsMs, validationMs, totalMs },
         degraded,
@@ -758,6 +764,7 @@ function aggregateUsage(
     provider,
     model: calls.find((c) => c.model)?.model ?? configuredModel ?? "",
     modelCalls: calls.length,
+    fallbackCount: calls.reduce((n, c) => n + (c.fallbackCount ?? 0), 0),
     ...(withTokens.length > 0
       ? {
           inputTokens: sum((c) => c.inputTokens),

@@ -54,6 +54,43 @@ export interface LLMCompletionOptions {
   tools?: LLMToolDescriptor[];
   /** Per-call ceiling; the adapter uses the smaller of this and its default. */
   timeoutMs?: number;
+  /** Provider/model attempt telemetry; contains no prompt or credentials. */
+  onRouteEvent?: (event: LLMRouteEvent) => void;
+  /**
+   * Phase 4.5 Sprint 3 — opt-in live pass-through for multi-candidate
+   * routers. Default OFF: routers buffer each candidate so a failed partial
+   * stream can never leak into the delivered answer. When ON, a streaming
+   * router yields the FIRST candidate's deltas as they arrive, and a
+   * candidate that fails after its first text delta fails the request
+   * outright (a second candidate's text must never follow a partial first,
+   * and already-emitted deltas may have been consumed downstream).
+   */
+  liveStream?: boolean;
+}
+
+export interface LLMRouteEvent {
+  type: "requested" | "started" | "first_token" | "completed" | "failed" | "fallback" | "exhausted" | "skipped";
+  provider: string;
+  model: string;
+  attempt: number;
+  fallback: boolean;
+  latencyMs?: number;
+  failureCategory?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  httpStatus?: number;
+  retryAfterMs?: number;
+  limitSource?: string;
+  limitReason?: string;
+}
+
+export interface LLMRoute {
+  provider: string;
+  model: string;
+  attempt: number;
+  fallbackCount: number;
+  timeToFirstTokenMs?: number;
 }
 
 export interface LLMUsage {
@@ -71,13 +108,16 @@ export interface LLMResult {
   /** Present only when the model proposed native tool calls. */
   toolCalls?: LLMToolCall[];
   finishReason?: LLMFinishReason;
+  route?: LLMRoute;
+  httpStatus?: number;
 }
 
 export type LLMDelta =
   | { type: "text"; text: string }
   | { type: "tool_call"; call: LLMToolCall }
   | { type: "usage"; usage: LLMUsage }
-  | { type: "done"; finishReason: LLMFinishReason };
+  | { type: "route"; route: LLMRoute }
+  | { type: "done"; finishReason: LLMFinishReason; httpStatus?: number };
 
 export interface LLMCapabilities {
   streaming: boolean;
@@ -89,6 +129,8 @@ export interface LLMCapabilities {
 
 export interface LLMProvider {
   readonly name: string;
+  /** Avoid multiplying a router's bounded attempts with an outer retry loop. */
+  readonly managesRetries?: boolean;
   complete(
     systemPrompt: string,
     messages: Array<ChatMessage | LLMMessage>,

@@ -12,10 +12,12 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
 
   // AI provider selection — swap providers via env, never via code changes.
-  LLM_PROVIDER: z.enum(["ollama", "openai", "anthropic", "gemini", "groq", "mistral"]).default("ollama"),
+  LLM_PROVIDER: z.enum(["ollama", "openai", "anthropic", "gemini", "groq", "mistral", "cloud"]).default("ollama"),
   LLM_MODEL: z.string().default("llama3.1"),
   LLM_API_KEY: z.string().optional(),
   LLM_BASE_URL: z.string().url().optional(),
+  GROQ_LLM_API_KEY: z.string().optional(),
+  OPENROUTER_LLM_API_KEY: z.string().optional(),
 
   OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
   // CPU-hosted local models (the Ollama default) routinely take longer than

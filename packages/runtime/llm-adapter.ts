@@ -8,6 +8,7 @@ import {
   type LLMMessage,
   type LLMProvider,
   type LLMResult,
+  type LLMRouteEvent,
   type LLMToolCall,
   type LLMToolDescriptor,
 } from "@halo/ports/llm-provider";
@@ -55,6 +56,7 @@ export interface InvokeModelParams {
   clock?: () => number;
   /** Aborts the call (barge-in). Rejects with RuntimeCancelledError; never retried. */
   signal?: AbortSignal;
+  onRouteEvent?: (event: LLMRouteEvent) => void;
 }
 
 export interface InvokeModelResult {
@@ -97,7 +99,12 @@ function withDeadline<T>(promise: Promise<T>, remainingMs: number, deadlineAt: n
 /** Transient = the provider was reachable-ish but failed; timeouts and deadlines are never retried. */
 function isRetryable(error: unknown): boolean {
   if (error instanceof ModelDeadlineError || error instanceof RuntimeCancelledError) return false;
-  if (isAppError(error)) return error.code === "PROVIDER_ERROR" && !/too long/i.test(error.message);
+  if (isAppError(error)) {
+    if (error.code !== "PROVIDER_ERROR" || /too long/i.test(error.message)) return false;
+    const category = (error.details as { category?: unknown } | undefined)?.category;
+    return category === undefined ||
+      ["timeout", "connection", "provider_5xx", "rate_limit", "provider_unavailable", "model_unavailable"].includes(String(category));
+  }
   return false;
 }
 
@@ -110,12 +117,15 @@ async function consumeStream(
   const toolCalls: LLMToolCall[] = [];
   let usage: LLMResult["usage"];
   let finishReason: LLMResult["finishReason"];
+  let route: LLMResult["route"];
+  let httpStatus: number | undefined;
   for await (const delta of iterable) {
     onDelta?.(delta);
     if (delta.type === "text") content += delta.text;
     else if (delta.type === "tool_call") toolCalls.push(delta.call);
     else if (delta.type === "usage") usage = delta.usage;
-    else if (delta.type === "done") finishReason = delta.finishReason;
+    else if (delta.type === "route") route = delta.route;
+    else if (delta.type === "done") { finishReason = delta.finishReason; httpStatus = delta.httpStatus; }
   }
   if (!content.trim() && toolCalls.length === 0) {
     throw AppError.provider("AI service returned an empty response");
@@ -124,6 +134,8 @@ async function consumeStream(
     content: content.trim(),
     model,
     usage,
+    ...(route ? { route } : {}),
+    ...(httpStatus !== undefined ? { httpStatus } : {}),
     ...(toolCalls.length > 0 ? { toolCalls } : {}),
     ...(finishReason ? { finishReason } : {}),
   };
@@ -132,7 +144,7 @@ async function consumeStream(
 export async function invokeModel(params: InvokeModelParams): Promise<InvokeModelResult> {
   const clock = params.clock ?? Date.now;
   const capabilities = describeCapabilities(params.provider);
-  const retry = params.retry ?? DEFAULT_MODEL_RETRY_POLICY;
+  const retry = params.provider.managesRetries ? DEFAULT_MODEL_RETRY_POLICY : params.retry ?? DEFAULT_MODEL_RETRY_POLICY;
   const sleep = retry.sleep ?? defaultSleep;
 
   const wantsTools = (params.tools?.length ?? 0) > 0;
@@ -149,6 +161,7 @@ export async function invokeModel(params: InvokeModelParams): Promise<InvokeMode
       ...params.options,
       ...(tools ? { tools } : {}),
       timeoutMs: Math.max(1, remainingMs),
+      ...(params.onRouteEvent ? { onRouteEvent: params.onRouteEvent } : {}),
       // Adapters use abortSignal INSTEAD of their own timeout, so a caller
       // signal is combined with the remaining deadline, never substituted.
       ...(params.signal ? { abortSignal: AbortSignal.any([params.signal, AbortSignal.timeout(Math.max(1, remainingMs))]) } : {}),
@@ -159,15 +172,15 @@ export async function invokeModel(params: InvokeModelParams): Promise<InvokeMode
             params.provider.stream!(params.systemPrompt, params.messages, options),
             "",
             params.onDelta,
-          ).then((r) => ({ ...r, model: r.model || providerModel(params.provider) }))
+          ).then((r) => ({ ...r, model: r.route?.model ?? (r.model || providerModel(params.provider)) }))
         : params.provider.complete(params.systemPrompt, params.messages, options);
       const result = await withDeadline(call, remainingMs, params.deadlineAt, params.signal);
-      const latencyMs = clock() - startedAt;
+      const latencyMs = Math.max(0, clock() - startedAt);
       return {
         result,
         capabilities,
         toolsDowngraded,
-        usage: normalizeUsage(params.provider.name, result, latencyMs, params.purpose, useStreaming),
+        usage: normalizeUsage(result.route?.provider ?? params.provider.name, result, latencyMs, params.purpose, useStreaming),
       };
     } catch (error) {
       lastError = params.signal?.aborted ? new RuntimeCancelledError("model") : error;
@@ -202,6 +215,8 @@ export function normalizeUsage(
     purpose,
     latencyMs,
     streamed,
+    ...(result.route ? { attempt: result.route.attempt, fallbackCount: result.route.fallbackCount,
+      timeToFirstTokenMs: result.route.timeToFirstTokenMs } : {}),
     ...(hasUsage
       ? {
           inputTokens: usage.promptTokens,

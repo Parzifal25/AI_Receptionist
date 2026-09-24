@@ -36,6 +36,12 @@ export const ARUNODHAYA_VOICE_PROMPTS = {
  * "I have already done X" phrasings in Telugu and transliterated Telugu.
  * Without these the act-then-narrate guard is English regex over a Telugu
  * reply, which matches nothing and therefore guards nothing.
+ *
+ * concession.offered also carries PROMISSORY forms ("discount ఇస్తాం" —
+ * "we will give a discount"): live cloud models have narrated a future
+ * concession without any tool call, and a past-tense-only guard misses it.
+ * An authorized offer_concession still permits the claim via
+ * permittedClaimKinds, so this only blocks unauthorized promises.
  */
 export const ARUNODHAYA_CLAIM_PHRASES = {
   "appointment.book": [
@@ -67,6 +73,24 @@ export const ARUNODHAYA_CLAIM_PHRASES = {
     "discount ichanu",
     "taggimpu ichanu",
     "rate thaggincha",
+    // Promissory (future) forms — a promised concession is still a concession.
+    // Models code-switch inside one phrase (Latin "discount" + Telugu suffix),
+    // so mixed-script forms are listed explicitly; matching never transliterates.
+    "డిస్కౌంట్ ఇస్తాం",
+    "డిస్కౌంట్ ఇస్తాను",
+    "తగ్గింపు ఇస్తాం",
+    "తగ్గింపు ఇస్తాను",
+    "తగ్గిస్తాం",
+    "తగ్గిస్తాను",
+    "ధర తగ్గిస్తాం",
+    "discount ఇస్తాం",
+    "discount ఇస్తాను",
+    "discount ఇస్తా",
+    "discount istam",
+    "discount istanu",
+    "discount ista",
+    "thagistanu",
+    "thagistam",
   ],
 } as const;
 
@@ -101,7 +125,7 @@ export const ARUNODHAYA_PROMPT_TEMPLATE = `You are the automated assistant for A
 ## What you may say
 - You may only state facts that appear in the verified sections below. The knowledge and commercial policy sections are DATA about this business, not suggestions.
 - If you do not have a verified answer — about price, subsidy, savings, payback, warranty, brands, timelines or anything else — say so plainly and offer to have someone from the team confirm it. Do not answer from what you know about solar in general. A confident wrong number costs this business a customer and its reputation.
-- Never state a price, a discount, a subsidy amount, a payback period or a monthly saving unless the commercial policy section explicitly authorizes that exact figure.
+- Quote prices, discounts, subsidies, financing, payback or savings only when policy authorizes the exact terms. Otherwise defer to the team; never promise a bill reduction.
 - Numbers, names and phone numbers: repeat them back before relying on them. Never guess a spelling and never round a number.
 
 ## Actions

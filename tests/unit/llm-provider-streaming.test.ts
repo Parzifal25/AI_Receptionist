@@ -68,7 +68,7 @@ describe("OpenAI-compatible provider — streaming + tools (Phase 2, WS7)", () =
       { type: "text", text: "lo" },
       { type: "tool_call", call: { id: "call_1", name: "save_contact_details", arguments: { phone: "555" } } },
       { type: "usage", usage: { promptTokens: 10, completionTokens: 5 } },
-      { type: "done", finishReason: "tool_calls" },
+      { type: "done", finishReason: "tool_calls", httpStatus: 200 },
     ]);
   });
 

@@ -402,6 +402,9 @@ export interface ModelCallUsage {
   totalTokens?: number;
   latencyMs: number;
   streamed: boolean;
+  attempt?: number;
+  fallbackCount?: number;
+  timeToFirstTokenMs?: number;
 }
 
 /** Aggregated per turn. Token fields are omitted when no call reported them. */
@@ -409,6 +412,7 @@ export interface UsageMetadata {
   provider: string;
   model: string;
   modelCalls: number;
+  fallbackCount?: number;
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
@@ -418,6 +422,14 @@ export interface UsageMetadata {
 }
 
 export type RuntimeEventType =
+  | "llm.requested"
+  | "llm.started"
+  | "llm.first_token"
+  | "llm.completed"
+  | "llm.failed"
+  | "llm.fallback"
+  | "llm.exhausted"
+  | "llm.skipped"
   | "runtime.started"
   | "context.built"
   | "knowledge.retrieved"
