@@ -532,6 +532,11 @@ export type RuntimeEventType =
   | "action.executed"
   | "action.failed"
   | "response.validated"
+  /** Phase 4.5 Sprint 3 — safe streaming. Counts and reasons only, never text. */
+  | "speech.fallback"
+  | "speech.truncated"
+  | "speech.invariant_violated"
+  | "speech.completed"
   | "memory.updated"
   | "escalation.triggered"
   | "runtime.completed"

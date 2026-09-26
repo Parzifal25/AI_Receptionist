@@ -18,6 +18,8 @@ import type {
   RuntimeEventSink,
   RuntimeInput,
   RuntimeOutput,
+  SpeechFallbackReason,
+  SpeechStreamOutcome,
   ToolIntent,
   ToolResult,
   UsageMetadata,
@@ -42,6 +44,7 @@ import {
   type PromptDoctrine,
 } from "./prompt-composer";
 import { correctiveInstruction, safeFallbackReply, validateReply } from "./response-validator";
+import { SafeSpeechStream } from "./speech-stream";
 import type { ConversationStore, SystemActionProvider, ToolTranscriptRecord, TurnHook } from "./system-actions";
 import {
   authorizeIntent,
@@ -65,6 +68,8 @@ import { ToolRegistry, type ToolExecutionContext } from "./tools/registry";
  *     → PromptComposer             (persisted agent content + code policy)
  *     → bounded model/tool loop    (maxToolRounds, deadline, idempotency)
  *     → ResponseValidator          (act-then-narrate, channel constraints)
+ *       [safe streaming, when RuntimeInput.speech is supplied: validated
+ *        sentences leave during the model call — speech-stream.ts]
  *     → EscalationManager          (typed decision)
  *     → MemoryManager              (bounded recap, state)
  *     → persist transcript + state → TurnHooks → Output + Events + Usage
@@ -187,8 +192,13 @@ export class AgentRuntime {
     // Committed = at least one action succeeded this turn. From then on the
     // turn completes regardless of cancellation (see cancellation.ts).
     let committed = false;
+    // Safe streaming (Phase 4.5 Sprint 3). Once the caller has HEARD part of
+    // the reply the turn is committed too: cancelling it would erase words the
+    // caller heard from the transcript the next turn is built on.
+    let speech: SafeSpeechStream | null = null;
+    let speechFallback: SpeechFallbackReason | null = null;
     const checkpoint = (stage: string) => {
-      if (signal?.aborted && !committed) throw new RuntimeCancelledError(stage);
+      if (signal?.aborted && !committed && !speech?.hasReleased) throw new RuntimeCancelledError(stage);
     };
 
     events.emit("runtime.started", {
@@ -370,6 +380,26 @@ export class AgentRuntime {
         latencyMs: contextMs,
       });
 
+      // ---- safe streaming eligibility ------------------------------------------
+      // Decided once, before the first model call, from facts not text: a
+      // provider that cannot stream, or a side-effecting action awaiting the
+      // caller's yes (the turn is about a tool, so it takes the complete path).
+      if (input.speech) {
+        if (!capabilities.streaming) speechFallback = "provider_cannot_stream";
+        else if (state.pendingConfirmation) speechFallback = "pending_confirmation";
+        else {
+          speech = new SafeSpeechStream({
+            sink: input.speech,
+            turnId: trusted.turnId,
+            channel,
+            claimPhrases: agent.config.guardrails.actionClaimPhrases,
+            actions: () => actions,
+            startedAt,
+          });
+        }
+        if (speechFallback) events.emit("speech.fallback", { reason: speechFallback, stage: "eligibility" });
+      }
+
       // ---- bounded model / tool loop -----------------------------------------
       const modelOptions = {
         temperature: agent.model?.temperature ?? this.policy.defaultTemperature,
@@ -386,6 +416,8 @@ export class AgentRuntime {
       let replyDraft = "";
       let providerFailed = false;
       let modelMs = 0;
+      let firstModelRequestMs: number | undefined;
+      let streamRetryUsed = false;
 
       for (let round = 0; round <= this.policy.maxToolRounds; round++) {
         // The final round never offers tools: the model must narrate.
@@ -397,6 +429,10 @@ export class AgentRuntime {
           messages: messages.length,
         });
         checkpoint(`model_round_${round}`);
+        firstModelRequestMs ??= Date.now() - startedAt;
+        const streamer = speech?.active ? speech : null;
+        streamer?.beginRound(toolsThisRound.length > 0);
+        const observe = this.deps.onDelta;
         let invocation;
         try {
           invocation = await invokeModel({
@@ -409,10 +445,41 @@ export class AgentRuntime {
             purpose: round === 0 ? "reply" : "tool_round",
             retry: this.policy.modelRetry,
             onRouteEvent: ({ type, ...data }) => events.emit(`llm.${type}`, data),
-            onDelta: this.deps.onDelta,
+            onDelta: streamer
+              ? (delta) => {
+                  observe?.(delta);
+                  streamer.onDelta(delta);
+                }
+              : observe,
+            liveStream: streamer !== null,
             signal: committed ? undefined : signal,
           });
         } catch (error) {
+          if (streamer) {
+            const producedText = streamer.producedText;
+            streamer.failRound();
+            if (streamer.hasReleased) {
+              // The caller already heard complete, validated sentences. They
+              // stand; nothing is repeated and the unfinished tail is dropped.
+              streamer.truncate(isRuntimeCancelled(error) ? null : "stream_failed");
+              replyDraft = streamer.releasedText;
+              events.emit("speech.truncated", { round, cause: isRuntimeCancelled(error) ? "cancelled" : "stream_failed" });
+              break;
+            }
+            // Nothing heard. A live stream that died after producing text lost
+            // the router's fallback (a second model's text must never follow a
+            // first's partial); re-run this round once on the complete path,
+            // which has the whole fallback chain. A stream that died before any
+            // text already went through that chain, so it is a provider failure.
+            const cancelled = isRuntimeCancelled(error);
+            streamer.revoke(producedText || cancelled ? "stream_failed" : "provider_failed", cancelled ? "cancelled" : "stream_failed");
+            if (!cancelled && producedText && !streamRetryUsed) {
+              streamRetryUsed = true;
+              events.emit("speech.fallback", { reason: "stream_failed", stage: `model_round_${round}` });
+              round -= 1;
+              continue;
+            }
+          }
           if (isRuntimeCancelled(error) && !committed) throw error;
           providerFailed = true;
           events.emit("model.failed", {
@@ -447,8 +514,11 @@ export class AgentRuntime {
 
         if (calls.length === 0 || toolsThisRound.length === 0) {
           replyDraft = invocation.result.content;
+          streamer?.endRound(0);
           break;
         }
+        // The round's text was a tool preamble: held, and now retracted unheard.
+        streamer?.endRound(calls.length);
 
         toolRounds += 1;
         const roundStart = Date.now();
@@ -570,10 +640,45 @@ export class AgentRuntime {
       const validationStart = Date.now();
       let reply: string;
       let validation: ValidationOutcome;
+      // Safe streaming settles first: a streamed reply is exactly what was
+      // released, and a held reply passes the SAME whole-reply gate as the
+      // complete path before a word of it is heard.
+      let streamedReply: string | null = null;
+      let streamedViolations: ValidationOutcome["violations"] = [];
+      if (speech && providerFailed) {
+        speech.revoke("provider_failed");
+      } else if (speech?.hasReleased) {
+        streamedReply = speech.releasedText;
+        // The full draft may hold text that was never released (rejected or
+        // over-length); its verdict is telemetry. The heard text must pass on
+        // its own — segment validation guarantees it, and this checks it.
+        const heard = validateReply({ reply: streamedReply, channel, actions, claimPhrases });
+        const draft = validateReply({ reply: replyDraft, channel, actions, claimPhrases });
+        streamedViolations = [...speech.violations, ...draft.violations];
+        if (heard.needsRegeneration) {
+          events.emit("speech.invariant_violated", { violations: heard.violations.map((v) => v.kind) });
+          log.error("released speech failed whole-reply validation", { turnId: trusted.turnId });
+        }
+      } else if (speech?.hasHeld) {
+        const verdict = validateReply({ reply: replyDraft, channel, actions, claimPhrases });
+        if (!verdict.needsRegeneration && speech.commit()) {
+          streamedReply = speech.releasedText;
+          streamedViolations = [...speech.violations, ...verdict.violations];
+        } else {
+          // The repair ladder below owns this reply; nothing was heard.
+          speech.revoke("reply_rejected");
+        }
+      } else if (speech?.active) {
+        // Streamed, but every segment was dropped or the reply was empty.
+        speech.revoke("reply_rejected");
+      }
       if (providerFailed) {
         degraded.provider = true;
         reply = this.policy.providerFallbackReply;
         validation = { ok: true, violations: [], regenerated: false, fallbackUsed: false };
+      } else if (streamedReply !== null) {
+        reply = streamedReply;
+        validation = { ok: true, violations: streamedViolations, regenerated: false, fallbackUsed: false };
       } else {
         let verdict = validateReply({ reply: replyDraft, channel, actions, claimPhrases });
         let regenerated = false;
@@ -617,6 +722,18 @@ export class AgentRuntime {
         };
       }
       const validationMs = Date.now() - validationStart;
+      const replyValidatedMs = Date.now() - startedAt;
+      let speechOutcome: SpeechStreamOutcome | undefined;
+      if (input.speech) {
+        speechOutcome = speech
+          ? speech.outcome()
+          : {
+              attempted: false, streamed: false, fallbackReason: speechFallback, segmentsEmitted: 0,
+              segmentsReleased: 0, segmentsRetracted: 0, toolRoundsRetracted: 0, truncated: false,
+              firstSegmentMs: null, firstReleaseMs: null,
+            };
+        events.emit("speech.completed", { ...speechOutcome });
+      }
       events.emit("response.validated", {
         ok: validation.ok,
         violations: validation.violations.map((v) => v.kind),
@@ -701,10 +818,15 @@ export class AgentRuntime {
         escalation,
         usage: aggregateUsage(usageCalls[0]?.provider ?? this.deps.llm.name, agent.model?.model, usageCalls, toolRounds),
         events: events.events,
-        timings: { contextMs, retrievalMs, modelMs, actionsMs, validationMs, totalMs },
+        timings: {
+          ...(firstModelRequestMs !== undefined ? { firstModelRequestMs } : {}),
+          replyValidatedMs,
+          contextMs, retrievalMs, modelMs, actionsMs, validationMs, totalMs,
+        },
         degraded,
         transcript,
         knowledgeGap,
+        ...(speechOutcome ? { speech: speechOutcome } : {}),
       };
 
       for (const hook of this.hooks) {

@@ -8,6 +8,8 @@ import type {
   LLMMessage,
   LLMProvider,
   LLMResult,
+  LLMToolCall,
+  LLMUsage,
 } from "@halo/ports/llm-provider";
 import type { KnowledgeProvider } from "@halo/ports/knowledge-provider";
 import { AgentRuntime, type AgentRuntimeDeps } from "@halo/runtime/agent-runtime";
@@ -134,6 +136,119 @@ export class ScriptedLLM implements LLMProvider {
   async isHealthy() {
     return true;
   }
+}
+
+/**
+ * Phase 4.5 Sprint 3 — one scripted model call for `StreamingLLM`.
+ * `failAfterTokens` throws `failWith` after that many text deltas (a stream
+ * that died mid-reply); `omitDone` ends the stream with no finish event.
+ */
+export interface StreamStep {
+  content: string;
+  toolCalls?: LLMToolCall[];
+  usage?: LLMUsage;
+  failAfterTokens?: number;
+  failWith?: Error;
+  omitDone?: boolean;
+}
+
+export interface StreamingLLMOptions {
+  /** Delay before the first delta (time to first token), real timers. */
+  firstTokenMs?: number;
+  /** Delay before every later text delta. */
+  tokenMs?: number;
+  /** Observes each text delta as it is yielded (index, text). */
+  onToken?: (index: number, text: string) => void | Promise<void>;
+  tools?: boolean;
+  name?: string;
+}
+
+/** Splits text into word-with-trailing-space tokens, the shape real deltas take. */
+export function wordTokens(text: string): string[] {
+  return text.match(/\S+\s*|\s+/g) ?? [];
+}
+
+/**
+ * A streaming model with real (or fake-timer) pacing that honours
+ * `abortSignal` — the fake the safe-streaming tests, the golden runner in
+ * streaming mode and the latency harness share. `complete()` and `stream()`
+ * consume the same script, so a turn that falls back from streaming to the
+ * complete path reads the next step.
+ */
+export class StreamingLLM implements LLMProvider {
+  readonly name: string;
+  readonly calls: ScriptedCall[] = [];
+  readonly streamCalls: ScriptedCall[] = [];
+  private index = 0;
+
+  constructor(private readonly script: Array<StreamStep | Error>, private readonly opts: StreamingLLMOptions = {}) {
+    this.name = opts.name ?? "streaming-fake";
+  }
+
+  capabilities(): LLMCapabilities {
+    return { streaming: true, tools: this.opts.tools ?? true, jsonMode: true, usage: true };
+  }
+
+  private step(): StreamStep | Error {
+    const step = this.script[Math.min(this.index, this.script.length - 1)];
+    this.index += 1;
+    return step;
+  }
+
+  async complete(systemPrompt: string, messages: Array<ChatMessage | LLMMessage>, options: LLMCompletionOptions = {}): Promise<LLMResult> {
+    this.calls.push({ systemPrompt, messages, options });
+    const step = this.step();
+    if (step instanceof Error) throw step;
+    const delay = (this.opts.firstTokenMs ?? 0) + wordTokens(step.content).length * (this.opts.tokenMs ?? 0);
+    await abortableSleep(delay, options.abortSignal);
+    return {
+      content: step.content.trim(),
+      model: "streaming-fake",
+      usage: step.usage ?? { promptTokens: 100, completionTokens: 20 },
+      ...(step.toolCalls?.length ? { toolCalls: step.toolCalls, finishReason: "tool_calls" as const } : { finishReason: "stop" as const }),
+    };
+  }
+
+  async *stream(systemPrompt: string, messages: Array<ChatMessage | LLMMessage>, options: LLMCompletionOptions = {}): AsyncIterable<LLMDelta> {
+    this.streamCalls.push({ systemPrompt, messages, options });
+    const step = this.step();
+    if (step instanceof Error) throw step;
+    const tokens = wordTokens(step.content);
+    for (let i = 0; i < tokens.length; i++) {
+      await abortableSleep(i === 0 ? (this.opts.firstTokenMs ?? 0) : (this.opts.tokenMs ?? 0), options.abortSignal);
+      if (step.failAfterTokens !== undefined && i >= step.failAfterTokens) {
+        throw step.failWith ?? new Error("stream interrupted");
+      }
+      await this.opts.onToken?.(i, tokens[i]);
+      yield { type: "text", text: tokens[i] };
+    }
+    if (step.failAfterTokens !== undefined && step.failAfterTokens >= tokens.length) {
+      throw step.failWith ?? new Error("stream interrupted");
+    }
+    for (const call of step.toolCalls ?? []) yield { type: "tool_call", call };
+    yield { type: "usage", usage: step.usage ?? { promptTokens: 100, completionTokens: 20 } };
+    if (!step.omitDone) yield { type: "done", finishReason: step.toolCalls?.length ? "tool_calls" : "stop" };
+  }
+
+  async isHealthy() {
+    return true;
+  }
+}
+
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new DOMException("aborted", "AbortError"));
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("aborted", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 export function reply(content: string, extra: Partial<LLMResult> = {}): LLMResult {
