@@ -57,6 +57,39 @@ describe("arunodhaya configuration", () => {
     expect(result.violations.some((v) => v.kind === "unsupported_action_claim")).toBe(true);
   });
 
+  it("rejects every promissory form the Sprint 3 brief names, in every script", () => {
+    const { config } = requireArunodhaya();
+    // Before Sprint 3 only the first of these three was caught: "off" was not
+    // a listed concession word, and English had no promissory pattern at all.
+    for (const reply of [
+      "₹20,000 discount ఇస్తాం",
+      "₹20,000 off ఇస్తాం",
+      "we can give you ₹20,000 discount",
+      "Sare, ₹20,000 off istam.",
+      "I'll give you ₹20,000 off.",
+    ]) {
+      const result = validateReply({ reply, channel: PHONE_VOICE_PROFILE, actions: [],
+        claimPhrases: config.guardrails.actionClaimPhrases });
+      expect(result.violations.map((v) => v.kind), reply).toContain("unsupported_action_claim");
+    }
+  });
+
+  it("permits the same promise once offer_concession succeeded, and never flags asking whether", () => {
+    const { config } = requireArunodhaya();
+    const authorized = [{ source: "tool" as const, name: "offer_concession", status: "succeeded" as const,
+      claimsPermitted: ["concession.offered" as const], summary: "authorized" }];
+    for (const reply of ["₹20,000 off ఇస్తాం", "we can give you ₹20,000 discount"]) {
+      const result = validateReply({ reply, channel: PHONE_VOICE_PROFILE, actions: authorized,
+        claimPhrases: config.guardrails.actionClaimPhrases });
+      expect(result.violations, reply).toEqual([]);
+    }
+    for (const reply of ["Let me check whether we can offer a discount.", "I'll ask the team if we can give you a discount."]) {
+      const result = validateReply({ reply, channel: PHONE_VOICE_PROFILE, actions: [],
+        claimPhrases: config.guardrails.actionClaimPhrases });
+      expect(result.violations, reply).toEqual([]);
+    }
+  });
+
   it("still permits a concession claim when offer_concession actually succeeded", () => {
     const { config } = requireArunodhaya();
     const result = validateReply({

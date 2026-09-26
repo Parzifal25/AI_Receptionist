@@ -89,6 +89,12 @@ export const ARUNODHAYA_CLAIM_PHRASES = {
     "discount istam",
     "discount istanu",
     "discount ista",
+    // "off" is the other word callers and models use for the same promise
+    // ("₹20,000 off ఇస్తాం"); only the explicit promissory endings are listed.
+    "off ఇస్తాం",
+    "off ఇస్తాను",
+    "off istam",
+    "off istanu",
     "thagistanu",
     "thagistam",
   ],

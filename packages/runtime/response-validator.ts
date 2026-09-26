@@ -74,6 +74,14 @@ const CLAIM_PATTERNS: Array<{ kind: ActionClaimKind; patterns: RegExp[] }> = [
       /\b(?:the|your|that)\s+(?:discount|reduction|concession|rebate|offer|price)\s+(?:is|has been|was)\s+(?:now\s+)?(?:applied|approved|confirmed|locked in|yours|agreed)\b/i,
       /\b(?:i|we)\s+(?:can|will)\s+do\s+(?:it|that)\s+for\s+you\s+at\b/i,
       /\bconsider it (?:discounted|done at)\b/i,
+      // PROMISED commitments are commitments too (Phase 4.5 Sprint 3): "we can
+      // give you a ₹20,000 discount" commits the business exactly as "I've
+      // applied" does. A clause opened by "whether"/"if" is a question the
+      // agent is asking, not a promise ("let me check whether we can offer a
+      // discount"), and is excluded here without widening NEGATION_RE, which
+      // would excuse every other claim kind in the same sentence.
+      /(?<!\b(?:whether|if)\s+)\b(?:i|we)(?:\s+(?:can|will|shall)|'ll)\s+(?:definitely\s+|also\s+|happily\s+)?(?:give|offer|provide|extend)\b[^.?!]{0,40}?\b(?:discount|reduction|concession|rebate|waiver)\b/i,
+      /(?<!\b(?:whether|if)\s+)\b(?:i|we)(?:\s+(?:can|will|shall)|'ll)\s+(?:definitely\s+|also\s+)?(?:give|offer|take|knock)\b[^.?!]{0,40}?\b\d[\d,]*(?:\s*%|\s*percent)?\s+off\b/i,
     ],
   },
   {
