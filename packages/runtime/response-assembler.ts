@@ -1,39 +1,62 @@
 /**
  * HALO Phase 4.5 Sprint 3 — semantic response assembler.
  *
- * Turns a live LLM text stream into SAFE SPEECH CANDIDATES: complete
- * sentences first, natural clause boundaries second, never tiny fragments.
- * It is a pure text component — it knows nothing about tools, policy or
- * tenants — and it emits nothing on its own: every segment it returns is
- * still subject to the runtime's segment validation before it may be spoken.
+ * Turns a live LLM text stream into SPEECH CANDIDATES: complete sentences,
+ * never fragments. It is a pure text component — it knows nothing about
+ * tools, policy or tenants — and nothing it returns is speakable on its own:
+ * every candidate still goes through `validateSegment` (see
+ * `speech-stream.ts`) before a caller can hear it.
  *
- * Boundary policy (mirrors `packages/voice/sentence-chunker.ts`, which has
- * split validated replies since Phase 3):
- *   1. sentence completion  — `.`, `?`, `!`, the Indic danda (`।` `॥`)
- *      and newlines, each only when followed by whitespace or the end, so
- *      "3.5 kW" and "Rs. 2,000" are not split mid-number;
- *   2. clause fallback      — a sentence that grows past `maxSegmentChars`
- *      without ending is cut at its last `,`/`،` (or space) so a run-on
- *      sentence cannot hold speech hostage;
- *   3. short-fragment merge — a completed sentence shorter than
- *      `minSegmentChars` is held and merged with the next one, so the
- *      caller never hears "Yes" … "we" … "can" as separate utterances.
+ * Boundary policy. A boundary is where a sentence demonstrably ended:
+ *   - `.`, `?`, `!`, and the danda (`।` `॥`), each only when FOLLOWED BY
+ *     whitespace that has already arrived. The end of the current buffer is
+ *     never a boundary: a stream that delivers "It is 3." and then "5 kW" is
+ *     one sentence, and deciding early would split a number;
+ *   - a `.` is additionally NOT a boundary when the word before it is a known
+ *     abbreviation or a single letter ("Rs. 2,000", "రూ. 500", "K. Ravi"),
+ *     or when the next visible character is a digit, a currency sign or a
+ *     lowercase Latin letter ("No. 5", "approx. five"). Deciding needs that
+ *     next character, so the assembler waits for it;
+ *   - a newline run.
+ *
+ * There is NO mid-sentence cut. A long sentence is emitted whole when it
+ * ends (or at `flush()`); the voice layer's existing `chunkForSpeech` splits
+ * it for synthesis exactly as it does a complete reply. Holding text is
+ * always safe; cutting it is what produces "₹20," and "Tomorrow at". This
+ * also makes segmentation independent of how the provider chunked its
+ * tokens, which a test asserts.
+ *
+ * Short sentences (under `minSegmentChars`, e.g. "సరే." or "Yes.") are held
+ * and merged with the next one, so the caller never hears a lone "Yes"
+ * that the rest of the reply might qualify.
  *
  * INVARIANT: the segments of a stream, joined with single spaces, equal the
- * whitespace-normalized full text. Nothing is dropped or reordered; the
- * final validated reply can always be reconstructed from what was emitted
- * plus what `flush()` returns.
+ * whitespace-normalized full text. Nothing is dropped or reordered.
  */
 
 export interface AssemblerOptions {
-  maxSegmentChars: number;
   minSegmentChars: number;
 }
 
-export const DEFAULT_ASSEMBLER_OPTIONS: AssemblerOptions = Object.freeze({ maxSegmentChars: 220, minSegmentChars: 12 });
+export const DEFAULT_ASSEMBLER_OPTIONS: AssemblerOptions = Object.freeze({ minSegmentChars: 12 });
 
-/** Sentence end: terminal punctuation followed by whitespace/end, or a newline run. */
-const SEGMENT_END = /([.?!।॥]+)(?=\s|$)|\n+/;
+const TERMINATOR = /[.?!।॥]+|\n+/g;
+
+/**
+ * Words that end in a period without ending the sentence. Latin entries are
+ * matched case-insensitively. Telugu entries are the spoken abbreviations a
+ * model actually writes on a sales call (రూ. = Rs., శ్రీ = Sri, డా. = Dr.).
+ */
+const ABBREVIATIONS = new Set([
+  "rs", "inr", "mr", "mrs", "ms", "dr", "no", "nos", "vs", "approx", "st", "sr", "jr", "sq", "ft", "kg", "km",
+  "hrs", "min", "max", "dept", "govt", "pvt", "ltd", "co", "ph", "tel", "mob",
+  "రూ", "శ్రీ", "డా",
+]);
+
+const DIGIT_OR_CURRENCY = /[0-9₹$€£]/;
+const LOWER_LATIN = /[a-z]/;
+
+type Boundary = { end: number } | { wait: true } | null;
 
 export class SentenceAssembler {
   private buffer = "";
@@ -45,7 +68,7 @@ export class SentenceAssembler {
 
   /** Characters waiting for a boundary (telemetry only). */
   get pendingChars(): number {
-    return this.buffer.length;
+    return this.buffer.length + (this.held?.length ?? 0);
   }
 
   /** Segments emitted so far. */
@@ -54,73 +77,85 @@ export class SentenceAssembler {
   }
 
   /**
-   * Feed one text delta; returns every segment that became speakable.
-   * Deltas may be arbitrarily small — the assembler is the thing that
-   * turns them into natural speech units.
+   * Feed one text delta; returns every segment that became complete.
+   * Deltas may be arbitrarily small — single characters included.
    */
   push(delta: string): string[] {
     if (!delta) return [];
     this.buffer += delta;
     const out: string[] = [];
     for (;;) {
-      const match = SEGMENT_END.exec(this.buffer);
-      if (!match) break;
-      const end = match.index + match[0].length;
-      const sentence = this.buffer.slice(0, end).trim();
-      this.buffer = this.buffer.slice(end);
+      const boundary = this.nextBoundary();
+      if (boundary === null || "wait" in boundary) break;
+      const sentence = normalize(this.buffer.slice(0, boundary.end));
+      this.buffer = this.buffer.slice(boundary.end);
       if (!sentence) continue;
       const merged = this.held === null ? sentence : `${this.held} ${sentence}`;
       this.held = null;
       if (merged.length < this.options.minSegmentChars) {
-        // Too short to speak alone ("సరే."). Wait for the next sentence.
         this.held = merged;
         continue;
       }
-      out.push(...this.emit(merged, out));
-    }
-    // Clause fallback: a run-on with no sentence end must not buffer forever.
-    if (this.held === null && this.buffer.length >= this.options.maxSegmentChars) {
-      const cut = clauseCut(this.buffer, this.options.maxSegmentChars);
-      if (cut > 0) {
-        const piece = this.buffer.slice(0, cut).trim();
-        this.buffer = this.buffer.slice(cut);
-        if (piece) out.push(...this.emit(piece, out));
-      }
+      this.segments += 1;
+      out.push(merged);
     }
     return out;
   }
 
   /**
-   * Stream ended. Returns the remaining text as a final segment (merged
-   * with any held short sentence), or nothing when the reply ended exactly
-   * on a boundary. After `flush()` the assembler is spent.
+   * Stream ended normally. Returns the remaining text as a final segment
+   * (merged with any held short sentence). Call it ONLY on a completed
+   * stream: text left in the buffer of a failed stream is an unfinished
+   * sentence and must never be spoken. After `flush()` the assembler is spent.
    */
   flush(): string[] {
-    const rest = this.buffer.trim();
+    const rest = normalize(this.buffer);
     this.buffer = "";
-    if (this.held !== null) {
-      const merged = rest ? `${this.held} ${rest}` : this.held;
-      this.held = null;
-      return merged ? [merged] : [];
-    }
-    return rest ? [rest] : [];
+    const merged = [this.held, rest].filter((s): s is string => Boolean(s)).join(" ");
+    this.held = null;
+    if (!merged) return [];
+    this.segments += 1;
+    return [merged];
   }
 
-  private emit(segment: string, _prior: string[]): string[] {
-    this.segments += 1;
-    return [segment];
+  /**
+   * The first decidable sentence end in the buffer: `{ end }` when found,
+   * `{ wait }` when the earliest candidate needs characters that have not
+   * arrived yet (boundaries are strictly ordered, so nothing after it may be
+   * decided either), `null` when there is no candidate at all.
+   */
+  private nextBoundary(): Boundary {
+    const text = this.buffer;
+    TERMINATOR.lastIndex = 0;
+    for (let match = TERMINATOR.exec(text); match; match = TERMINATOR.exec(text)) {
+      const start = match.index;
+      const end = start + match[0].length;
+      if (match[0][0] === "\n") return { end };
+      if (end >= text.length) return { wait: true };
+      if (!/\s/.test(text[end])) continue; // "3.5", "a.m.", "ok?!" mid-token
+      if (match[0] !== ".") return { end };
+      if (isAbbreviation(text, start)) continue;
+      let next = end;
+      while (next < text.length && /\s/.test(text[next])) next++;
+      if (next >= text.length) return { wait: true };
+      const ch = text[next];
+      if (DIGIT_OR_CURRENCY.test(ch) || LOWER_LATIN.test(ch)) continue;
+      return { end };
+    }
+    return null;
   }
 }
 
-/**
- * Split point for an over-long boundary-less stretch: the last clause
- * separator (`, ` / `، `) inside the window, else the last space, else the
- * window itself. Mirrors the voice chunker's `splitLong`.
- */
-function clauseCut(text: string, max: number): number {
-  const window = text.slice(0, max);
-  let cut = Math.max(window.lastIndexOf(", "), window.lastIndexOf("، "));
-  if (cut > 0) return cut + 1;
-  cut = window.lastIndexOf(" ");
-  return cut > 0 ? cut : max;
+/** The word immediately before `dot` is a listed abbreviation or a lone letter. */
+function isAbbreviation(text: string, dot: number): boolean {
+  let start = dot;
+  while (start > 0 && !/[\s(,;:"'“‘]/.test(text[start - 1])) start--;
+  const word = text.slice(start, dot);
+  if (!word) return false;
+  if (/^[A-Za-z]$/.test(word)) return true;
+  return ABBREVIATIONS.has(word.toLowerCase());
+}
+
+function normalize(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }

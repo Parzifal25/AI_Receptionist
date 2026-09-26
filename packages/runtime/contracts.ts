@@ -133,9 +133,97 @@ export interface RuntimeInput {
    * `RuntimeCancelledError` and persists nothing (see cancellation.ts).
    */
   signal?: AbortSignal;
+  /**
+   * Phase 4.5 Sprint 3 — safe streaming. Present = the channel can use the
+   * reply before it is complete, and the runtime may deliver it as a
+   * sequence of VALIDATED speech units instead (never raw tokens). Absent =
+   * the complete-response path, byte-for-byte as before. The runtime decides
+   * per turn whether streaming is safe and falls back to the complete path
+   * on its own; `RuntimeOutput.speech` reports what happened.
+   */
+  speech?: SpeechSink;
+}
+
+// ---------------------------------------------------------------------------
+// Safe speech streaming (Phase 4.5 Sprint 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * What a streaming turn tells its channel. Every `segment` has passed the
+ * response validator (act-then-narrate, commercial claim guard, leak
+ * markers, channel formatting) over everything said before it.
+ *
+ *   segment  one complete sentence-level unit. `held: true` means it may be
+ *            PREPARED (e.g. synthesized) but must not be heard yet: the model
+ *            round it came from was offered tools, so a tool call may still
+ *            follow the text, and nothing is heard before the round proves
+ *            it is a plain reply and the whole reply passes validation;
+ *   release  every held segment may now be heard, in order;
+ *   retract  discard every held segment; none of them may ever be heard.
+ *
+ * A segment with `held: false` may be heard immediately. Once anything has
+ * been heard the runtime never retracts it and never repeats it: the turn's
+ * reply is exactly the text of the heard segments.
+ */
+export type SpeechStreamEvent =
+  | { type: "segment"; turnId: string; index: number; text: string; held: boolean }
+  | { type: "release"; turnId: string }
+  | { type: "retract"; turnId: string; reason: SpeechRetractReason };
+
+export type SpeechRetractReason =
+  | "tool_call"
+  | "segment_rejected"
+  | "reply_rejected"
+  | "stream_failed"
+  | "provider_failed"
+  | "cancelled";
+
+export type SpeechSink = (event: SpeechStreamEvent) => void;
+
+/** Why a turn that asked for streaming used (or ended in) the complete path. */
+export type SpeechFallbackReason =
+  /** The provider cannot stream; nothing was attempted. */
+  | "provider_cannot_stream"
+  /** A side-effecting action is awaiting the caller's yes: a tool turn. */
+  | "pending_confirmation"
+  /** A segment failed validation before anything was heard. */
+  | "segment_rejected"
+  /** The whole reply failed validation; the repair ladder owns it. */
+  | "reply_rejected"
+  /** The stream failed before anything was heard; the round was re-run complete. */
+  | "stream_failed"
+  /** Every model attempt failed; the canned outage reply was used. */
+  | "provider_failed";
+
+export interface SpeechStreamOutcome {
+  /** A speech sink was supplied and the runtime attempted to stream. */
+  attempted: boolean;
+  /** Every word of `RuntimeOutput.reply` was delivered through the sink (released). */
+  streamed: boolean;
+  /** Present when the turn fell back to (or ended in) the complete path. */
+  fallbackReason: SpeechFallbackReason | null;
+  segmentsEmitted: number;
+  segmentsReleased: number;
+  segmentsRetracted: number;
+  /** Rounds whose held segments were retracted because the model called a tool. */
+  toolRoundsRetracted: number;
+  /**
+   * Heard text was cut short: a later segment failed validation, the stream
+   * failed, or the caller interrupted, AFTER earlier segments were already
+   * heard. The reply is the heard prefix; nothing is repeated.
+   */
+  truncated: boolean;
+  /** Turn start → first validated segment (the first SAFE boundary, T5). */
+  firstSegmentMs: number | null;
+  /** Turn start → first segment the caller could hear. */
+  firstReleaseMs: number | null;
 }
 
 export interface RuntimeTimings {
+  /** Turn start → first model request sent (T3). Absent when no model was called. */
+  firstModelRequestMs?: number;
+  /** Turn start → the reply passed validation (complete path's first speakable moment). */
+  replyValidatedMs?: number;
   contextMs: number;
   retrievalMs: number;
   modelMs: number;
@@ -174,6 +262,8 @@ export interface RuntimeOutput {
   transcript: ChatMessage[];
   /** A substantive question retrieved no knowledge (owner-facing gap signal). */
   knowledgeGap: boolean;
+  /** Present only when `RuntimeInput.speech` was supplied. */
+  speech?: SpeechStreamOutcome;
 }
 
 // ---------------------------------------------------------------------------

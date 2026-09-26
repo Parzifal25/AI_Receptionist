@@ -57,6 +57,14 @@ export interface InvokeModelParams {
   /** Aborts the call (barge-in). Rejects with RuntimeCancelledError; never retried. */
   signal?: AbortSignal;
   onRouteEvent?: (event: LLMRouteEvent) => void;
+  /**
+   * Phase 4.5 Sprint 3 — ask a multi-candidate router to pass the first
+   * candidate's deltas through as they arrive instead of buffering them
+   * (`LLMCompletionOptions.liveStream`). Only the safe-streaming speech path
+   * sets it: it is the only consumer that acts on a delta before the call
+   * completes, and it handles a mid-stream failure itself.
+   */
+  liveStream?: boolean;
 }
 
 export interface InvokeModelResult {
@@ -162,6 +170,7 @@ export async function invokeModel(params: InvokeModelParams): Promise<InvokeMode
       ...(tools ? { tools } : {}),
       timeoutMs: Math.max(1, remainingMs),
       ...(params.onRouteEvent ? { onRouteEvent: params.onRouteEvent } : {}),
+      ...(useStreaming && params.liveStream ? { liveStream: true } : {}),
       // Adapters use abortSignal INSTEAD of their own timeout, so a caller
       // signal is combined with the remaining deadline, never substituted.
       ...(params.signal ? { abortSignal: AbortSignal.any([params.signal, AbortSignal.timeout(Math.max(1, remainingMs))]) } : {}),

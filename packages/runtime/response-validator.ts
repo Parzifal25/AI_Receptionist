@@ -314,6 +314,15 @@ export function validateReply(params: ValidateReplyParams): ValidateReplyResult 
 
 export interface ValidateSegmentParams {
   segment: string;
+  /**
+   * Text of this reply already accepted before `segment`. Claim and leak
+   * detection run over `priorText + segment`, so a claim that straddles a
+   * segment boundary is still seen whole — detection is per sentence, and a
+   * segment boundary (a danda, say) is not always a sentence boundary for
+   * `splitSentences`. `priorText` itself already passed, so anything found
+   * involves the new segment.
+   */
+  priorText?: string;
   channel: ChannelProfile;
   actions: ActionRecord[];
   claimPhrases?: ActionClaimPhrases;
@@ -347,14 +356,16 @@ export function validateSegment(params: ValidateSegmentParams): SegmentVerdict {
   if (!segment) {
     return { ok: false, segment, violations: [{ kind: "empty_reply", detail: "empty segment", repairable: "fallback" }] };
   }
+  const prior = params.priorText?.trim() ?? "";
+  const cumulative = prior ? `${prior} ${segment}` : segment;
   for (const marker of LEAK_MARKERS) {
-    if (segment.includes(marker)) {
+    if (cumulative.includes(marker)) {
       violations.push({ kind: "instruction_leak", detail: `contains "${marker}"`, repairable: "regenerate" });
       break;
     }
   }
   const permitted = permittedClaimKinds(params.actions);
-  for (const claim of detectActionClaims(segment, params.claimPhrases ?? {})) {
+  for (const claim of detectActionClaims(cumulative, params.claimPhrases ?? {})) {
     if (!ENFORCED_CLAIM_KINDS.includes(claim.kind)) continue;
     if (permitted.has(claim.kind)) continue;
     violations.push({ kind: "unsupported_action_claim", detail: `${claim.kind}: "${claim.excerpt}"`, repairable: "regenerate" });
@@ -366,10 +377,8 @@ export function validateSegment(params: ValidateSegmentParams): SegmentVerdict {
       segment = stripped;
     }
   }
-  if (segment.length > params.channel.maxReplyChars) {
-    violations.push({ kind: "max_length", detail: `${segment.length} > ${params.channel.maxReplyChars} chars`, repairable: "transform" });
-    segment = trimToSentenceBoundary(segment, params.channel.maxReplyChars);
-  }
+  // Reply length is a whole-reply property: the streamer caps the running
+  // total (it stops emitting at the channel ceiling), so no per-segment trim.
   return { ok: !violations.some((v) => v.repairable !== "transform"), segment, violations };
 }
 

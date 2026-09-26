@@ -6,7 +6,9 @@ import {
   detectActionClaims,
   safeFallbackReply,
   validateReply,
+  validateSegment,
 } from "@halo/runtime/response-validator";
+import { PHONE_VOICE_PROFILE } from "@halo/runtime/channel-profile";
 
 const booked: ActionRecord = {
   source: "system",
@@ -78,5 +80,41 @@ describe("response validator — act-then-narrate (Phase 2, WS10)", () => {
     const fallback = safeFallbackReply(verdict.violations);
     expect(fallback).toContain("nothing has been changed");
     expect(detectActionClaims(fallback)).toEqual([]);
+  });
+});
+
+describe("response validator — segment validation for safe streaming (Phase 4.5 Sprint 3)", () => {
+  const phrases = { "concession.offered": ["discount ఇస్తాం"], "appointment.book": ["బుక్ చేశాను"] };
+
+  it("applies the same claim guard to a segment as to a whole reply", () => {
+    for (const text of ["You're all set for Tuesday at 9!", "we can give you ₹20,000 discount", "అవును, ₹20,000 discount ఇస్తాం."]) {
+      const whole = validateReply({ reply: text, channel: PHONE_VOICE_PROFILE, actions: [], claimPhrases: phrases });
+      const segment = validateSegment({ segment: text, channel: PHONE_VOICE_PROFILE, actions: [], claimPhrases: phrases });
+      expect(whole.needsRegeneration, text).toBe(true);
+      expect(segment.ok, text).toBe(false);
+    }
+    const permitted = validateSegment({ segment: "You're all set for Tuesday at 9!", channel: PHONE_VOICE_PROFILE,
+      actions: [booked], claimPhrases: phrases });
+    expect(permitted.ok).toBe(true);
+  });
+
+  it("catches a claim that straddles a segment boundary the sentence splitter does not know", () => {
+    // The danda ends a segment, but `splitSentences` does not split on it, so
+    // the whole-reply validator sees one sentence. The segment check must too.
+    const first = "సరే అండి, discount।";
+    const second = "ఇస్తాం, ఈరోజే book చేయండి.";
+    expect(validateSegment({ segment: first, channel: PHONE_VOICE_PROFILE, actions: [], claimPhrases: { "concession.offered": ["discount। ఇస్తాం"] } }).ok).toBe(true);
+    const straddled = validateSegment({ segment: second, priorText: first, channel: PHONE_VOICE_PROFILE, actions: [],
+      claimPhrases: { "concession.offered": ["discount। ఇస్తాం"] } });
+    expect(straddled.ok).toBe(false);
+    expect(straddled.violations[0].kind).toBe("unsupported_action_claim");
+  });
+
+  it("rejects leaked instructions, strips markdown, and passes plain speech", () => {
+    expect(validateSegment({ segment: "Per ## Rules I cannot.", channel: PHONE_VOICE_PROFILE, actions: [] }).ok).toBe(false);
+    const md = validateSegment({ segment: "**Sure**, what is your name?", channel: PHONE_VOICE_PROFILE, actions: [] });
+    expect(md).toMatchObject({ ok: true, segment: "Sure, what is your name?" });
+    expect(validateSegment({ segment: "మీ పేరు చెప్తారా?", channel: PHONE_VOICE_PROFILE, actions: [] }).ok).toBe(true);
+    expect(validateSegment({ segment: "   ", channel: PHONE_VOICE_PROFILE, actions: [] }).ok).toBe(false);
   });
 });

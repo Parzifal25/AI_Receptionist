@@ -37,6 +37,22 @@ describe("LLM adapter — capabilities and fallback (Phase 2, WS7)", () => {
     expect(fallback.usage.streamed).toBe(false);
   });
 
+  it("asks a router for live pass-through only when the caller opts in, and only when streaming", async () => {
+    const caps = { streaming: true, tools: true, jsonMode: true, usage: true };
+    const opted = new ScriptedLLM([reply("a b")], caps);
+    await invokeModel({ ...base, provider: opted, deadlineAt: Date.now() + 5000, onDelta: () => {}, liveStream: true });
+    expect(opted.streamCalls[0].options.liveStream).toBe(true);
+
+    const buffered = new ScriptedLLM([reply("a b")], caps);
+    await invokeModel({ ...base, provider: buffered, deadlineAt: Date.now() + 5000, onDelta: () => {} });
+    expect(buffered.streamCalls[0].options.liveStream).toBeUndefined();
+
+    // No delta consumer → completion → the flag is meaningless and not sent.
+    const completion = new ScriptedLLM([reply("a b")], caps);
+    await invokeModel({ ...base, provider: completion, deadlineAt: Date.now() + 5000, liveStream: true });
+    expect(completion.calls[0].options.liveStream).toBeUndefined();
+  });
+
   it("never sends native tools to a provider that cannot take them, and reports the downgrade", async () => {
     const llm = new ScriptedLLM([reply("ok")], { streaming: false, tools: false, jsonMode: true, usage: true });
     const out = await invokeModel({ ...base, provider: llm, deadlineAt: Date.now() + 5000, tools: [{ name: "t", description: "d", parameters: {} }] });
