@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -41,6 +42,14 @@ yarn-error.log*
 next-env.d.ts
 public/widget.js
 
-# Python bytecode from the reference Pipecat worker
+# Local Python environments and generated test artifacts
+.venv/
+venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local assistant metadata
+.freebuff/

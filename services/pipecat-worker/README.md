@@ -67,10 +67,23 @@ can be tested without a media stack. A worker binds it to the pipeline:
 - `on_hangup` → end the call leg. `on_stop_playback` → stop that playback.
 - Transport gone → `bye(reason)`.
 
+## Installing dependencies
+
+From the repository root, use Python 3.10 or newer to create a local
+environment and install the worker dependencies:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r services/pipecat-worker/requirements.txt
+```
+
+The environment is ignored by Git. Dependencies are installed locally rather
+than committed to the repository.
+
 ## Running the tests
 
 ```bash
-cd services/pipecat-worker && python3 -m unittest discover -s .
+.venv/bin/python -m unittest discover -s services/pipecat-worker
 ```
 
 ## What must be measured before this is called working

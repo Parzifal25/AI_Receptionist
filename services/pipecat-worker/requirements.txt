@@ -1,0 +1,3 @@
+# Direct worker dependencies, matching the previously committed environment.
+pipecat-ai[sarvam]==0.0.108
+websockets==15.0.1
