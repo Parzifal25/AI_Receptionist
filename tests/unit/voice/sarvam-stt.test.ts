@@ -222,7 +222,7 @@ describe("SarvamSttProvider", () => {
   it("redacts credential-shaped text out of provider messages", async () => {
     const { events, harness } = open();
     await flush();
-    harness.last.emit({ event: "error", code: "provider", message: "rejected key [REDACTED_TEST_KEY]", is_fatal: false });
+    harness.last.emit({ event: "error", code: "provider", message: "rejected key 0123456789abcdefghijklmn", is_fatal: false });
     expect((events[0] as { message: string }).message).not.toContain("0123456789abcdefghijklmn");
     expect((events[0] as { message: string }).message).toContain("[redacted]");
   });
