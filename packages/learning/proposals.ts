@@ -1,4 +1,6 @@
 import "server-only";
+import { createHash } from "node:crypto";
+import { evaluateCandidate, type CandidateRunner, type EvaluationCase } from "./evaluation";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAgentConfig } from "@halo/core/domain/agents";
@@ -20,6 +22,20 @@ export class LearningProposals {
     if (error) throw new Error(`learning proposal: ${error.message}`);
     return data.id;
   }
+  /** Evaluates the stored immutable candidate, never caller-supplied content.
+   * The corpus digest binds recorded evidence to the exact checked cases. */
+  async runEvaluation(businessId: string, id: string, corpus: readonly EvaluationCase[], runner: CandidateRunner) {
+    const { data, error } = await this.db.from("learning_proposals")
+      .select("source_version_id,candidate_config,candidate_prompt").eq("business_id", businessId).eq("id", id).single();
+    if (error || !data) throw new Error("Learning candidate unavailable");
+    const config = parseAgentConfig(data.candidate_config);
+    if (!config) throw new Error("Invalid candidate configuration");
+    const result = await evaluateCandidate({ businessId, sourceVersionId: data.source_version_id, config, prompt: data.candidate_prompt }, corpus, runner);
+    const digest = createHash("sha256").update(JSON.stringify(corpus)).digest("hex");
+    await this.evaluate(businessId, id, `sha256:${digest}`, result.passed, result.total);
+    return result;
+  }
+
   async evaluate(businessId: string, id: string, corpus: string, passed: number, total: number): Promise<void> {
     const { error } = await this.db.rpc("evaluate_learning_proposal", { p_business_id: businessId, p_id: id,
       p_corpus: corpus, p_passed: passed, p_total: total });
