@@ -25,7 +25,7 @@ interface OpenAIChatResponse extends ProviderErrorBody {
     message?: { content?: string | null; tool_calls?: OpenAIToolCall[] };
     finish_reason?: string | null;
   }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
 }
 
 interface OpenAIStreamChunk extends ProviderErrorBody {
@@ -36,7 +36,7 @@ interface OpenAIStreamChunk extends ProviderErrorBody {
     };
     finish_reason?: string | null;
   }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number } | null;
+  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } | null;
 }
 
 function mapFinishReason(reason: string | null | undefined): LLMFinishReason | undefined {
@@ -182,7 +182,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
       httpStatus: response.status,
       usage:
         data.usage?.prompt_tokens !== undefined && data.usage?.completion_tokens !== undefined
-          ? { promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens }
+          ? { promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens, ...(data.usage.prompt_tokens_details?.cached_tokens !== undefined ? { cachedInputTokens: data.usage.prompt_tokens_details.cached_tokens } : {}) }
           : undefined,
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
       ...(mapFinishReason(choice?.finish_reason) ? { finishReason: mapFinishReason(choice?.finish_reason) } : {}),
@@ -216,7 +216,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
       if (chunk.usage?.prompt_tokens !== undefined && chunk.usage.completion_tokens !== undefined) {
         usage = {
           type: "usage",
-          usage: { promptTokens: chunk.usage.prompt_tokens, completionTokens: chunk.usage.completion_tokens },
+          usage: { promptTokens: chunk.usage.prompt_tokens, completionTokens: chunk.usage.completion_tokens, ...(chunk.usage.prompt_tokens_details?.cached_tokens !== undefined ? { cachedInputTokens: chunk.usage.prompt_tokens_details.cached_tokens } : {}) },
         };
       }
       const choice = chunk.choices?.[0];

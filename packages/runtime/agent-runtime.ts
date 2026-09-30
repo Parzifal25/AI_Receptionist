@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { classifyTurn } from "./turn-complexity";
 import type { ChatMessage } from "@halo/core/domain/types";
 import { AppError, isAppError } from "@halo/core/errors/app-error";
 import { isSubstantiveQuestion } from "@halo/knowledge/retrieval-query";
@@ -184,7 +185,10 @@ export class AgentRuntime {
     const startedAt = Date.now();
     const deadlineAt = startedAt + this.policy.turnTimeoutMs;
     const events = new TurnEvents(trusted, this.sink, this.clock);
-    const limits = this.policy.contextLimits;
+    const limits = { ...this.policy.contextLimits,
+      maxInputTokens: Math.min(this.policy.contextLimits.maxInputTokens, agent.config.budgets?.maxInputTokens ?? Infinity),
+      reservedOutputTokens: Math.min(this.policy.contextLimits.reservedOutputTokens, agent.config.budgets?.maxOutputTokens ?? Infinity),
+    };
     const userMessage = input.userMessage;
     const degraded: RuntimeDegradation = { provider: false, knowledge: false, state: false, systemActions: false };
     const capabilities = describeCapabilities(this.deps.llm);
@@ -227,6 +231,9 @@ export class AgentRuntime {
           conversationId: trusted.conversationId,
           error,
         });
+      }
+      if (agent.config.budgets?.maxTurns !== undefined && (degraded.state || state.turnCount >= agent.config.budgets.maxTurns)) {
+        throw AppError.conflict("Conversation turn budget exhausted or unavailable");
       }
       const history = conversationalHistory(
         await this.deps.conversations.loadHistory(trusted.conversationId, trusted.businessId, limits.maxHistoryFetch),
@@ -307,6 +314,7 @@ export class AgentRuntime {
       const selected = selectTools({
         registry: this.registry,
         grantedToolIds: agent.config.tools.grantedToolIds,
+        selectionByIntent: agent.config.tools.selectionByIntent,
         channel,
         providerSupportsTools: capabilities.tools,
         execution,
@@ -356,6 +364,9 @@ export class AgentRuntime {
       });
       const contextMs = Date.now() - contextStart - retrievalMs - actionsMs;
       const promptEstimate = estimateTokens(composed.text);
+      if (agent.config.budgets?.maxInputTokens !== undefined && context.budget.tokens.remainingTokens < 0) {
+        throw AppError.conflict("Required safety context exceeds agent input budget");
+      }
       events.emit("context.built", {
         recentMessages: context.recentMessages.length,
         summaryChars: context.summary.length,
@@ -375,6 +386,8 @@ export class AgentRuntime {
         tokenEstimator: promptEstimate.estimator,
         // The builder's own components, which is what the budget enforces on.
         contextTokensEstimated: context.budget.tokens.estimatedInputTokens,
+        ...Object.fromEntries(context.budget.tokens.components.map(c => [`${c.component}TokensEstimated`, c.estimatedTokens])),
+        sessionTokensEstimated: composed.sections.filter(s => s.id === "conversation_state").reduce((n, s) => n + estimateTokens(s.text).estimatedTokens, 0),
         totalChars: context.budget.totalChars,
         trimmed: context.budget.trimmed,
         latencyMs: contextMs,
@@ -402,8 +415,9 @@ export class AgentRuntime {
 
       // ---- bounded model / tool loop -----------------------------------------
       const modelOptions = {
+        routingTier: classifyTurn(userMessage, state, agent.config.routing),
         temperature: agent.model?.temperature ?? this.policy.defaultTemperature,
-        maxTokens: agent.model?.maxTokens ?? this.policy.defaultMaxTokens,
+        maxTokens: Math.min(agent.model?.maxTokens ?? this.policy.defaultMaxTokens, agent.config.budgets?.maxOutputTokens ?? Infinity),
       };
       const messages: LLMMessage[] = [...context.recentMessages, { role: "user", content: userMessage }];
       const offeredNames = context.tools.map((t) => t.name);
@@ -509,6 +523,7 @@ export class AgentRuntime {
           toolCalls: calls.length,
           inputTokens: invocation.usage.inputTokens ?? null,
           outputTokens: invocation.usage.outputTokens ?? null,
+          cachedInputTokens: invocation.usage.cachedInputTokens ?? null,
           finishReason: invocation.result.finishReason ?? null,
         });
 

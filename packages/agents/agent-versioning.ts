@@ -60,6 +60,9 @@ export class AgentVersioningService {
         versionId: agent.liveVersionId,
       });
     }
+    if (version.businessId !== agent.businessId || version.agentId !== agent.id || !version.publishedAt) {
+      throw AppError.conflict("Live version must be published and owned by this agent");
+    }
     return version;
   }
 

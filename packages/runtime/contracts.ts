@@ -484,6 +484,7 @@ export interface EscalationDecision {
 // ---------------------------------------------------------------------------
 
 export interface ModelCallUsage {
+  cachedInputTokens?: number;
   provider: string;
   model: string;
   purpose: "reply" | "tool_round" | "repair";

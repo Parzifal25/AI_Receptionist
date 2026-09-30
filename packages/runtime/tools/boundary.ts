@@ -58,6 +58,7 @@ export interface SelectToolsParams {
   channel: ChannelProfile;
   providerSupportsTools: boolean;
   execution: ToolExecutionContext;
+  selectionByIntent?: Record<string, string[]>;
 }
 
 export interface SelectedTools {
@@ -77,6 +78,12 @@ export function selectTools(params: SelectToolsParams): SelectedTools {
   const gated: string[] = [];
   const descriptors: ToolDescriptor[] = [];
   for (const name of granted) {
+    const intent = params.execution.state.intent;
+    const relevant = intent ? params.selectionByIntent?.[intent] : undefined;
+    if (relevant && !relevant.includes(name) && params.execution.state.pendingConfirmation?.toolName !== name) {
+      gated.push(name);
+      continue;
+    }
     const def = params.registry.definition(name)!;
     if (def.precondition && def.precondition(params.execution) !== null) {
       gated.push(name);

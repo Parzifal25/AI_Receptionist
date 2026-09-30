@@ -298,3 +298,19 @@ describe("tool boundary — multilingual confirmation (Phase 4.5 Sprint 2)", () 
     });
   });
 });
+
+it("narrows presentation for a configured intent without expanding grants", () => {
+  const selected = selectTools({ registry: registry({ request_human_handoff: okExecutor, save_contact_details: okExecutor }),
+    grantedToolIds: ["request_human_handoff"], channel: WEB_CHAT_PROFILE, providerSupportsTools: true,
+    execution: { ...execution, state: { ...execution.state, intent: "collect" } },
+    selectionByIntent: { collect: ["save_contact_details"] } });
+  expect(selected.descriptors).toEqual([]);
+});
+it("keeps a granted pending confirmation available even when intent changes", () => {
+  const selected = selectTools({ registry: registry({ save_contact_details: okExecutor }),
+    grantedToolIds: ["save_contact_details"], channel: WEB_CHAT_PROFILE, providerSupportsTools: true,
+    execution: { ...execution, state: { ...execution.state, intent: "other",
+      pendingConfirmation: { toolName: "save_contact_details", arguments: {}, requestedAt: "2026-09-30" } } },
+    selectionByIntent: { other: [] } });
+  expect(selected.descriptors.map(t => t.name)).toEqual(["save_contact_details"]);
+});

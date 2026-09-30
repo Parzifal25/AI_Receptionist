@@ -44,7 +44,7 @@ export interface InvokeModelParams {
   provider: LLMProvider;
   systemPrompt: string;
   messages: Array<ChatMessage | LLMMessage>;
-  options: Pick<LLMCompletionOptions, "temperature" | "maxTokens" | "jsonMode">;
+  options: Pick<LLMCompletionOptions, "temperature" | "maxTokens" | "jsonMode" | "routingTier">;
   /** Offered only when the provider declares native tool support. */
   tools?: LLMToolDescriptor[];
   /** Absolute deadline (epoch ms). The call is abandoned when it passes. */
@@ -134,6 +134,9 @@ async function consumeStream(
     else if (delta.type === "usage") usage = delta.usage;
     else if (delta.type === "route") route = delta.route;
     else if (delta.type === "done") { finishReason = delta.finishReason; httpStatus = delta.httpStatus; }
+  }
+  if (finishReason === undefined || finishReason === "length") {
+    throw AppError.provider("AI service returned an incomplete stream", { category: "provider_unavailable" });
   }
   if (!content.trim() && toolCalls.length === 0) {
     throw AppError.provider("AI service returned an empty response");
@@ -231,6 +234,7 @@ export function normalizeUsage(
           inputTokens: usage.promptTokens,
           outputTokens: usage.completionTokens,
           totalTokens: usage.promptTokens + usage.completionTokens,
+          ...(Number.isFinite(usage.cachedInputTokens) ? { cachedInputTokens: usage.cachedInputTokens } : {}),
         }
       : {}),
   };

@@ -42,6 +42,8 @@ export interface LLMToolDescriptor {
 }
 
 export interface LLMCompletionOptions {
+  /** Determined by HALO; never interpreted as commercial authority. */
+  routingTier?: "simple" | "medium" | "complex";
   temperature?: number;
   maxTokens?: number;
   /** When true, ask the model for a strict-JSON response if it supports it. */
@@ -96,6 +98,7 @@ export interface LLMRoute {
 export interface LLMUsage {
   promptTokens: number;
   completionTokens: number;
+  cachedInputTokens?: number;
 }
 
 export type LLMFinishReason = "stop" | "tool_calls" | "length" | "other";

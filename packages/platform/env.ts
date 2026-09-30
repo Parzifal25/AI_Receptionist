@@ -18,6 +18,8 @@ const serverEnvSchema = z.object({
   LLM_BASE_URL: z.string().url().optional(),
   GROQ_LLM_API_KEY: z.string().optional(),
   OPENROUTER_LLM_API_KEY: z.string().optional(),
+  /** JSON tier -> ordered {provider, model} list; credentials remain separate. */
+  HALO_MODEL_ROUTES: z.string().optional(),
 
   OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
   // CPU-hosted local models (the Ollama default) routinely take longer than

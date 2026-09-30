@@ -71,6 +71,8 @@ const voicePromptsSchema = z.object({
 });
 
 const voiceSchema = z.object({
+  /** Tenant-scoped deployment profile; contains no credentials or URLs. */
+  profileId: z.string().min(1).max(100).optional(),
   ttsVoice: z.string().optional(),
   speakingRate: z.number().min(0.5).max(2).optional(),
   bargeIn: z.boolean().default(true),
@@ -86,6 +88,18 @@ const voiceSchema = z.object({
   prompts: voicePromptsSchema.optional(),
 });
 
+const budgetsSchema = z.object({
+  maxTurns: z.int().min(1).max(1000).optional(),
+  maxInputTokens: z.int().min(256).max(128000).optional(),
+  maxOutputTokens: z.int().min(64).max(8192).optional(),
+});
+
+const routingSchema = z.object({
+  simplePhrases: z.array(z.string().min(1).max(80)).max(100).optional(),
+  complexPhrases: z.array(z.string().min(1).max(80)).max(100).optional(),
+  complexLength: z.int().min(100).max(4000).optional(),
+});
+
 const knowledgeSchema = z.object({
   // Empty = all tenant collections, preserving today's behaviour.
   collectionIds: z.array(z.string()).default([]),
@@ -95,6 +109,8 @@ const knowledgeSchema = z.object({
 const toolsSchema = z.object({
   grantedToolIds: z.array(z.string()).default([]),
   policy: z.record(z.string(), z.unknown()).default({}),
+  /** Narrow presentation for known deterministic intents; grants still authorize. */
+  selectionByIntent: z.record(z.string(), z.array(z.string()).max(32)).optional(),
 });
 
 const workflowsSchema = z.object({
@@ -147,6 +163,8 @@ export const agentConfigSchema = z.object({
   language: languageSchema.optional(),
   voice: voiceSchema.optional(),
   knowledge: knowledgeSchema.optional(),
+  routing: routingSchema.optional(),
+  budgets: budgetsSchema.optional(),
   tools: toolsSchema.optional(),
   workflows: workflowsSchema.optional(),
   guardrails: guardrailsSchema.optional(),
@@ -160,6 +178,8 @@ export interface AgentConfig {
   language: z.infer<typeof languageSchema>;
   voice: z.infer<typeof voiceSchema> & { prompts: z.infer<typeof voicePromptsSchema> };
   knowledge: z.infer<typeof knowledgeSchema>;
+  routing?: z.infer<typeof routingSchema>;
+  budgets?: z.infer<typeof budgetsSchema>;
   tools: z.infer<typeof toolsSchema>;
   workflows: z.infer<typeof workflowsSchema>;
   guardrails: z.infer<typeof guardrailsSchema>;
@@ -180,6 +200,8 @@ export function parseAgentConfig(raw: unknown): AgentConfig | null {
       prompts: voicePromptsSchema.parse(d.voice?.prompts ?? {}),
     },
     knowledge: knowledgeSchema.parse(d.knowledge ?? {}),
+    ...(d.routing ? { routing: d.routing } : {}),
+    ...(d.budgets ? { budgets: d.budgets } : {}),
     tools: toolsSchema.parse(d.tools ?? {}),
     workflows: workflowsSchema.parse(d.workflows ?? {}),
     guardrails: guardrailsSchema.parse(d.guardrails ?? {}),

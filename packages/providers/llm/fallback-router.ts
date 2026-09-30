@@ -7,7 +7,8 @@ import type {
 
 export interface ModelCandidate { provider: LLMProvider; model: string }
 
-const RETRYABLE = new Set(["timeout", "connection", "provider_5xx", "rate_limit", "provider_unavailable", "model_unavailable"]);
+const RETRYABLE = new Set(["timeout", "connection", "provider_5xx", "rate_limit", "provider_unavailable", "model_unavailable", "billing_limit"]);
+type Cooldown = { until: number; error: unknown; strikes: number };
 
 function failureCategory(error: unknown): string {
   if (isAppError(error) && error.code === "PROVIDER_ERROR") {
@@ -21,12 +22,14 @@ function failureCategory(error: unknown): string {
 export class FallbackLLMRouter implements LLMProvider {
   readonly name = "cloud";
   readonly managesRetries = true;
-  private readonly cooldowns = new Map<string, { until: number; error: unknown; strikes: number }>();
+  private readonly cooldowns: Map<string, Cooldown>;
 
   constructor(readonly candidates: readonly ModelCandidate[], private readonly backoff: {
     clock?: () => number; sleep?: (ms: number) => Promise<void>; maxWaitMs?: number;
+    cooldowns?: Map<string, Cooldown>;
   } = {}) {
     if (candidates.length === 0) throw new Error("LLM router requires a candidate");
+    this.cooldowns = backoff.cooldowns ?? new Map();
   }
 
   private now(): number { return (this.backoff.clock ?? Date.now)(); }
@@ -39,9 +42,9 @@ export class FallbackLLMRouter implements LLMProvider {
       if (typeof value === "number" || typeof value === "string") safe[key] = value;
     }
     if (typeof details?.status === "number") safe.httpStatus = details.status;
-    if (failureCategory(error) === "rate_limit") {
+    if (["rate_limit", "billing_limit"].includes(failureCategory(error))) {
       const strikes = (this.cooldowns.get(provider)?.strikes ?? 0) + 1;
-      const delay = Math.max(typeof details?.retryAfterMs === "number" ? details.retryAfterMs : 0,
+      const delay = Math.max(failureCategory(error) === "billing_limit" ? 300_000 : 0, typeof details?.retryAfterMs === "number" ? details.retryAfterMs : 0,
         Math.min(60_000, 1_000 * 2 ** Math.min(strikes - 1, 6)));
       this.cooldowns.set(provider, { until: this.now() + delay, error, strikes });
       safe.retryAfterMs = delay;
@@ -55,7 +58,7 @@ export class FallbackLLMRouter implements LLMProvider {
     const waitMs = cooldown ? Math.max(0, cooldown.until - this.now()) : 0;
     if (!cooldown || waitMs === 0) return null;
     if (waitMs > (this.backoff.maxWaitMs ?? 2_000) || this.now() + waitMs >= deadline) {
-      this.emit(options, { type: "skipped", ...this.base(index), failureCategory: "rate_limit", retryAfterMs: waitMs });
+      this.emit(options, { type: "skipped", ...this.base(index), failureCategory: failureCategory(cooldown.error), retryAfterMs: waitMs });
       return cooldown.error;
     }
     await (this.backoff.sleep ?? ((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms))))(waitMs);
