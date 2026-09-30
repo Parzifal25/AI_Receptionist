@@ -19,6 +19,10 @@ const BASE_ENV = {
 };
 
 describe("speech vendor selection", () => {
+  it("does not silently use fake speech on a real carrier", () => {
+    expect(() => loadGatewayConfig({ ...BASE_ENV, TELEPHONY_PROVIDER: "twilio", TWILIO_ACCOUNT_SID: "account", TWILIO_AUTH_TOKEN: "token" })).toThrow();
+  });
+
   it("defaults to the fakes, so an unconfigured deployment behaves exactly as before", () => {
     const config = loadGatewayConfig(BASE_ENV);
     expect(config.sttProvider).toBe("fake");
@@ -85,4 +89,15 @@ describe("speech vendor selection", () => {
     expect(() => createSttProvider({ provider: "sarvam" })).toThrow(/VOICE_STT_API_KEY/);
     expect(() => createTtsProvider({ provider: "sarvam", apiKey: "k" })).toThrow(/VOICE_TTS_DEFAULT_VOICE/);
   });
+});
+
+it("uses explicitly configured self-hosted fallback when cloud credentials are absent", () => {
+  const config = loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "sarvam", VOICE_TTS_PROVIDER: "sarvam",
+    VOICE_STT_FALLBACK_BASE_URL: "http://127.0.0.1:9900", VOICE_TTS_FALLBACK_BASE_URL: "http://127.0.0.1:9900" });
+  expect(createSttProvider({ provider: config.sttProvider, fallback: { provider: "self-hosted", baseUrl: config.sttFallbackBaseUrl } }).name).toBe("self-hosted-stt");
+  expect(createTtsProvider({ provider: config.ttsProvider, fallback: { provider: "self-hosted", baseUrl: config.ttsFallbackBaseUrl } }).name).toBe("self-hosted-tts");
+});
+it("requires a configured endpoint for self-hosted providers", () => {
+  expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "self-hosted" })).toThrow(/BASE_URL/);
+  expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_TTS_PROVIDER: "self-hosted" })).toThrow(/BASE_URL/);
 });

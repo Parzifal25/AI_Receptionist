@@ -27,6 +27,7 @@ import json
 import logging
 from typing import Optional, Union
 
+from pipecat.audio.dtmf.types import KeypadEntry
 from pipecat.frames.frames import (
     AudioRawFrame,
     CancelFrame,
@@ -40,7 +41,7 @@ from pipecat.frames.frames import (
 )
 from pipecat.serializers.base_serializer import FrameSerializer
 
-from halo_codec import WIRE_CHUNK_BYTES, pcm16_to_mulaw, mulaw_to_pcm16
+from halo_codec import WIRE_SAMPLE_RATE, WIRE_CHUNK_BYTES, pcm16_to_mulaw, mulaw_to_pcm16
 
 log = logging.getLogger("halo.serializer")
 
@@ -80,13 +81,15 @@ class HaloMediaSerializer(FrameSerializer):
             message = json.loads(data)
         except (json.JSONDecodeError, UnicodeDecodeError):
             return None
+        if not isinstance(message, dict):
+            return None
         event = message.get("event")
         if event == "media":
             payload = message.get("payload")
             if not isinstance(payload, str):
                 return None
             try:
-                audio = base64.b64decode(payload)
+                audio = base64.b64decode(payload, validate=True)
             except Exception:  # noqa: BLE001 - a bad frame is dropped, not fatal
                 return None
             if not audio:
@@ -104,7 +107,10 @@ class HaloMediaSerializer(FrameSerializer):
             digit = message.get("digit")
             if not isinstance(digit, str) or not digit:
                 return None
-            return InputDTMFFrame(digit)
+            try:
+                return InputDTMFFrame(KeypadEntry(digit))
+            except ValueError:
+                return None
         return None
 
     def _serialize_audio(self, audio: bytes) -> Optional[list[str]]:

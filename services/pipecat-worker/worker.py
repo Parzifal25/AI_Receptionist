@@ -56,12 +56,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams, VADState
 from pipecat.frames.frames import (
     Frame,
+    EndFrame,
     InputAudioRawFrame,
     InterruptionFrame,
     OutputAudioRawFrame,
@@ -76,6 +78,7 @@ from pipecat.pipeline.task import PipelineTask, PipelineParams, PipelineTaskPara
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.stt_service import STTService
 from pipecat.services.tts_service import TTSService
+from pipecat.services.settings import STTSettings, TTSSettings
 from websockets.asyncio.server import ServerConnection, serve
 
 from halo_client import HaloControlClient, Handlers, VoiceConfig
@@ -121,7 +124,7 @@ class FakeSTTService(STTService):
     DEFAULT_SCRIPT = ["\u0c28\u0c2e\u0c38\u0c4d\u0c15\u0c3e\u0c30\u0c02"]
 
     def __init__(self, *, script: Optional[list[str]] = None, **kwargs) -> None:
-        super().__init__(**kwargs)
+        super().__init__(settings=STTSettings(model=None, language=None), **kwargs)
         self._script = list(script if script is not None else self.DEFAULT_SCRIPT)
         self._index = 0
         self._active_text: Optional[str] = None
@@ -143,7 +146,7 @@ class FakeSTTService(STTService):
             text, self._active_text = self._active_text, None
 
             async def emit(text=text):
-                yield TranscriptionFrame(text=text, user_id="", language=None)
+                yield TranscriptionFrame(text=text, user_id="", timestamp=datetime.now(timezone.utc).isoformat(), language=None)
 
             await self.process_generator(emit())
 
@@ -159,7 +162,7 @@ class FakeTTSService(TTSService):
     """
 
     def __init__(self, **kwargs) -> None:
-        super().__init__(push_start_frame=True, push_stop_frames=True, **kwargs)
+        super().__init__(push_start_frame=True, push_stop_frames=True, settings=TTSSettings(model=None, voice=None, language=None), **kwargs)
 
     async def run_tts(self, text: str, context_id: str):
         import math
@@ -188,12 +191,24 @@ def _pipecat_language(code: Optional[str]):
         return None
 
 
-def _build_stt(voice: VoiceConfig, script: Optional[list[str]]):
-    """STT factory: real Sarvam when a key exists, the scripted fake otherwise."""
-    api_key = os.environ.get("SARVAM_API_KEY", "").strip()
-    if not api_key:
-        log.warning("SARVAM_API_KEY not set; using FAKE STT (scripted transcripts)")
+def _build_stt(voice: VoiceConfig, script: Optional[list[str]], profile=None):
+    """Deployment-selected speech; fake transcripts require explicit test mode."""
+    selected = (profile or {}).get("stt", {})
+    api_key = selected.get("apiKey", os.environ.get("SARVAM_API_KEY", "")).strip()
+    provider = selected.get("provider", os.environ.get("HALO_SPEECH_PROVIDER", "sarvam"))
+    if provider == "sarvam" and not api_key and selected.get("fallback"):
+        selected = selected["fallback"]
+        provider = selected.get("provider")
+        api_key = selected.get("apiKey", "")
+    if provider == "self-hosted":
+        from self_hosted_speech import SelfHostedSTT
+        return SelfHostedSTT(selected, voice.language, WIRE_SAMPLE_RATE)
+    if provider not in ("fake", "sarvam"):
+        raise RuntimeError("Unsupported STT profile provider")
+    if provider == "fake":
         return FakeSTTService(script=script)
+    if not api_key:
+        raise RuntimeError("Sarvam STT is not configured; fake speech is disabled")
     from pipecat.services.sarvam.stt import SarvamSTTService
 
     # input_audio_codec stays the SDK-typed default ("wav"); see the module
@@ -201,27 +216,40 @@ def _build_stt(voice: VoiceConfig, script: Optional[list[str]]):
     return SarvamSTTService(
         api_key=api_key,
         settings=SarvamSTTService.Settings(
-            model=os.environ.get("HALO_STT_MODEL", "saarika:v2.5"),
+            model=selected.get("model", os.environ.get("HALO_STT_MODEL", "saarika:v2.5")),
+            mode=selected.get("mode"),
             language=_pipecat_language(voice.language),
         ),
         sample_rate=WIRE_SAMPLE_RATE,
     )
 
 
-def _build_tts(voice: VoiceConfig):
-    """TTS factory: real Sarvam when a key exists, the beep fake otherwise."""
-    api_key = os.environ.get("SARVAM_API_KEY", "").strip()
-    if not api_key:
-        log.warning("SARVAM_API_KEY not set; using FAKE TTS (beep per chunk)")
+def _build_tts(voice: VoiceConfig, profile=None):
+    """Deployment-selected speech; synthetic tones require explicit test mode."""
+    selected = (profile or {}).get("tts", {})
+    api_key = selected.get("apiKey", os.environ.get("SARVAM_API_KEY", "")).strip()
+    provider = selected.get("provider", os.environ.get("HALO_SPEECH_PROVIDER", "sarvam"))
+    if provider == "sarvam" and not api_key and selected.get("fallback"):
+        selected = selected["fallback"]
+        provider = selected.get("provider")
+        api_key = selected.get("apiKey", "")
+    if provider == "self-hosted":
+        from self_hosted_speech import SelfHostedTTS
+        return SelfHostedTTS(selected, voice.language, voice.voice_id or selected.get("defaultSpeaker"), voice.speaking_rate, WIRE_SAMPLE_RATE)
+    if provider not in ("fake", "sarvam"):
+        raise RuntimeError("Unsupported TTS profile provider")
+    if provider == "fake":
         return FakeTTSService()
+    if not api_key:
+        raise RuntimeError("Sarvam TTS is not configured; fake speech is disabled")
     from pipecat.services.sarvam.tts import SarvamTTSService
 
     settings_kwargs: dict[str, Any] = {
-        "model": os.environ.get("HALO_TTS_MODEL", "bulbul:v2"),
+        "model": selected.get("model", os.environ.get("HALO_TTS_MODEL", "bulbul:v2")),
         "language": _pipecat_language(voice.language),
     }
-    if voice.voice_id:
-        settings_kwargs["voice"] = voice.voice_id
+    if voice.voice_id or selected.get("defaultSpeaker"):
+        settings_kwargs["voice"] = voice.voice_id or selected["defaultSpeaker"]
     if voice.speaking_rate:
         settings_kwargs["pace"] = float(voice.speaking_rate)
     return SarvamTTSService(
@@ -325,6 +353,7 @@ class HaloWorkerSession:
         self._reader_task: Optional[asyncio.Task] = None
         self._pacer_task: Optional[asyncio.Task] = None
         self._voice: Optional[VoiceConfig] = None
+        self._speech_profile = None
         self._ready: asyncio.Future = asyncio.get_event_loop().create_future()
         self._media_closed = asyncio.Event()
         self._send_lock = asyncio.Lock()
@@ -342,25 +371,26 @@ class HaloWorkerSession:
         self._serializer = HaloMediaSerializer(start_event=start_raw)
         self._start_params = dict(start_raw.get("parameters") or {})
         log.info(
-            "media start call=%s stream=%s from=%s to=%s",
+            "media start call=%s stream=%s",
             self._start_params.get("callId", ""),
             start_raw.get("streamId", ""),
-            self._start_params.get("from", ""),
-            self._start_params.get("to", ""),
         )
 
-        control_url = self._start_params.get("haloControlUrl", "")
-        if not control_url:
+        control_url = os.environ.get("HALO_CONTROL_URL", "")
+        requested_url = self._start_params.get("haloControlUrl", "")
+        if not control_url or requested_url != control_url:
             # Without a control plane there is nothing this worker may do:
             # no ready, no speak commands, no tenant content. Dead air and an
             # honest log are the only correct behaviour.
-            log.error("no haloControlUrl in start parameters; session cannot start")
+            log.error("media control URL does not match trusted HALO_CONTROL_URL; refusing session")
             return
 
         try:
             await self._run_session(str(control_url))
         except Exception:
             log.exception("session crashed")
+            if self._control:
+                await self._control.error("pipeline", "configuration_or_provider_failure", False)
         finally:
             await self._teardown()
 
@@ -416,8 +446,8 @@ class HaloWorkerSession:
             [
                 MediaSource(),
                 VadRunner(_build_vad(voice)),
-                _build_stt(voice, script=None),
-                _build_tts(voice),
+                _build_stt(voice, script=None, profile=self._speech_profile),
+                _build_tts(voice, profile=self._speech_profile),
                 self._gate,
                 self._sink,
             ]
@@ -454,7 +484,8 @@ class HaloWorkerSession:
             return_when=asyncio.FIRST_COMPLETED,
         )
         for task in pending:
-            task.cancel()
+            if task is not run_task:
+                task.cancel()
 
         # Graceful pipeline stop, then hard cancel as a backstop.
         if not run_task.done():
@@ -468,6 +499,13 @@ class HaloWorkerSession:
     # -- control-plane handlers (delegating to the gate) ---------------------
 
     async def _on_ready(self, identity, voice: VoiceConfig) -> None:
+        if voice.profile_id:
+            import json
+            profiles = json.loads(os.environ.get("VOICE_PROFILES_JSON", "{}"))
+            profile = profiles.get(identity.tenant_id, {}).get(voice.profile_id)
+            if not isinstance(profile, dict) or profile.get("sampleRate") != WIRE_SAMPLE_RATE:
+                raise RuntimeError("Tenant speech profile unavailable for transport")
+            self._speech_profile = profile
         if not self._ready.done():
             self._ready.set_result(voice)
         if self._gate is not None:
@@ -499,7 +537,7 @@ class HaloWorkerSession:
                 if frame is not None and self._task is not None:
                     await self._task.queue_frame(frame)
         except Exception:
-            log.info("media socket closed")
+            log.exception("media reader failed")
         finally:
             self._media_closed.set()
 

@@ -161,6 +161,7 @@ export interface VoiceSessionIdentity {
  * over the wire as a `speak` command at the moment it is due.
  */
 export interface RemoteVoiceConfig {
+  profileId?: string;
   language: string;
   alternativeLanguages: string[];
   phraseHints: string[];

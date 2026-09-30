@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from halo_client import SpeakRequest
 from media_gate import MediaGate
+from pipecat.audio.dtmf.types import KeypadEntry
 from pipecat.frames.frames import (
     ErrorFrame,
     InputAudioRawFrame,
@@ -26,7 +27,7 @@ from pipecat.frames.frames import (
     InterimTranscriptionFrame,
     StartFrame,
     TTSAudioRawFrame,
-    TTSTextFrame,
+    TTSSpeakFrame,
     TTSStartedFrame,
     TTSStoppedFrame,
     TranscriptionFrame,
@@ -156,7 +157,7 @@ class MediaGateTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_dtmf_digit_is_forwarded(self):
         await self.gate.process_frame(
-            InputDTMFFrame(button="5"), FrameDirection.DOWNSTREAM
+            InputDTMFFrame(button=KeypadEntry.FIVE), FrameDirection.DOWNSTREAM
         )
         dtmf = self.sent("dtmf")
         self.assertEqual(1, len(dtmf))
@@ -184,7 +185,7 @@ class MediaGateTests(unittest.IsolatedAsyncioTestCase):
         # FIFO order the real service guarantees — text frame (echoing its
         # generated context), start, audio..., stop, then the next context.
         await self._drain(0.05)
-        tts_text = next(f for f in self.task.frames if isinstance(f, TTSTextFrame))
+        tts_text = next(f for f in self.task.frames if isinstance(f, TTSSpeakFrame))
         self.assertEqual("ఒక", tts_text.text)
 
         # Feed context A (service-generated id) fully, then context B.

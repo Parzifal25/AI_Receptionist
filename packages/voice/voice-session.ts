@@ -77,6 +77,7 @@ export interface VoiceSessionConfig {
   language: string;
   alternativeLanguages: string[];
   phraseHints: string[];
+  profileId?: string;
   voiceId?: string;
   speakingRate?: number;
   prompts: VoicePrompts;

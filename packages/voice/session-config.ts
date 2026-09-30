@@ -34,6 +34,7 @@ export function buildSessionConfig(agentConfig: AgentConfig, overrides: Partial<
     language: agentConfig.language.primary || "en",
     alternativeLanguages: agentConfig.language.fallbacks.slice(0, 4),
     phraseHints: voice.phraseHints,
+    ...(voice.profileId ? { profileId: voice.profileId } : {}),
     ...(voice.ttsVoice ? { voiceId: voice.ttsVoice } : {}),
     ...(voice.speakingRate ? { speakingRate: voice.speakingRate } : {}),
     prompts: {

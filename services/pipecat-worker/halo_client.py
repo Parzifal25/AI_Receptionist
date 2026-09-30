@@ -82,6 +82,7 @@ class VoiceConfig:
     barge_in_enabled: bool
     barge_in_min_speech_ms: int
     max_call_duration_ms: int
+    profile_id: Optional[str] = None
     voice_id: Optional[str] = None
     speaking_rate: Optional[float] = None
 
@@ -98,6 +99,7 @@ class VoiceConfig:
             barge_in_enabled=bool(barge.get("enabled", True)),
             barge_in_min_speech_ms=int(barge.get("minSpeechMs", 250)),
             max_call_duration_ms=int(payload.get("maxCallDurationMs", 900_000)),
+            profile_id=payload.get("profileId"),
             voice_id=payload.get("voiceId"),
             speaking_rate=payload.get("speakingRate"),
         )

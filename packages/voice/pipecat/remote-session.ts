@@ -169,6 +169,7 @@ export class RemoteVoiceSession implements VoiceMediaSession {
       language: this.config.language,
       alternativeLanguages: this.config.alternativeLanguages,
       phraseHints: this.config.phraseHints.slice(0, 50),
+      ...(this.config.profileId ? { profileId: this.config.profileId } : {}),
       ...(this.config.voiceId ? { voiceId: this.config.voiceId } : {}),
       ...(this.config.speakingRate ? { speakingRate: this.config.speakingRate } : {}),
       vad: { minSpeechMs: this.config.endpointer.minSpeechMs, endHangoverMs: this.config.endpointer.endHangoverMs },

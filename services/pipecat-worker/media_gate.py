@@ -28,23 +28,9 @@ The three rules a worker must not break (services/pipecat-worker/README.md):
      watchdog exists to survive — and `playback_stopped` carries an honest
      reason.
 
-Why TTSTextFrame and not TTSSpeakFrame: TTSSpeakFrame synthesises the whole
-text in ONE TTS context, so one audio stream covers N HALO chunks with no way
-to attribute a played span to the chunk whose acknowledgement it should carry.
-TTSTextFrame produces one audio context per chunk — the context boundary IS
-the chunk boundary — so playback attribution stays exact end to end.
-
-How attribution actually works (pipecat 0.0.108): the TTSService generates
-its own context id for every aggregated text it receives (it overwrites the
-context_id of the incoming TTSTextFrame), emits an AggregatedTextFrame and a
-TTSStartedFrame carrying that id, then the TTSAudioRawFrames of that context
-and finally a TTSStoppedFrame. Contexts are serialised strictly FIFO by the
-service, so ONE AT A TIME the gate binds "the next chunk of the active
-playback" to the FIRST TTSStartedFrame it has not seen yet, counts that
-context's audio, and settles the chunk when the context's TTSStoppedFrame
-passes through. A chunk that synthesises to silence never produces a context
-at all; the gate detects that via the chunk-start timeout and reports it as
-failed instead of hanging the speak loop.
+Each HALO chunk is queued as TTSSpeakFrame. Pipecat owns synthesis and
+context completion; HALO owns the already-validated text. A TTSTextFrame is
+an OUTPUT frame and bypasses the normal speech-request completion path.
 """
 
 from __future__ import annotations
@@ -62,7 +48,7 @@ from pipecat.frames.frames import (
     InterruptionFrame,
     InterimTranscriptionFrame,
     TTSAudioRawFrame,
-    TTSTextFrame,
+    TTSSpeakFrame,
     TTSStartedFrame,
     TTSStoppedFrame,
     TranscriptionFrame,
@@ -90,7 +76,7 @@ class MediaGate(FrameProcessor):
     """Pipeline processor and control-plane handler in one object.
 
     `bind_task()` must be called with the PipelineTask before the first
-    `speak`, so the gate can queue TTSTextFrames into the running pipeline.
+    `speak`, so the gate can queue TTSSpeakFrames into the running pipeline.
     """
 
     def __init__(self, client: HaloControlClient, **kwargs) -> None:
@@ -300,7 +286,7 @@ class MediaGate(FrameProcessor):
                 playback.settled = True
                 return
 
-            # ONE TTSTextFrame per HALO chunk. The TTS service assigns its own
+            # ONE TTSSpeakFrame per HALO chunk. The TTS service assigns its own
             # context id; the gate binds it to this chunk when the context's
             # TTSStartedFrame passes through (strict FIFO: one at a time).
             # Arm FIRST, queue SECOND: the loop is idle until the wait, so a
@@ -309,9 +295,7 @@ class MediaGate(FrameProcessor):
             playback.awaiting_context = True
             playback.context_id = None
             playback.chunk_event = asyncio.Event()
-            # `aggregated_by` is a required field of AggregatedTextFrame; the
-            # value only labels the frame — one TTSTextFrame is one context.
-            await self._task.queue_frame(TTSTextFrame(text=chunk, aggregated_by="sentence"))
+            await self._task.queue_frame(TTSSpeakFrame(text=chunk, append_to_context=False))
 
             try:
                 await asyncio.wait_for(playback.chunk_event.wait(), timeout=CHUNK_START_TIMEOUT_S)

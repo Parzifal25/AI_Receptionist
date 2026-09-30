@@ -32,6 +32,7 @@ import random
 import struct
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -148,6 +149,9 @@ SESSION = {
 
 class WorkerE2E(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
+        self.worker_env = patch.dict(os.environ, {"HALO_CONTROL_URL": f"ws://127.0.0.1:{MEDIA_PORT + 1}/pipecat/control", "HALO_SPEECH_PROVIDER": "fake"})
+        self.worker_env.start()
+        self.addCleanup(self.worker_env.stop)
         import worker as worker_module
         from websockets.asyncio.server import serve
 
@@ -234,10 +238,13 @@ class WorkerE2E(unittest.IsolatedAsyncioTestCase):
             drive = asyncio.create_task(self._drive_carrier(media))
             deadline = asyncio.get_running_loop().time() + 20.0
             while asyncio.get_running_loop().time() < deadline:
-                if any(
-                    m.get("type") == "playback" and m.get("phase") == "stopped"
-                    for m in self.control_messages
-                ):
+                # Playback and VAD run independently. Wait for BOTH before
+                # closing the carrier; fast fake synthesis can finish before
+                # the executor has processed the queued inbound audio.
+                if (any(m.get("type") == "playback" and m.get("phase") == "stopped"
+                        for m in self.control_messages)
+                    and any(m.get("type") == "transcript" and m.get("final")
+                            for m in self.control_messages)):
                     break
                 await asyncio.sleep(0.1)
             drive.cancel()
