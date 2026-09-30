@@ -355,6 +355,62 @@ expectCount(
   "admin can create an agent in own tenant",
 );
 
+// Generic lead lifecycle: real roles, ownership, idempotency and terminal state.
+const customerA = "cccccccc-cccc-cccc-cccc-aaaaaaaaaaaa";
+psql(asService(`insert into customers(id,business_id,name) values ('${customerA}','${bizA}','Example');
+select transition_lead('${bizA}','${customerA}','event-1','CONTACTING','campaign');
+select transition_lead('${bizA}','${customerA}','event-1','CONTACTING','campaign');`));
+expectCount(asUser(uA, `select count(*) from lead_state_events;`), 1, "lead event delivery is idempotent");
+expectCount(asUser(uB, `select count(*) from lead_state_events;`), 0, "lead audit tenant isolation");
+expectError(asUser(uA, `select transition_lead('${bizA}','${customerA}','forged','LOST','forged');`), "members cannot execute lead transitions");
+expectError(asService(`select transition_lead('${bizB}','${customerA}','foreign','LOST','foreign');`), "lead transition checks ownership even for service role");
+expectError(asService(`select transition_lead('${bizA}','${customerA}','event-1','LOST','conflict');`), "lead idempotency key cannot change meaning");
+psql(asService(`select transition_lead('${bizA}','${customerA}','dnc','DO_NOT_CONTACT','requested');`));
+expectError(asService(`update customers set lead_state='CONTACTING' where id='${customerA}';`), "DNC cannot be resurrected by direct SQL");
+
+// Campaign isolation and queue safety use the same real-role fixture.
+const campaignA = "dddddddd-dddd-dddd-dddd-aaaaaaaaaaaa";
+const contactA = "eeeeeeee-eeee-eeee-eeee-aaaaaaaaaaaa";
+const callableA = "cccccccc-cccc-cccc-cccc-aaaaaaaaaaab";
+psql(asService(`
+insert into customers(id,business_id,name,phone) values ('${callableA}','${bizA}','Callable','+15551230001');
+insert into campaigns(id,business_id,agent_id,agent_version_id,phone_number_id,name,state,weekdays,start_minute,end_minute)
+values ('${campaignA}','${bizA}',${agentOf(bizA)},${versionOf(bizA)},(select id from phone_numbers where business_id='${bizA}' limit 1),'Enrollment','active','{0,1,2,3,4,5,6}',0,1440);
+insert into campaign_contacts(id,business_id,campaign_id,customer_id,consent_at)
+values ('${contactA}','${bizA}','${campaignA}','${callableA}',now());
+`));
+for (const table of ['campaigns','campaign_contacts','campaign_events']) {
+ expectCount(asUser(uB, `select count(*) from ${table} where business_id='${bizA}';`), 0, `${table} tenant isolation`);
+ expectCount(asAnon(`select count(*) from ${table};`), 0, `${table} anonymous isolation`);
+}
+expectError(asService(`insert into campaign_contacts(business_id,campaign_id,customer_id,consent_at) values('${bizB}','${campaignA}','${callableA}',now());`), 'campaign cross-tenant foreign keys');
+expectError(asUser(uA, `select * from claim_campaign_contacts('${bizA}','${campaignA}',1);`), 'members cannot dispatch campaigns');
+expectCount(asService(`select count(*) from claim_campaign_contacts('${bizB}','${campaignA}',1);`), 0, 'foreign tenant cannot claim');
+expectCount(asService(`select count(*) from claim_campaign_contacts('${bizA}','${campaignA}',1);`), 1, 'eligible contact claimed');
+expectCount(asService(`select count(*) from claim_campaign_contacts('${bizA}','${campaignA}',1);`), 0, 'duplicate dispatch does not dial again');
+psql(asService(`select settle_campaign_contact('${bizA}','${contactA}',1,'accepted',false,'call-one');
+select complete_campaign_contact('${bizA}','${contactA}',1,'call-one','callback_requested',now()+interval '1 hour');
+select complete_campaign_contact('${bizA}','${contactA}',1,'call-one','callback_requested',now()+interval '2 hours');`));
+expectCount(asService(`select count(*) from campaign_events where contact_id='${contactA}' and type='followup_created';`), 1, 'duplicate outcomes create one follow-up');
+expectError(asService(`select complete_campaign_contact('${bizA}','${contactA}',2,'call-one','qualified',null);`), 'stale campaign attempt rejected');
+psql(asService(`select transition_lead('${bizA}','${callableA}','stop','DO_NOT_CONTACT','requested'); update campaign_contacts set due_at=now() where id='${contactA}';`));
+expectCount(asService(`select count(*) from claim_campaign_contacts('${bizA}','${campaignA}',1);`), 0, 'DNC lead never recontacted');
+
+// Controlled learning cannot rewrite or publish production versions.
+const proposalA = "ffffffff-ffff-ffff-ffff-aaaaaaaaaaaa";
+psql(asService(`insert into learning_proposals(id,business_id,source_version_id,proposal_key,rationale,candidate_config,candidate_prompt)
+values('${proposalA}','${bizA}',${versionOf(bizA)},'review-1','Improve clarity','{}','Candidate prompt');`));
+expectCount(asUser(uB, `select count(*) from learning_proposals;`), 0, 'learning proposals are tenant isolated');
+expectError(asUser(uA, `select review_learning_proposal('${bizA}','${proposalA}',true);`), 'unevaluated proposal cannot be approved');
+expectError(asUser(uA, `select evaluate_learning_proposal('${bizA}','${proposalA}','corpus',1,1);`), 'reviewer cannot forge evaluation');
+psql(asService(`select evaluate_learning_proposal('${bizA}','${proposalA}','generic-corpus-v1',2,2);`));
+expectError(asUser(uC, `select review_learning_proposal('${bizA}','${proposalA}',true);`), 'ordinary member cannot approve learning');
+expectError(asUser(uB, `select review_learning_proposal('${bizA}','${proposalA}',true);`), 'foreign admin cannot approve learning');
+psql(asUser(uA, `select review_learning_proposal('${bizA}','${proposalA}',true); select review_learning_proposal('${bizA}','${proposalA}',true);`));
+expectCount(asUser(uA, `select count(*) from learning_proposals p join agent_versions v on v.id=p.draft_version_id where p.id='${proposalA}' and v.published_at is null;`), 1, 'approval creates one unpublished draft');
+expectCount(asUser(uA, `select count(*) from learning_proposals p join agents a on a.live_version_id=p.draft_version_id where p.id='${proposalA}';`), 0, 'learning never changes live version');
+expectError(asService(`update learning_proposals set candidate_prompt='Changed after evaluation' where id='${proposalA}';`), 'evaluated proposal content is immutable');
+
 if (failures > 0) {
   console.error(`\ncheck-rls FAILED with ${failures} assertion(s).`);
   process.exit(1);
