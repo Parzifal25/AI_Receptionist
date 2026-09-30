@@ -282,7 +282,9 @@ class WorkerE2E(unittest.IsolatedAsyncioTestCase):
             # close ends this loop.
             while True:
                 try:
-                    await ws.recv()
+                    response = json.loads(await ws.recv())
+                    if response.get("event") == "mark":
+                        await ws.send(json.dumps(response))
                 except asyncio.TimeoutError:
                     continue
                 except Exception:

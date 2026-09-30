@@ -54,6 +54,7 @@ loop over real WebSockets with fake vendors).
 from __future__ import annotations
 
 import asyncio
+from uuid import uuid4
 import logging
 import os
 from datetime import datetime, timezone
@@ -354,6 +355,8 @@ class HaloWorkerSession:
         self._pacer_task: Optional[asyncio.Task] = None
         self._voice: Optional[VoiceConfig] = None
         self._speech_profile = None
+        self._audio_generation = 0
+        self._playout_marks = {}
         self._ready: asyncio.Future = asyncio.get_event_loop().create_future()
         self._media_closed = asyncio.Event()
         self._send_lock = asyncio.Lock()
@@ -361,15 +364,19 @@ class HaloWorkerSession:
     async def run(self) -> None:
         """Accept the media socket, run one session, clean up after it."""
         try:
-            start_raw = await asyncio.wait_for(self._recv_json(), timeout=START_TIMEOUT_S)
+            start_raw = await asyncio.wait_for(self._recv_start(), timeout=START_TIMEOUT_S)
         except asyncio.TimeoutError:
             log.warning("media socket sent no start event; dropping")
             return
         if not isinstance(start_raw, dict) or start_raw.get("event") != "start":
             log.warning("first media frame was not `start`; dropping")
             return
-        self._serializer = HaloMediaSerializer(start_event=start_raw)
-        self._start_params = dict(start_raw.get("parameters") or {})
+        try:
+            self._serializer = HaloMediaSerializer(start_event=start_raw)
+        except ValueError:
+            log.warning("invalid carrier start frame; refusing session")
+            return
+        self._start_params = dict(self._serializer.parameters)
         log.info(
             "media start call=%s stream=%s",
             self._start_params.get("callId", ""),
@@ -395,6 +402,12 @@ class HaloWorkerSession:
             await self._teardown()
 
     # -- handshakes ---------------------------------------------------------
+
+    async def _recv_start(self) -> Any:
+        frame = await self._recv_json()
+        if isinstance(frame, dict) and frame.get("event") == "connected":
+            frame = await self._recv_json()
+        return frame
 
     async def _recv_json(self) -> Any:
         import json
@@ -430,6 +443,7 @@ class HaloWorkerSession:
             worker="pipecat-halo-worker",
         )
         self._gate = MediaGate(self._control)
+        self._gate.set_playout_waiter(self._wait_for_playout)
 
         control_task = asyncio.create_task(self._control.run())
         try:
@@ -533,6 +547,23 @@ class HaloWorkerSession:
                     continue  # the protocol is text frames only
                 if self._serializer is None:
                     continue
+                import json
+                try:
+                    message = json.loads(raw)
+                except (ValueError, TypeError):
+                    continue
+                if not isinstance(message, dict):
+                    continue
+                if self._serializer.twilio and message.get("streamSid") != self._serializer.stream_id:
+                    continue
+                if message.get("event") == "stop":
+                    return
+                name = self._serializer.decode_mark(message)
+                if name:
+                    pending = self._playout_marks.get(name)
+                    if pending is not None and not pending.done():
+                        pending.set_result(True)
+                    continue
                 frame = await self._serializer.deserialize(raw)
                 if frame is not None and self._task is not None:
                     await self._task.queue_frame(frame)
@@ -552,7 +583,12 @@ class HaloWorkerSession:
         try:
             while True:
                 frame = await self._sink.outgoing.get()
-                if isinstance(frame, OutputAudioRawFrame):
+                if isinstance(frame, tuple) and frame[0] == "halo_mark":
+                    _, name, generation = frame
+                    if generation == self._audio_generation and name in self._playout_marks and self._serializer:
+                        async with self._send_lock:
+                            await self._socket.send(self._serializer.encode_mark(name))
+                elif isinstance(frame, OutputAudioRawFrame):
                     await self._send_audio(frame)
                 else:
                     # Non-audio frames are pipeline-internal, with one
@@ -574,8 +610,23 @@ class HaloWorkerSession:
         except asyncio.CancelledError:
             pass
 
+    async def _wait_for_playout(self, playback_id: str, chunk_index: int) -> bool:
+        name = "halo-" + uuid4().hex
+        future = asyncio.get_running_loop().create_future()
+        self._playout_marks[name] = future
+        self._sink.outgoing.put_nowait(("halo_mark", name, self._audio_generation))
+        try:
+            return await asyncio.wait_for(future, timeout=45)
+        finally:
+            self._playout_marks.pop(name, None)
+
     def _drop_buffered_audio(self) -> None:
-        """Drop audio already queued but not yet sent (barge-in cut)."""
+        """Cut queued AND currently paced audio; invalidate all pending marks."""
+        self._audio_generation += 1
+        for future in self._playout_marks.values():
+            if not future.done():
+                future.set_result(False)
+        self._playout_marks.clear()
         while True:
             try:
                 stale = self._sink.outgoing.get_nowait()
@@ -594,7 +645,10 @@ class HaloWorkerSession:
             return
         if not messages:
             return
+        generation = self._audio_generation
         for message in messages:
+            if generation != self._audio_generation:
+                return
             try:
                 async with self._send_lock:
                     await self._socket.send(message)

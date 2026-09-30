@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { validateProductionReadiness } from "../src/lib/startup-check";
 
 /**
@@ -10,6 +11,8 @@ import { validateProductionReadiness } from "../src/lib/startup-check";
  * skipped: the report always says so.
  */
 async function main() {
+  // Match Next.js local configuration without overriding exported CI settings.
+  if (existsSync(".env.local")) process.loadEnvFile(".env.local");
   const skipDbCheck = process.argv.includes("--skip-db-check");
 
   console.log("🚀 Starting Production Preflight Check...\n");
@@ -41,7 +44,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("✅ All checks passed. Ready for production.");
+  console.log("✅ Configuration checks passed. Provider, database and deployment readiness require their separate verification gates.");
 }
 
 main().catch((err) => {

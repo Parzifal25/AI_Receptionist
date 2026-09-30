@@ -18,3 +18,18 @@ class SerializerTests(unittest.IsolatedAsyncioTestCase):
     async def test_malformed_frames_are_ignored(self):
         for value in ["[]", "null", '"text"', '{"event":"media","payload":"!"}']:
             self.assertIsNone(await HaloMediaSerializer().deserialize(value))
+
+    async def test_twilio_wire_envelope_and_call_binding(self):
+        start = {"event": "start", "start": {"streamSid": "MZ-test", "callSid": "CA-test",
+            "customParameters": {"callId": "CA-test"},
+            "mediaFormat": {"encoding": "audio/x-mulaw", "sampleRate": 8000, "channels": 1}}}
+        serializer = HaloMediaSerializer(start_event=start)
+        frame = await serializer.deserialize(json.dumps({"event": "media", "streamSid": "MZ-test", "media": {"payload": "/w=="}}))
+        self.assertEqual(frame.audio, bytes([0, 0]))
+        self.assertIsNone(await serializer.deserialize(json.dumps({"event": "media", "streamSid": "other", "media": {"payload": "/w=="}})))
+        output = json.loads(serializer._serialize_audio(bytes([0, 0]))[0])
+        self.assertEqual(output, {"event": "media", "streamSid": "MZ-test", "media": {"payload": "/w=="}})
+        self.assertEqual(json.loads(serializer.encode_mark("played"))["mark"], {"name": "played"})
+        start["start"]["callSid"] = "other"
+        with self.assertRaises(ValueError):
+            HaloMediaSerializer(start_event=start)

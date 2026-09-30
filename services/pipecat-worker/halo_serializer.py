@@ -57,7 +57,18 @@ class HaloMediaSerializer(FrameSerializer):
         super().__init__(**kwargs)
         self._start_event = start_event or {}
         # The stream id the provider handed us, needed on outbound frames.
-        self.stream_id: str = str(self._start_event.get("streamId", ""))
+        self.twilio = isinstance(self._start_event.get("start"), dict)
+        start = self._start_event.get("start", {}) if self.twilio else self._start_event
+        self.stream_id = str(start.get("streamSid", "") if self.twilio else start.get("streamId", ""))
+        self.parameters = start.get("customParameters", {}) if self.twilio else start.get("parameters", {})
+        if not isinstance(self.parameters, dict):
+            raise ValueError("Invalid media start parameters")
+        if self.twilio:
+            fmt = start.get("mediaFormat", {})
+            if fmt != {"encoding": "audio/x-mulaw", "sampleRate": WIRE_SAMPLE_RATE, "channels": 1}:
+                raise ValueError("Unsupported carrier audio format")
+            if not self.stream_id or start.get("callSid") != self.parameters.get("callId"):
+                raise ValueError("Carrier call identity mismatch")
 
     async def setup(self, frame: StartFrame):
         pass
@@ -69,7 +80,7 @@ class HaloMediaSerializer(FrameSerializer):
             return None
         if isinstance(frame, InterruptionFrame):
             # Barge-in: tell the carrier to drop its playout buffer.
-            return json.dumps({"event": "clear"})
+            return json.dumps({"event": "clear", **({"streamSid": self.stream_id} if self.twilio else {})})
         if isinstance(frame, OutputAudioRawFrame):
             return self._serialize_audio(frame.audio)
         return None
@@ -83,9 +94,12 @@ class HaloMediaSerializer(FrameSerializer):
             return None
         if not isinstance(message, dict):
             return None
+        if self.twilio and message.get("streamSid") != self.stream_id:
+            return None
         event = message.get("event")
         if event == "media":
-            payload = message.get("payload")
+            nested = message.get("media", {}) if self.twilio else message
+            payload = nested.get("payload") if isinstance(nested, dict) else None
             if not isinstance(payload, str):
                 return None
             try:
@@ -104,7 +118,8 @@ class HaloMediaSerializer(FrameSerializer):
                 sample_rate=WIRE_SAMPLE_RATE,
             )
         if event == "dtmf":
-            digit = message.get("digit")
+            nested = message.get("dtmf", {}) if self.twilio else message
+            digit = nested.get("digit") if isinstance(nested, dict) else None
             if not isinstance(digit, str) or not digit:
                 return None
             try:
@@ -129,7 +144,8 @@ class HaloMediaSerializer(FrameSerializer):
         mulaw = pcm16_to_mulaw(audio)
         return [
             json.dumps(
-                {"event": "media", "payload": base64.b64encode(mulaw[i : i + WIRE_CHUNK_BYTES]).decode("utf-8")}
+                ({"event": "media", "streamSid": self.stream_id, "media": {"payload": base64.b64encode(mulaw[i : i + WIRE_CHUNK_BYTES]).decode("utf-8")}}
+                 if self.twilio else {"event": "media", "payload": base64.b64encode(mulaw[i : i + WIRE_CHUNK_BYTES]).decode("utf-8")})
             )
             for i in range(0, len(mulaw), WIRE_CHUNK_BYTES)
         ]
@@ -138,11 +154,12 @@ class HaloMediaSerializer(FrameSerializer):
     # frame type for "the chunk left the earpiece", so the session reports
     # marks itself (see media_gate.py) rather than asking the serializer.
     def encode_mark(self, name: str) -> str:
-        return json.dumps({"event": "mark", "name": name})
+        return json.dumps({"event": "mark", "streamSid": self.stream_id, "mark": {"name": name}} if self.twilio else {"event": "mark", "name": name})
 
     @staticmethod
     def decode_mark(message: dict) -> Optional[str]:
         if message.get("event") != "mark":
             return None
-        name = message.get("name")
+        nested = message.get("mark", message)
+        name = nested.get("name") if isinstance(nested, dict) else None
         return name if isinstance(name, str) else None

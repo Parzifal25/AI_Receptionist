@@ -22,11 +22,9 @@ The three rules a worker must not break (services/pipecat-worker/README.md):
      is used for correlation in logs only.
   2. It never speaks a line HALO did not send. Every synthesis starts from a
      `speak` command; the gate queues nothing else and invents nothing.
-  3. It reports what the caller actually heard. `chunk_played` is emitted as
-     each chunk's audio leaves the TTS towards the transport — a strict
-     over-report of what has left the earpiece, which HALO's playback
-     watchdog exists to survive — and `playback_stopped` carries an honest
-     reason.
+  3. The production worker binds a playout waiter: `chunk_played` is emitted
+     only after the carrier acknowledges a mark queued after the chunk audio.
+     Interrupted and stale marks do not acknowledge unplayed speech.
 
 Each HALO chunk is queued as TTSSpeakFrame. Pipecat owns synthesis and
 context completion; HALO owns the already-validated text. A TTSTextFrame is
@@ -85,6 +83,7 @@ class MediaGate(FrameProcessor):
         self._task: Any = None
         self._closed = False
         self._completion_callback = None
+        self._playout_waiter = None
         # Called when a playback is cut (barge-in / stop_playback): the media
         # writer uses this to drop already-buffered audio out-of-band, the
         # same contract pipecat's websocket output transport implements.
@@ -120,6 +119,10 @@ class MediaGate(FrameProcessor):
     def bind_task(self, task: Any) -> None:
         """Give the gate a PipelineTask so it can queue frames into the pipeline."""
         self._task = task
+
+    def set_playout_waiter(self, callback) -> None:
+        """Wait for the transport/carrier to acknowledge a fully sent chunk."""
+        self._playout_waiter = callback
 
     def set_completion_callback(self, callback) -> None:
         """Called with no arguments when the session ends (hangup or failure)."""
@@ -319,9 +322,12 @@ class MediaGate(FrameProcessor):
             if self._closed or request.playback_id in self._interrupted_ids:
                 break
 
-            # chunk_played = "this chunk's audio was dispatched to the
-            # transport". Strictly an over-report of what has left the
-            # earpiece; HALO settles interrupted deliveries from these acks.
+            if self._playout_waiter is not None:
+                confirmed = await self._playout_waiter(request.playback_id, index)
+                if not confirmed or self._closed or request.playback_id in self._interrupted_ids:
+                    break
+            # Production transport waits for a carrier mark after all audio.
+            # Synthesis completion alone is not evidence of delivery.
             await self._client.playback_chunk_played(request.playback_id, index)
             playback.acked = index + 1
 
