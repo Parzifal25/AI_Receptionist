@@ -63,6 +63,7 @@ export const CALL_DISPOSITIONS = [
 export type CallDisposition = (typeof CALL_DISPOSITIONS)[number];
 
 export const CALL_EVENT_TYPES = [
+  "runtime_event",
   "session_started",
   "state_changed",
   "speech_started",

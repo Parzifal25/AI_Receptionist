@@ -397,6 +397,29 @@ psql(asService(`select transition_lead('${bizA}','${callableA}','stop','DO_NOT_C
 expectCount(asService(`select count(*) from claim_campaign_contacts('${bizA}','${campaignA}',1);`), 0, 'DNC lead never recontacted');
 
 // Controlled learning cannot rewrite or publish production versions.
+// Callback race, destination binding, persisted voice version and carrier retry.
+const callbackLead = "eeeeeeee-eeee-eeee-eeee-aaaaaaaaaaaa";
+const callbackContact = "ffffffff-ffff-ffff-ffff-aaaaaaaaaaaa";
+psql(asService(`insert into customers(id,business_id,phone) values('${callbackLead}','${bizA}','+919812345679');
+insert into campaign_contacts(id,business_id,campaign_id,customer_id,consent_at)
+values('${callbackContact}','${bizA}','${campaignA}','${callbackLead}',now());
+select * from claim_campaign_contacts('${bizA}','${campaignA}',1);`));
+const bindCallback = (destination = '+919812345679', attempt = 1) => `select bind_campaign_callback('${callbackContact}',${attempt},
+(select provider from phone_numbers where business_id='${bizA}' limit 1),'callback-first',
+(select e164 from phone_numbers where business_id='${bizA}' limit 1),'${destination}')`;
+expectError(asUser(uA, bindCallback()), 'members cannot bind carrier callbacks');
+expectCount(asService(`select count(*) from (${bindCallback('+919812340000')}) q where bind_campaign_callback;`), 0, 'callback destination substitution rejected');
+expectCount(asService(`select count(*) from (${bindCallback()}) q where bind_campaign_callback;`), 1, 'signed callback can bind before dial response');
+psql(asService(`select settle_campaign_contact('${bizA}','${callbackContact}',1,'accepted',false,'callback-first'); ${bindCallback()};`));
+expectCount(asService(`select count(*) from calls where business_id='${bizA}' and provider_call_id='callback-first' and direction='outbound' and agent_version_id=${versionOf(bizA)};`), 1, 'outbound call pinned and created once');
+psql(asService(`update calls set state='dialing' where provider_call_id='callback-first';
+update calls set state='ringing' where provider_call_id='callback-first';
+update calls set state='no_answer' where provider_call_id='callback-first';
+update calls set state='no_answer' where provider_call_id='callback-first';`));
+expectCount(asService(`select count(*) from campaign_contacts where id='${callbackContact}' and state='pending' and due_at>now() and outcome='no_answer';`), 1, 'carrier outcome schedules persisted retry');
+expectCount(asService(`select count(*) from campaign_events where contact_id='${callbackContact}' and type='followup_created';`), 1, 'duplicate carrier status creates one follow-up');
+expectCount(asService(`select count(*) from (${bindCallback('+919812345679', 2)}) q where bind_campaign_callback;`), 0, 'stale callback attempt rejected');
+
 const proposalA = "ffffffff-ffff-ffff-ffff-aaaaaaaaaaaa";
 psql(asService(`insert into learning_proposals(id,business_id,source_version_id,proposal_key,rationale,candidate_config,candidate_prompt)
 values('${proposalA}','${bizA}',${versionOf(bizA)},'review-1','Improve clarity','{}','Candidate prompt');`));
@@ -410,6 +433,28 @@ psql(asUser(uA, `select review_learning_proposal('${bizA}','${proposalA}',true);
 expectCount(asUser(uA, `select count(*) from learning_proposals p join agent_versions v on v.id=p.draft_version_id where p.id='${proposalA}' and v.published_at is null;`), 1, 'approval creates one unpublished draft');
 expectCount(asUser(uA, `select count(*) from learning_proposals p join agents a on a.live_version_id=p.draft_version_id where p.id='${proposalA}';`), 0, 'learning never changes live version');
 expectError(asService(`update learning_proposals set candidate_prompt='Changed after evaluation' where id='${proposalA}';`), 'evaluated proposal content is immutable');
+
+// Production publication and pinning must hold below the application layer.
+const draftVersion = psql(asService(`insert into agent_versions(agent_id,business_id,version,prompt_template,prompt_version)
+values(${agentOf(bizA)},'${bizA}',100,'unpublished candidate','test') returning id;`), true).trim();
+expectError(asService(`update agents set live_version_id='${draftVersion}' where id=${agentOf(bizA)};`), 'draft cannot become live even through service role');
+expectError(asService(`insert into calls(business_id,agent_id,agent_version_id,direction,provider,provider_call_id,from_number,to_number,state)
+values('${bizA}',${agentOf(bizA)},'${draftVersion}','inbound','fake','draft-call','+919812345679','+919812345678','ringing');`), 'production calls reject draft versions');
+expectError(asService(`update calls set to_number='+919899999999' where provider_call_id='callback-first';`), 'persisted call destination is immutable');
+expectError(asService(`update calls set agent_version_id='${draftVersion}' where provider_call_id='callback-first';`), 'persisted call version is immutable');
+expectError(asService(`update conversations set agent_version_id='${draftVersion}' where business_id='${bizA}';`), 'production conversation rejects draft version');
+
+const admittedCall = psql(asService(`insert into calls(business_id,agent_id,agent_version_id,direction,provider,provider_call_id,from_number,to_number,state)
+values('${bizA}',${agentOf(bizA)},${versionOf(bizA)},'inbound','fake','atomic-admission','+919812345679','+919812345678','ringing') returning id;`), true).trim();
+expectError(asUser(uA, `select begin_call_conversation('${bizA}','${admittedCall}');`), 'members cannot claim voice sessions');
+expectCount(asService(`select count(*) from (select begin_call_conversation('${bizB}','${admittedCall}') as id) q where id is not null;`), 0, 'foreign tenant cannot claim voice session');
+expectCount(asService(`select count(*) from (select begin_call_conversation('${bizA}','${admittedCall}') as id) q where id is not null;`), 1, 'first gateway atomically creates conversation');
+expectCount(asService(`select count(*) from (select begin_call_conversation('${bizA}','${admittedCall}') as id) q where id is not null;`), 0, 'second gateway cannot duplicate the session');
+
+psql(asService(`insert into conversation_outcomes(business_id,call_id,conversation_id,agent_id,agent_version_id,disposition,do_not_call)
+select business_id,id,conversation_id,agent_id,agent_version_id,'do_not_call',true from calls where id='${admittedCall}';`));
+expectCount(asService(`select count(*) from phone_suppressions where business_id='${bizA}' and e164='+919812345679';`), 1, 'DNC suppression commits atomically with outcome');
+expectCount(asService(`select count(*) from customers where id='${callbackLead}' and lead_state='DO_NOT_CONTACT';`), 1, 'verified outcome updates CRM without an application callback');
 
 if (failures > 0) {
   console.error(`\ncheck-rls FAILED with ${failures} assertion(s).`);

@@ -93,6 +93,9 @@ export class TwilioMediaStreamProvider implements TelephonyProvider {
     if (params.get("Direction") === "inbound" && (status === "ringing" || status === "")) {
       return { kind: "inbound_call", providerCallId: callSid, from: params.get("From") ?? "", to: params.get("To") ?? "" };
     }
+    if (params.get("Direction") === "outbound-api" && new URL(request.url).pathname.endsWith("/outbound") && status === "in-progress") {
+      return { kind: "outbound_call", providerCallId: callSid, from: params.get("From") ?? "", to: params.get("To") ?? "" };
+    }
     const mapped = STATUS_MAP[status];
     if (!mapped) return { kind: "ignored", detail: `unmapped CallStatus "${status}"` };
     const duration = Number.parseInt(params.get("CallDuration") ?? "", 10);
@@ -101,6 +104,7 @@ export class TwilioMediaStreamProvider implements TelephonyProvider {
       providerCallId: callSid,
       status: mapped,
       durationSeconds: Number.isFinite(duration) ? duration : null,
+      ...(params.get("Direction") === "outbound-api" ? { outboundIdentity: { from: params.get("From") ?? "", to: params.get("To") ?? "" } } : {}),
     };
   }
 

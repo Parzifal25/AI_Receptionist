@@ -19,6 +19,7 @@ import type {
  * exercise real semantics, not a permissive stub.
  */
 export class InMemoryCallStore implements CallStore {
+  private readonly versions = new Map<string, InboundRoute["version"]>();
   readonly routes = new Map<string, InboundRoute>();
   readonly calls = new Map<string, CallRecord & { finalization?: CallFinalization; language: string | null }>();
   readonly events = new Map<string, CallEventRecord[]>();
@@ -30,6 +31,7 @@ export class InMemoryCallStore implements CallStore {
   failEvents = false;
 
   addRoute(provider: string, e164: string, route: InboundRoute): void {
+    this.versions.set(route.version.id, structuredClone(route.version));
     this.routes.set(`${provider}|${e164}`, route);
   }
 
@@ -37,6 +39,16 @@ export class InMemoryCallStore implements CallStore {
     const route = this.routes.get(`${provider}|${toNumber}`);
     if (!route || route.agentStatus !== "active" || !route.version.publishedAt) return null;
     return route;
+  }
+
+  async resolveCallRoute(call: CallRecord): Promise<InboundRoute | null> {
+    const number = call.direction === "outbound" ? call.fromNumber : call.toNumber;
+    const route = this.routes.get(`${call.provider}|${number}`);
+    const version = this.versions.get(call.agentVersionId);
+    if (!route || route.agentStatus !== "active" || route.business.id !== call.businessId ||
+        route.phoneNumberId !== call.phoneNumberId || !version?.publishedAt ||
+        version.businessId !== call.businessId || version.agentId !== call.agentId) return null;
+    return { ...route, agentId: call.agentId, version };
   }
 
   async createOrGetCall(input: NewCall): Promise<{ call: CallRecord; created: boolean }> {
@@ -77,6 +89,15 @@ export class InMemoryCallStore implements CallStore {
       if (call.provider === provider && call.providerCallId === providerCallId) return call;
     }
     return null;
+  }
+
+  async beginCallConversation(callId: string, businessId: string): Promise<string | null> {
+    const call = this.scoped(callId, businessId);
+    if (call.conversationId || ["completed", "transferred", "no_answer", "busy", "failed", "cancelled"].includes(call.state)) return null;
+    const id = randomUUID();
+    this.conversations.set(id, { businessId, agentId: call.agentId, agentVersionId: call.agentVersionId });
+    call.conversationId = id;
+    return id;
   }
 
   async createPhoneConversation(input: { businessId: string; agentId: string; agentVersionId: string }): Promise<string> {

@@ -5,7 +5,7 @@ import { parseQualificationSchema, type QualificationSchema } from "@halo/qualif
 import { REQUIRED_VOICE_PROMPTS } from "@halo/voice/session-config";
 import { ARUNODHAYA_AGENT_CONFIG, ARUNODHAYA_AGENT_SLUG } from "./agent";
 import { ARUNODHAYA_ESCALATION } from "./escalation";
-import { ARUNODHAYA_FACTS } from "./knowledge";
+import { ARUNODHAYA_FACTS, pendingFactGuidance } from "./knowledge";
 import { ARUNODHAYA_NEGOTIATION } from "./negotiation";
 import { ARUNODHAYA_OBJECTIONS } from "./objections";
 import { ARUNODHAYA_QUALIFICATION } from "./qualification";
@@ -92,6 +92,14 @@ export function loadArunodhaya(): LoadResult {
     return { ok: false, errors };
   }
 
+  config.tools.policy.sales = {
+    qualification: qualification.schema,
+    negotiation: negotiation.policy,
+    objections: objections.catalog,
+    staticSections: [pendingFactGuidance(ARUNODHAYA_FACTS, config.language.primary)],
+    language: config.language.primary,
+    liveTransferReasons: [...ARUNODHAYA_ESCALATION.liveTransferReasons],
+  };
   return {
     ok: true,
     bundle: {

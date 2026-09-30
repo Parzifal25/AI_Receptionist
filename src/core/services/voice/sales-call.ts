@@ -18,6 +18,7 @@ import type { OutcomeDraft, VoiceCallContext } from "@halo/voice/gateway";
 import { PhoneTurnHandler, resolvedContextForCall } from "@halo/voice/phone-channel-adapter";
 import type { VoiceTurnHandler } from "@halo/voice/turn-handler";
 import type { VoiceSessionSummary } from "@halo/voice/voice-session";
+import { VisitBookingStepProvider, type VisitBookingPort } from "@halo/qualification/booking-step";
 
 const log = logger.child({ service: "sales-call" });
 
@@ -66,6 +67,10 @@ export interface SalesCallDeps {
   events?: RuntimeEventSink;
   /** Observes every completed runtime turn (telemetry, evaluation). */
   onTurnOutput?: (ctx: VoiceCallContext, output: RuntimeOutput) => void;
+  booking?: (ctx: VoiceCallContext) => VisitBookingPort;
+  /** Trusted tenant-scoped lookup. Unknown callers are not inserted here. */
+  loadKnownFields?: (ctx: VoiceCallContext) => Promise<Record<string, string>>;
+  suppress?: (ctx: VoiceCallContext) => Promise<void>;
 }
 
 interface CallState {
@@ -132,6 +137,43 @@ export class SalesCallAssembly {
           qualification: () => qualificationSlots(state.snapshot),
         });
         const providers: SystemActionProvider[] = [state.qualification, state.negotiation];
+        if (this.deps.loadKnownFields) {
+          let loaded = false;
+          providers.unshift({ name: "existing_customer", prepare: async () => {
+            if (!loaded) {
+              const fields = await this.deps.loadKnownFields!(ctx);
+              const snapshot = emptySnapshot();
+              for (const [id, value] of Object.entries(fields)) {
+                if (config.qualification.fields.some((field) => field.id === id) && value.trim()) {
+                  snapshot.fields[id] = { value: value.slice(0, 240), raw: "", confidence: 1, confirmed: true };
+                }
+              }
+              state.qualification.restore(snapshot);
+              loaded = true;
+            }
+            return null;
+          } });
+        }
+        if (this.deps.suppress) providers.push({ name: "contact_suppression", prepare: async () => {
+          if (state.snapshot.status === "do_not_call") await this.deps.suppress!(ctx);
+          return null;
+        } });
+        if (this.deps.booking) {
+          const booking = new VisitBookingStepProvider({
+            booking: this.deps.booking(ctx), pack: selection.pack,
+            conversationId: ctx.conversationId,
+            isReady: () => state.snapshot.status === "complete" && !state.snapshot.humanRequested,
+            contact: () => ({ name: state.snapshot.fields.name?.value ?? "",
+              phone: state.snapshot.fields.phone?.value ?? "", notes: "" }),
+            onBooked: (id) => { state.appointmentId = id; },
+          });
+          providers.push({ name: booking.name, prepare: async (input) => {
+            const result = await booking.prepare(input);
+            if (!result || state.snapshot.status !== "complete") return result;
+            return { ...result, statePatch: { ...result.statePatch,
+              workflowStep: ["booked", "failed"].includes(booking.current().phase) ? "closed" : "scheduling" } };
+          } });
+        }
         if (config.staticSections.length > 0) providers.push(staticProvider(config.staticSections));
         return providers;
       },

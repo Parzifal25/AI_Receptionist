@@ -1,3 +1,4 @@
+import type { RuntimeEvent } from "@halo/runtime/contracts";
 import type {
   CallDisposition,
   CallEndReason,
@@ -114,15 +115,18 @@ export interface VoiceGatewayDeps {
   createTurnHandler(ctx: VoiceCallContext): VoiceTurnHandler;
   /** Per-call session configuration (language, prompts, endpointing) from agent config. */
   sessionConfig(ctx: VoiceCallContext): VoiceSessionConfig;
+  speechForCall?(ctx: VoiceCallContext): { stt: StreamingSttProvider; tts: StreamingTtsProvider };
   /** Deterministic business outcome. Default: `no_outcome` (never invented). */
   computeOutcome?(ctx: VoiceCallContext, summary: VoiceSessionSummary): OutcomeDraft;
+  /** Runs only after the outcome and DNC suppression have been persisted. */
+  onOutcome?(ctx: VoiceCallContext, outcome: OutcomeRecord): Promise<void>;
   limits?: Partial<GatewayLimits>;
   now?: () => number;
 }
 
 export type StartSessionResult =
   | { ok: true; sessionId: string; call: CallRecord; reattached: boolean }
-  | { ok: false; reason: "unknown_number" | "capacity" | "already_ended" | "provider_mismatch" };
+  | { ok: false; reason: "unknown_number" | "capacity" | "already_ended" | "provider_mismatch" | "identity_mismatch" | "recovery_required" };
 
 interface Session {
   id: string;
@@ -194,6 +198,7 @@ export class VoiceGateway {
       if (!result.ok) return result;
       const entry = this.sessions.get(result.sessionId);
       if (!entry) return result;
+      if (entry.ctx.call.fromNumber !== params.from || entry.ctx.call.toNumber !== params.to) return { ok: false, reason: "identity_mismatch" };
       this.attachMedia(entry, params.output);
       return { ...result, reattached: true };
     }
@@ -218,15 +223,26 @@ export class VoiceGateway {
     const existingId = this.byProviderCall.get(this.key(params.provider, params.providerCallId));
     const existing = existingId ? this.sessions.get(existingId) : undefined;
     if (existing) {
+      if (existing.ctx.call.fromNumber !== params.from || existing.ctx.call.toNumber !== params.to) return { ok: false, reason: "identity_mismatch" };
       this.attachMedia(existing, params.output);
       return { ok: true, sessionId: existing.id, call: existing.ctx.call, reattached: true };
     }
 
-    const route = await this.deps.callStore.resolveInboundRoute(params.provider, params.to);
+    const persisted = await this.deps.callStore.getCallByProviderId(params.provider, params.providerCallId);
+    if (persisted && (persisted.fromNumber !== params.from || persisted.toNumber !== params.to ||
+        (params.direction && params.direction !== persisted.direction))) return { ok: false, reason: "identity_mismatch" };
+    if (persisted && isTerminalCallState(persisted.state)) return { ok: false, reason: "already_ended" };
+    // A process restart cannot safely replay speech or reset persisted event
+    // sequence numbers. Live socket reattachment above retains its session.
+    if (persisted?.conversationId) return { ok: false, reason: "recovery_required" };
+    if (!persisted && params.direction === "outbound") return { ok: false, reason: "unknown_number" };
+    let route = persisted
+      ? await this.deps.callStore.resolveCallRoute(persisted)
+      : await this.deps.callStore.resolveInboundRoute(params.provider, params.to);
     if (!route) return { ok: false, reason: "unknown_number" };
     if (this.sessions.size >= this.limits.maxConcurrentSessions) return { ok: false, reason: "capacity" };
 
-    const direction = params.direction ?? "inbound";
+    const direction = persisted?.direction ?? "inbound";
     const { call, created } = await this.deps.callStore.createOrGetCall({
       businessId: route.business.id,
       agentId: route.agentId,
@@ -242,15 +258,13 @@ export class VoiceGateway {
     });
     if (isTerminalCallState(call.state)) return { ok: false, reason: "already_ended" };
 
-    let conversationId = call.conversationId;
-    if (!conversationId) {
-      conversationId = await this.deps.callStore.createPhoneConversation({
-        businessId: route.business.id,
-        agentId: route.agentId,
-        agentVersionId: route.version.id,
-      });
-      await this.deps.callStore.attachConversation(call.id, route.business.id, conversationId);
+    if (call.fromNumber !== params.from || call.toNumber !== params.to) return { ok: false, reason: "identity_mismatch" };
+    if (route.version.id !== call.agentVersionId || route.agentId !== call.agentId) {
+      route = await this.deps.callStore.resolveCallRoute(call);
+      if (!route) return { ok: false, reason: "unknown_number" };
     }
+    const conversationId = await this.deps.callStore.beginCallConversation(call.id, call.businessId);
+    if (!conversationId) return { ok: false, reason: "recovery_required" };
 
     const ctx: VoiceCallContext = {
       call: { ...call, conversationId },
@@ -432,9 +446,11 @@ export class VoiceGateway {
 
   /** The Phase 3 engine, unchanged: STT, TTS and VAD inside this process. */
   private inProcessSession(request: MediaSessionRequest): VoiceMediaSession {
+    if (request.ctx.route.version.config.voice.profileId && !this.deps.speechForCall) throw new Error("Voice profile resolver unavailable");
     return new VoiceSession({
       stt: this.deps.stt,
       tts: this.deps.tts,
+      ...(request.ctx.route.version.config.voice.profileId ? this.deps.speechForCall?.(request.ctx) ?? {} : {}),
       turns: request.turns,
       output: request.output,
       inputFormat: this.deps.telephony.createMediaCodec().format,
@@ -473,6 +489,23 @@ export class VoiceGateway {
       log.warn("transfer failed", { callId: entry.ctx.call.id, reason, error });
       return false;
     }
+  }
+
+  /** Uses the media event sequence so runtime and audio events cannot collide. */
+  recordRuntimeEvent(callId: string, event: RuntimeEvent): void {
+    const entry = this.sessions.get(callId);
+    if (!entry || entry.finalized || event.businessId !== entry.ctx.call.businessId ||
+        event.conversationId !== entry.ctx.conversationId || event.agentVersionId !== entry.ctx.call.agentVersionId) return;
+    const detail: Record<string, string | number | boolean | null> = {};
+    for (const [key, value] of Object.entries(event.data)) {
+      // Runtime event producers emit metadata only; arrays are bounded names.
+      detail[key] = Array.isArray(value) ? value.slice(0, 32).join(",").slice(0, 500) : value;
+    }
+    detail.runtimeType = event.type;
+    detail.turnId = event.turnId;
+    detail.agentVersionId = event.agentVersionId;
+    this.onSessionEvent(entry, { type: "runtime_event", at: event.at,
+      latencyMs: typeof event.data.latencyMs === "number" ? Math.max(0, Math.round(event.data.latencyMs)) : null, detail });
   }
 
   private onSessionEvent(entry: Session, event: VoiceSessionEvent): void {
@@ -575,9 +608,11 @@ export class VoiceGateway {
         };
         await store.recordOutcome(outcome);
         // A do-not-call outcome suppresses the number immediately and permanently.
-        if (draft.doNotCall && entry.ctx.call.fromNumber) {
-          await store.suppress({ businessId, e164: entry.ctx.call.fromNumber, reason: "do_not_call", callId: entry.id });
+        const customerNumber = entry.ctx.call.direction === "outbound" ? entry.ctx.call.toNumber : entry.ctx.call.fromNumber;
+        if (draft.doNotCall && customerNumber) {
+          await store.suppress({ businessId, e164: customerNumber, reason: "do_not_call", callId: entry.id });
         }
+        await this.deps.onOutcome?.(entry.ctx, outcome);
         await store.recordUsageEvent(businessId, "call_completed", {
           callId: entry.id,
           agentId: entry.ctx.call.agentId,

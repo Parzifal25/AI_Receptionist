@@ -91,7 +91,7 @@ $$;
 create function public.claim_campaign_contacts(p_business_id uuid,p_campaign_id uuid,p_limit integer default 10)
 returns setof public.campaign_contacts language plpgsql security definer set search_path=public as $$
 begin
- if p_limit < 1 or p_limit > 100 then raise exception 'Invalid batch'; end if;
+ if p_limit is null or p_limit < 1 or p_limit > 100 then raise exception 'Invalid batch'; end if;
  return query
  with picked as (select t.id from public.campaign_contacts t join public.campaigns c on c.id=t.campaign_id
  where t.business_id=p_business_id and t.campaign_id=p_campaign_id and t.state='pending' and t.due_at<=now()
@@ -112,7 +112,7 @@ declare t public.campaign_contacts; c public.campaigns; next_state text;
 begin
  select * into t from public.campaign_contacts where id=p_contact_id and business_id=p_business_id for update;
  if not found then raise exception 'Contact not found'; end if;
- if t.attempt<>p_attempt then raise exception 'Stale attempt'; end if;
+ if p_attempt is null or t.attempt<>p_attempt then raise exception 'Stale attempt'; end if;
  if t.state<>'dialing' then return; end if;
  select * into c from public.campaigns where id=t.campaign_id;
  if p_status='accepted' then
@@ -137,9 +137,9 @@ declare t public.campaign_contacts; c public.campaigns; target text; current_lea
 begin
  select * into t from public.campaign_contacts where id=p_contact_id and business_id=p_business_id for update;
  if not found then raise exception 'Contact not found'; end if;
- if t.attempt<>p_attempt or t.provider_call_id is distinct from p_provider_call_id then raise exception 'Stale or foreign call outcome'; end if;
+ if p_attempt is null or t.attempt<>p_attempt or t.provider_call_id is distinct from p_provider_call_id then raise exception 'Stale or foreign call outcome'; end if;
  if t.state<>'accepted' then return; end if;
- if p_outcome not in ('qualified','not_qualified','callback_requested','not_interested','wrong_number','language_barrier','do_not_call','appointment_booked','escalated_to_human','no_outcome','busy','no_answer','failed') then raise exception 'Invalid outcome'; end if;
+ if p_outcome is null or p_outcome not in ('qualified','not_qualified','callback_requested','not_interested','wrong_number','language_barrier','do_not_call','appointment_booked','escalated_to_human','no_outcome','busy','no_answer','failed') then raise exception 'Invalid outcome'; end if;
  if p_followup_at is not null and (p_outcome not in ('callback_requested','busy','no_answer','failed') or p_followup_at<=now()) then raise exception 'Invalid follow-up'; end if;
  select * into c from public.campaigns where id=t.campaign_id;
  target:=case p_outcome when 'qualified' then 'QUALIFIED' when 'not_qualified' then 'UNQUALIFIED'

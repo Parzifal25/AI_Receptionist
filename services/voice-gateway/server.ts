@@ -42,6 +42,9 @@ export interface GatewayServerDeps {
    * unconfigured agent must never pick up (packages/voice/session-config.ts).
    */
   canAnswer?(params: { to: string; from: string }): Promise<boolean>;
+  /** Must bind a verified callback to an existing authorized campaign claim. */
+  bindOutbound?(params: { attemptKey: string; providerCallId: string; from: string; to: string }): Promise<boolean>;
+  canAnswerOutbound?(params: { providerCallId: string; from: string; to: string }): Promise<boolean>;
   /** Required when `config.mediaEngine === "pipecat"`; unused otherwise. */
   pipecat?: PipecatBridge;
   now?: () => number;
@@ -82,7 +85,7 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
       }));
     }
 
-    const match = /^\/telephony\/([a-z0-9-]+)\/(inbound|status)$/.exec(url.pathname);
+    const match = /^\/telephony\/([a-z0-9-]+)\/(inbound|outbound|status)$/.exec(url.pathname);
     if (req.method !== "POST" || !match) return send(res, 404, "application/json", JSON.stringify({ error: "not_found" }));
     if (match[1] !== telephony.name) return send(res, 404, "application/json", JSON.stringify({ error: "unknown_provider" }));
     if (shuttingDown) return send(res, 503, "application/json", JSON.stringify({ error: "draining" }));
@@ -108,13 +111,26 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
     }
 
     const event = telephony.parseWebhook(request);
+    if (url.searchParams.has("attempt")) {
+      // The URL (including this correlation key) and body were verified above.
+      const identity = event.kind === "outbound_call" ? event : event.kind === "call_status" ? event.outboundIdentity : undefined;
+      if (!identity || event.kind === "ignored" || !deps.bindOutbound || !(await deps.bindOutbound({ attemptKey: url.searchParams.get("attempt")!,
+        providerCallId: event.providerCallId, from: identity.from, to: identity.to }))) {
+        return send(res, 403, "application/json", JSON.stringify({ error: "unknown_attempt" }));
+      }
+    }
     if (match[2] === "status") {
       await gateway.handleProviderEvent(event);
       return send(res, 204, "application/json", "");
     }
-    if (event.kind !== "inbound_call") return send(res, 204, "application/json", "");
+    if (event.kind !== "inbound_call" && event.kind !== "outbound_call") return send(res, 204, "application/json", "");
+    if (event.kind === "outbound_call" && (match[2] !== "outbound" || !url.searchParams.has("attempt") ||
+        !deps.canAnswerOutbound || !(await deps.canAnswerOutbound(event)))) {
+      const rejection = telephony.rejectCall({ reason: "unavailable" });
+      return send(res, 200, rejection.contentType, rejection.body);
+    }
 
-    if (deps.canAnswer && !(await deps.canAnswer({ to: event.to, from: event.from }))) {
+    if (event.kind === "inbound_call" && deps.canAnswer && !(await deps.canAnswer({ to: event.to, from: event.from }))) {
       log.warn("declining inbound call", { to: event.to });
       const rejection = telephony.rejectCall({ reason: "unknown_number" });
       return send(res, 200, rejection.contentType, rejection.body);

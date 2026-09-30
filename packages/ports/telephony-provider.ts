@@ -44,7 +44,7 @@ export type ProviderCallStatus =
 
 export type TelephonyWebhookEvent =
   | {
-      kind: "inbound_call";
+      kind: "inbound_call" | "outbound_call";
       providerCallId: string;
       from: string;
       to: string;
@@ -54,6 +54,7 @@ export type TelephonyWebhookEvent =
       providerCallId: string;
       status: ProviderCallStatus;
       durationSeconds: number | null;
+      outboundIdentity?: { from: string; to: string };
     }
   | { kind: "ignored"; detail: string };
 

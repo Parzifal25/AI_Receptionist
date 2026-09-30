@@ -96,6 +96,40 @@ describe("VoiceGateway", () => {
     expect(again.result).toEqual({ ok: false, reason: "already_ended" });
   });
 
+  it("pins a precreated outbound call even after the live version changes", async () => {
+    const g = buildGateway();
+    await g.callStore.createOrGetCall({ businessId: "biz-a", agentId: "agent-a", agentVersionId: "av-a-3",
+      phoneNumberId: "pn-a", direction: "outbound", provider: "fake", providerCallId: "outbound-pinned",
+      fromNumber: TENANT_A_DID, toNumber: "+919800000001", state: "queued", language: "en" });
+    g.callStore.addRoute("fake", TENANT_A_DID, { ...g.routeA, version: { ...g.routeA.version, id: "av-a-4", version: 4 } });
+    const resolve = vi.spyOn(g.callStore, "resolveCallRoute");
+    const { result } = await g.connect({ providerCallId: "outbound-pinned", from: TENANT_A_DID, to: "+919800000001" });
+    expect(result).toMatchObject({ ok: true, call: { direction: "outbound", agentVersionId: "av-a-3" } });
+    expect((await resolve.mock.results[0].value)?.version.id).toBe("av-a-3");
+    expect([...g.callStore.conversations.values()][0].agentVersionId).toBe("av-a-3");
+    if (result.ok) await g.gateway.endSession(result.sessionId, "caller_hangup");
+  });
+
+  it("rejects identity substitution on an existing call", async () => {
+    const g = buildGateway();
+    await g.connect({ providerCallId: "identity" });
+    const { result } = await g.connect({ providerCallId: "identity", to: TENANT_B_DID });
+    expect(result).toEqual({ ok: false, reason: "identity_mismatch" });
+    expect(g.callStore.calls.size).toBe(1);
+  });
+
+  it("does not replay a persisted conversation after losing its media session", async () => {
+    const g = buildGateway();
+    const { call } = await g.callStore.createOrGetCall({ businessId: "biz-a", agentId: "agent-a", agentVersionId: "av-a-3",
+      phoneNumberId: "pn-a", direction: "inbound", provider: "fake", providerCallId: "lost-session",
+      fromNumber: "+919800000001", toNumber: TENANT_A_DID, state: "ringing", language: "en" });
+    const conversationId = await g.callStore.createPhoneConversation({ businessId: "biz-a", agentId: "agent-a", agentVersionId: "av-a-3" });
+    await g.callStore.attachConversation(call.id, "biz-a", conversationId);
+    expect((await g.connect({ providerCallId: "lost-session" })).result).toEqual({ ok: false, reason: "recovery_required" });
+    expect(g.callStore.conversations.size).toBe(1);
+    expect(g.gateway.activeSessions).toBe(0);
+  });
+
   it("survives a media drop inside the reconnect window and finalizes after it", async () => {
     const g = buildGateway({ limits: { mediaReconnectMs: 3_000 } });
     const { result } = await g.connect({ providerCallId: "CA-6" });
@@ -263,4 +297,22 @@ describe("VoiceGateway — duplicate start races", () => {
     expect([x.created, y.created].filter(Boolean)).toHaveLength(1);
     expect(g.callStore.calls.size).toBe(1);
   });
+});
+
+it("persists scoped runtime events in the shared audio event sequence", async () => {
+  const g = buildGateway();
+  const { result } = await g.connect({ providerCallId: "CA-runtime-events" });
+  if (!result.ok) throw new Error("expected session");
+  const event = { type: "model.completed" as const, at: new Date().toISOString(), turnId: "turn-runtime",
+    conversationId: result.call.conversationId!, businessId: result.call.businessId,
+    agentVersionId: result.call.agentVersionId, data: { inputTokens: 80, outputTokens: 12, latencyMs: 15 } };
+  g.gateway.recordRuntimeEvent(result.call.id, { ...event, businessId: "foreign" });
+  g.gateway.recordRuntimeEvent(result.call.id, { ...event, agentVersionId: "foreign-version" });
+  g.gateway.recordRuntimeEvent(result.call.id, event);
+  await g.settle(2000);
+  await g.gateway.endSession(result.sessionId, "caller_hangup");
+  const events = g.callStore.events.get(result.call.id)!;
+  expect(events.filter(e => e.type === "runtime_event")).toEqual([expect.objectContaining({
+    latencyMs: 15, detail: expect.objectContaining({ runtimeType: "model.completed", inputTokens: 80, turnId: "turn-runtime" }) })]);
+  expect(new Set(events.map(e => e.seq)).size).toBe(events.length);
 });

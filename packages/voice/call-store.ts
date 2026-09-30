@@ -94,9 +94,13 @@ export interface OutcomeRecord {
 export interface CallStore {
   /** Active number → active agent with a live version, or null (call is rejected). */
   resolveInboundRoute(provider: string, toNumber: string): Promise<InboundRoute | null>;
+  /** Resolve the immutable published version already bound to a persisted call. */
+  resolveCallRoute(call: CallRecord): Promise<InboundRoute | null>;
   /** Idempotent on (provider, providerCallId). */
   createOrGetCall(input: NewCall): Promise<{ call: CallRecord; created: boolean }>;
   getCallByProviderId(provider: string, providerCallId: string): Promise<CallRecord | null>;
+  /** Atomically claims a persisted call and creates its conversation. Null means already claimed. */
+  beginCallConversation(callId: string, businessId: string): Promise<string | null>;
   /** Creates the phone conversation row the runtime transcript and state hang off. */
   createPhoneConversation(input: { businessId: string; agentId: string; agentVersionId: string }): Promise<string>;
   attachConversation(callId: string, businessId: string, conversationId: string): Promise<void>;

@@ -71,6 +71,14 @@ export class SupabaseCallStore implements CallStore {
   constructor(private readonly db: SupabaseClient = getAdminClient()) {}
 
   async resolveInboundRoute(provider: string, toNumber: string): Promise<InboundRoute | null> {
+    return this.resolveRoute(provider, toNumber);
+  }
+
+  async resolveCallRoute(call: CallRecord): Promise<InboundRoute | null> {
+    return this.resolveRoute(call.provider, call.direction === "outbound" ? call.fromNumber : call.toNumber, call);
+  }
+
+  private async resolveRoute(provider: string, toNumber: string, call?: CallRecord): Promise<InboundRoute | null> {
     const { data: number, error } = await this.db
       .from("phone_numbers")
       .select("id, business_id, agent_id, handoff_number, status")
@@ -79,21 +87,22 @@ export class SupabaseCallStore implements CallStore {
       .maybeSingle();
     if (error) fail("route lookup", error);
     if (!number || number.status !== "active") return null;
+    if (call && (number.business_id !== call.businessId || number.id !== call.phoneNumberId)) return null;
 
     const { data: agent, error: agentError } = await this.db
       .from("agents")
       .select("id, status, live_version_id")
-      .eq("id", number.agent_id)
+      .eq("id", call?.agentId ?? number.agent_id)
       .eq("business_id", number.business_id)
       .maybeSingle();
     if (agentError) fail("route agent lookup", agentError);
-    if (!agent || agent.status !== "active" || !agent.live_version_id) return null;
+    if (!agent || agent.status !== "active" || !(call?.agentVersionId ?? agent.live_version_id)) return null;
 
     const [{ data: versionRow, error: versionError }, { data: biz, error: bizError }] = await Promise.all([
       this.db
         .from("agent_versions")
         .select("id, agent_id, business_id, version, config, prompt_template, prompt_version, model, published_at, created_by, created_at")
-        .eq("id", agent.live_version_id)
+        .eq("id", call?.agentVersionId ?? agent.live_version_id)
         .eq("agent_id", agent.id)
         .eq("business_id", number.business_id)
         .maybeSingle(),
@@ -164,6 +173,12 @@ export class SupabaseCallStore implements CallStore {
       .maybeSingle();
     if (error) fail("call lookup", error);
     return data ? toCall(data as CallRow) : null;
+  }
+
+  async beginCallConversation(callId: string, businessId: string): Promise<string | null> {
+    const { data, error } = await this.db.rpc("begin_call_conversation", { p_business_id: businessId, p_call_id: callId });
+    if (error) fail("begin call conversation", error);
+    return data;
   }
 
   async createPhoneConversation(input: { businessId: string; agentId: string; agentVersionId: string }): Promise<string> {

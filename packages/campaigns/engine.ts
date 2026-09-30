@@ -18,19 +18,12 @@ export function inCallingWindow(policy: CampaignPolicy, now: Date): boolean {
   return p.weekdays.includes(weekday) && minute >= p.startMinute && minute < p.endMinute;
 }
 
-/** Adapter must either deduplicate this key or report an uncertain result.
- * Unknown network outcomes are NEVER automatically retried. */
-export interface OutboundDialer {
-  dial(input: { businessId: string; agentId: string; agentVersionId: string;
-    from: string; to: string; idempotencyKey: string }): Promise<
-      { status: "accepted"; providerCallId: string } |
-      { status: "rejected"; retryable: boolean } | { status: "unknown" }>;
-}
+export type { OutboundDialer, DialResult } from "@halo/ports/outbound-dialer";
+import type { OutboundDialer, DialResult } from "@halo/ports/outbound-dialer";
 export interface ClaimedContact {
   id: string; businessId: string; campaignId: string; customerId: string;
   agentId: string; agentVersionId: string; from: string; to: string; attempt: number;
 }
-export type DialResult = Awaited<ReturnType<OutboundDialer["dial"]>>;
 export interface CampaignStore {
   /** Atomic SKIP LOCKED claim, including DNC, published version, policy and consent checks. */
   claim(businessId: string, campaignId: string, limit: number): Promise<ClaimedContact[]>;
