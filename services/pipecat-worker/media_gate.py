@@ -223,6 +223,9 @@ class MediaGate(FrameProcessor):
         elif isinstance(frame, TTSStartedFrame):
             self._on_tts_started(frame)
         elif isinstance(frame, TTSAudioRawFrame):
+            active = self._active
+            if active is None or active.settled or active.request.playback_id in self._interrupted_ids or active.context_id != frame.context_id:
+                return  # Late synthesis must never reach the carrier.
             await self._on_tts_audio(frame)
         elif isinstance(frame, TTSStoppedFrame):
             await self._on_tts_stopped(frame)
@@ -297,14 +300,17 @@ class MediaGate(FrameProcessor):
             playback.chunk_index = index
             playback.awaiting_context = True
             playback.context_id = None
+            playback.chunk_audio_ms = 0.0
             playback.chunk_event = asyncio.Event()
             await self._task.queue_frame(TTSSpeakFrame(text=chunk, append_to_context=False))
 
+            synthesis_completed = False
             try:
                 await asyncio.wait_for(playback.chunk_event.wait(), timeout=CHUNK_START_TIMEOUT_S)
+                synthesis_completed = True
             except asyncio.TimeoutError:
                 pass
-            if playback.awaiting_context and not self._closed and request.playback_id not in self._interrupted_ids:
+            if (not synthesis_completed or playback.awaiting_context or playback.chunk_audio_ms <= 0) and not self._closed and request.playback_id not in self._interrupted_ids:
                 log.warning(
                     "chunk %d of playback %s produced no audio within %.0fs",
                     index,
@@ -409,6 +415,7 @@ class MediaGate(FrameProcessor):
             return
         ms = _audio_ms(frame.audio, frame.sample_rate)
         playback.played_ms += ms
+        playback.chunk_audio_ms += ms
         self._outbound_audio_ms += ms
         if not playback.first_audio:
             playback.first_audio = True
@@ -520,6 +527,7 @@ class _Playback:
         self.request = request
         self.acked = 0
         self.played_ms = 0.0
+        self.chunk_audio_ms = 0.0
         self.first_audio = False
         self.settled = False
         self.chunk_index: Optional[int] = None

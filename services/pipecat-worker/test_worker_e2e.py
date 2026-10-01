@@ -177,21 +177,16 @@ class WorkerE2E(unittest.IsolatedAsyncioTestCase):
             self.control_messages.append(hello)
             self.control_ready.set()
             await ws.send(json.dumps({"type": "ready", "protocol": "1.0", "session": SESSION, "voice": VOICE}))
-            await asyncio.sleep(0.3)
-            await ws.send(
-                json.dumps(
-                    {
-                        "type": "speak",
-                        "playbackId": "pb-1",
-                        "kind": "reply",
-                        "turnId": "t-1",
-                        "chunks": ["namaskaram", "repu vastanu"],
-                        "interruptible": True,
-                    }
-                )
-            )
+            replied = False
             while True:
-                self.control_messages.append(json.loads(await ws.recv()))
+                event = json.loads(await ws.recv())
+                self.control_messages.append(event)
+                # Reply after the final caller transcript. Starting during
+                # caller speech exercises interruption, not full playback.
+                if event.get("type") == "transcript" and event.get("final") and not replied:
+                    replied = True
+                    await ws.send(json.dumps({"type": "speak", "playbackId": "pb-1", "kind": "reply", "turnId": "t-1",
+                        "chunks": ["namaskaram", "repu vastanu"], "interruptible": True}))
         except Exception:
             return
 

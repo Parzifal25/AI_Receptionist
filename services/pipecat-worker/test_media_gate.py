@@ -225,6 +225,46 @@ class MediaGateTests(unittest.IsolatedAsyncioTestCase):
         stop_kwargs = stops[0]["kwargs"]
         self.assertAlmostEqual(150.0, stop_kwargs.get("audio_ms"), delta=1.0)
 
+    async def _assert_transport_ack(self, interrupt=False):
+        acknowledged = asyncio.Event()
+        async def wait_for_carrier(playback_id, index):
+            await acknowledged.wait()
+            return True
+        self.gate.set_playout_waiter(wait_for_carrier)
+        await self.gate.on_speak(SpeakRequest(playback_id="transport-ack", kind="reply", turn_id="turn", chunks=["hello"], interruptible=True))
+        await self._wait_armed()
+        await self.gate.process_frame(TTSStartedFrame(context_id="transport-context"), FrameDirection.DOWNSTREAM)
+        await self.gate.process_frame(TTSAudioRawFrame(audio=pcm(100), sample_rate=RATE, num_channels=1, context_id="transport-context"), FrameDirection.DOWNSTREAM)
+        await self.gate.process_frame(TTSStoppedFrame(context_id="transport-context"), FrameDirection.DOWNSTREAM)
+        await self._drain(0.05)
+        self.assertEqual([], self.sent("playback_chunk_played"))
+        if interrupt:
+            await self.gate.on_stop_playback("transport-ack", "interrupted")
+        acknowledged.set()
+        await self._drain(0.05)
+        self.assertEqual(0 if interrupt else 1, len(self.sent("playback_chunk_played")))
+
+    async def test_synthesis_completion_is_not_playback_acknowledgement(self):
+        await self._assert_transport_ack()
+
+    async def test_late_carrier_ack_does_not_confirm_interrupted_speech(self):
+        await self._assert_transport_ack(interrupt=True)
+
+    async def test_partial_synthesis_timeout_never_acknowledges_full_chunk(self):
+        from unittest.mock import patch
+        with patch("media_gate.CHUNK_START_TIMEOUT_S", 0.1):
+            await self.gate.on_speak(SpeakRequest(playback_id="partial", kind="reply", turn_id="turn", chunks=["hello"], interruptible=True))
+            await self._wait_armed()
+            await self.gate.process_frame(TTSStartedFrame(context_id="partial-context"), FrameDirection.DOWNSTREAM)
+            await self.gate.process_frame(TTSAudioRawFrame(audio=pcm(20), sample_rate=RATE, num_channels=1, context_id="partial-context"), FrameDirection.DOWNSTREAM)
+            await self._drain(0.2)
+            self.assertEqual([], self.sent("playback_chunk_played"))
+            self.assertEqual("failed", self.sent("playback_stopped")[0]["args"][1])
+
+    async def test_late_synthesis_cannot_reach_the_transport(self):
+        await self.gate.process_frame(TTSAudioRawFrame(audio=pcm(20), sample_rate=RATE, num_channels=1, context_id="stale-context"), FrameDirection.DOWNSTREAM)
+        self.assertFalse(any(isinstance(frame, TTSAudioRawFrame) for frame in self.sink.frames))
+
     async def test_silence_chunk_does_not_bind_the_next_context(self):
         """A chunk with no audio must not steal the next chunk's context."""
         request = SpeakRequest(
