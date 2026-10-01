@@ -1,15 +1,13 @@
 # HALO Pipecat worker (reference)
 
-**Status: REFERENCE IMPLEMENTATION — NOT VERIFIED.**
+**Status: DONE — MOCK VERIFIED for local integration; live carrier and speech acceptance BLOCKED.**
 
-`halo_client.py` has never been run against a real telephony provider, a real
-STT or TTS vendor, or a real Pipecat pipeline, because no credentials for any
-of them exist in this repository. Its protocol logic is covered by
-`test_halo_client.py` (10 tests, pure Python, no network), and the other side
-of the same wire is covered end to end over a real WebSocket by
-`tests/integration/pipecat-gateway.test.ts`. Neither of those is a phone call.
-Nothing here should be described as working until §15 of
-`docs/PHASE4_REPORT.md` has been executed.
+The worker runs a real Pipecat pipeline and Silero VAD in the local end-to-end
+suite, using synthetic audio, fake STT/TTS and WebSocket carrier/control peers.
+All 37 Python tests passed on October 1, 2026. This verifies pipeline and protocol
+behavior, not a real phone call or provider speech quality. See
+[`HALO_IMPLEMENTATION_VERIFICATION.md`](../../docs/HALO_IMPLEMENTATION_VERIFICATION.md)
+for repository-wide evidence and remaining deployment requirements.
 
 ## What lives where
 
@@ -34,13 +32,14 @@ the frame-by-frame contract are in `docs/PIPECAT_INTEGRATION.md`.
 
 1. **It never chooses a tenant or an agent.** It presents the short-lived
    token HALO minted during the signature-verified telephony webhook, bound to
-   the call id and both numbers. Identity comes back in `ready` and is used
-   for logging only.
+   the call id and both numbers. Identity comes back in `ready` and selects only the tenant-scoped
+   deployment voice profile; it never grants business authority.
 2. **It never speaks a line HALO did not send.** Greetings, reprompts,
    goodbyes, transfer announcements and model replies all arrive as `speak`.
    The worker holds no tenant content and cannot invent or translate one.
-3. **It reports what the caller actually heard.** `chunk_played` means the
-   chunk left the earpiece, not that synthesis finished. HALO writes the
+3. **It reports carrier-confirmed playback.** `playback_chunk_played` requires
+   completed synthesis and a matching carrier mark echoed after queued audio.
+   This is a transport acknowledgement, not proof of human hearing. HALO writes the
    transcript and the model's next-turn context from exactly those
    acknowledgements, so an optimistic report becomes a lie the agent then
    acts on.
@@ -86,10 +85,27 @@ than committed to the repository.
 .venv/bin/python -m unittest discover -s services/pipecat-worker
 ```
 
-## What must be measured before this is called working
+## Deployment configuration and acceptance
 
-See `docs/PHASE4_REPORT.md` §15. In short: a real inbound PSTN call in
-Telugu, with STT latency, LLM latency, TTS time-to-first-audio, total turn
-latency and interruption latency recorded per stage, plus deliberate failure
-injection. Until then the integration is MOCK-VERIFIED on the HALO side and
-UNVERIFIED on this side.
+Set `HALO_CONTROL_URL` to the trusted control WebSocket endpoint. Carrier-supplied
+control URLs must match it exactly. Fake speech requires explicit
+`HALO_SPEECH_PROVIDER=fake`; missing real-provider credentials fail safely.
+`VOICE_PROFILES_JSON` must match the gateway's tenant/profile mapping. Keep
+credentials in deployment configuration, never in the control protocol.
+
+The Twilio transport uses its 8 kHz mono μ-law wire format. Provider profiles
+must support that transport's rate; other adapter formats are configured
+independently. Self-hosted speech adapters implement HTTP contracts suitable
+for separately deployed IndicConformerASR/IndicF5 services. Model weights and
+inference servers were not installed or validated. Configured startup fallback
+is tested; seamless mid-call provider migration is not implemented.
+
+Playback acknowledgement waits for carrier marks. Interruption clears pending
+marks and buffered audio; late synthesis and incomplete chunks cannot become
+confirmed transcript text.
+
+Before production activation, run the real PSTN acceptance procedure in
+`docs/PHASE4_REPORT.md` §15 with authorized numbers and provider credentials.
+Measure STT, LLM, first-audio and interruption latency, speech quality and
+failure recovery. Real carrier, Sarvam and local-model acceptance remain
+**BLOCKED** pending credentials, endpoints/model weights and authorized calls.
