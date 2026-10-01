@@ -52,6 +52,13 @@ export class WidgetApi {
     return body.data;
   }
 
+  async transcribe(audio: string, signal: AbortSignal): Promise<string> {
+    const result = await this.request<{ text: string }>("/api/v1/widget/speech", {
+      method: "POST", body: JSON.stringify({ widgetKey: this.widgetKey, audio }), signal,
+    });
+    return result.text;
+  }
+
   getConfig(): Promise<WidgetConfig> {
     return this.request<WidgetConfig>(
       `/api/v1/widget/config?key=${encodeURIComponent(this.widgetKey)}`,

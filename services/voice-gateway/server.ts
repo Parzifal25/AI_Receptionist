@@ -1,3 +1,5 @@
+import { handleWebStt } from "./web-stt";
+import type { StreamingSttProvider } from "@halo/ports/streaming-stt-provider";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocketServer, type WebSocket } from "ws";
@@ -34,6 +36,7 @@ const MAX_BODY_BYTES = 64 * 1024;
 
 export interface GatewayServerDeps {
   config: GatewayConfig;
+  webStt?: StreamingSttProvider;
   gateway: VoiceGateway;
   telephony: TelephonyProvider;
   /**
@@ -61,6 +64,7 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
   const now = deps.now ?? Date.now;
   const wss = new WebSocketServer({ noServer: true });
   let shuttingDown = false;
+  let webTranscriptions = 0;
 
   if (config.mediaEngine === "pipecat" && !deps.pipecat) {
     // Fail closed at construction: a gateway configured for Pipecat but
@@ -83,6 +87,14 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
         sessions: gateway.activeSessions,
         provider: telephony.name,
       }));
+    }
+
+    if (req.method === "POST" && url.pathname === "/web/stt") {
+      if (shuttingDown) return send(res, 503, "application/json", JSON.stringify({ error: "draining" }));
+      if (webTranscriptions >= config.maxConcurrentSessions) return send(res, 429, "application/json", JSON.stringify({ error: "capacity" }));
+      webTranscriptions++;
+      try { return await handleWebStt(req, res, config.streamTokenSecret, deps.webStt); }
+      finally { webTranscriptions--; }
     }
 
     const match = /^\/telephony\/([a-z0-9-]+)\/(inbound|outbound|status)$/.exec(url.pathname);

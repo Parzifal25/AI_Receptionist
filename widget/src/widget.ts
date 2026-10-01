@@ -1,5 +1,5 @@
 import type { SpeechProvider } from "@halo/ports/speech-provider";
-import { BrowserSpeechProvider } from "@halo/providers/speech/browser-speech-provider";
+import { HaloSpeechProvider } from "./halo-speech-provider";
 import { WidgetApi, WidgetApiError, type WidgetConfig } from "./api";
 import { WIDGET_CSS } from "./styles";
 import { VoiceSession, type VoiceFallbackReason, type VoiceState } from "./voice-session";
@@ -25,6 +25,7 @@ const FALLBACK_MESSAGES: Record<VoiceFallbackReason, string> = {
   "no-mic": "I couldn't find a working microphone — you can keep typing instead.",
   network:
     "Speech recognition couldn't reach its service — check your connection and tap the mic to retry, or keep typing.",
+  "halo-unavailable": "HALO voice service is unavailable or not configured. You can keep typing; browser speech recognition will not be used.",
   failed:
     "Voice hit a snag after several tries — tap the mic to try again, or keep typing.",
 };
@@ -35,7 +36,7 @@ const FALLBACK_MESSAGES: Record<VoiceFallbackReason, string> = {
  * public widget key and a per-conversation visitor token.
  */
 export class ReceptionistWidget {
-  private readonly speech: SpeechProvider = new BrowserSpeechProvider();
+  private readonly speech: SpeechProvider;
   private shadow!: ShadowRoot;
   private panel!: HTMLDivElement;
   private launcher!: HTMLButtonElement;
@@ -52,7 +53,7 @@ export class ReceptionistWidget {
     private readonly api: WidgetApi,
     private readonly config: WidgetConfig,
     private readonly storageKey: string,
-  ) {}
+  ) { this.speech = new HaloSpeechProvider((audio, signal) => this.api.transcribe(audio, signal)); }
 
   mount(): void {
     const host = document.createElement("div");
@@ -150,7 +151,7 @@ export class ReceptionistWidget {
     sendBtn.addEventListener("click", () => void this.sendTyped());
 
     composer.appendChild(this.inputEl);
-    // Voice is progressive enhancement: no Web Speech support (or voice
+    // Voice is progressive enhancement: no microphone support (or voice
     // disabled by the business) simply means no mic button — chat always works.
     if (this.config.voiceEnabled && this.speech.isRecognitionSupported()) {
       this.voice = this.createVoiceSession();

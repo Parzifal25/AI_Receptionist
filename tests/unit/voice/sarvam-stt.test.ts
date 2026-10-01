@@ -37,6 +37,30 @@ function open(options: Partial<SttStreamOptions> = {}, harness: SocketHarness = 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("SarvamSttProvider", () => {
+  it("uses manual endpointing for bounded web audio without changing phone defaults", async () => {
+    const harness = socketHarness();
+    const provider = new SarvamSttProvider({ apiKey: "test-key", endpointing: "manual", connect: harness.factory });
+    const stream = provider.open(streamOptions({ format: { encoding: "pcm16le", sampleRate: 16000, channels: 1 } }), () => {});
+    expect(new URL(harness.last.url).searchParams.get("endpointing")).toBe("manual");
+    expect(provider.capabilities().providerEndpointing).toBe(false);
+    await flush();
+    stream.write(new Uint8Array(640)); stream.finalize();
+    expect(harness.last.sent.map(value => JSON.parse(value).event)).toEqual(["speech_start", "audio_input", "flush"]);
+    await stream.close();
+  });
+
+  it("buffers bounded 16 kHz web PCM through a delayed handshake", async () => {
+    const harness = socketHarness({ autoOpen: false }); const events: SttEvent[] = [];
+    const provider = new SarvamSttProvider({ apiKey: "test-key", endpointing: "manual", connect: harness.factory });
+    const stream = provider.open(streamOptions({ format: { encoding: "pcm16le", sampleRate: 16000, channels: 1 } }), event => events.push(event));
+    stream.write(new Uint8Array(96000)); // Three seconds, beyond the phone buffer.
+    expect(events.some(event => event.type === "error")).toBe(false);
+    harness.last.open(); stream.finalize();
+    expect(harness.last.frames.map(frame => frame.event)).toEqual(["speech_start", "audio_input", "flush"]);
+    expect(Buffer.from(String(harness.last.frames[1].audio), "base64")).toHaveLength(96000);
+    await stream.close();
+  });
+
   it("declares capabilities honestly — telephony audio in, no invented confidence", () => {
     const caps = new SarvamSttProvider({ apiKey: "k" }).capabilities();
     expect(caps.languages).toContain("te-IN");

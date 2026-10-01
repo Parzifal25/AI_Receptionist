@@ -72,6 +72,8 @@ export type SarvamSttMode = "transcribe" | "verbatim" | "translit" | "codemix";
 
 export interface SarvamSttOptions {
   apiKey: string;
+  /** Web utterance capture supplies its own endpoint. Phone calls retain VAD. */
+  endpointing?: "vad" | "manual";
   baseUrl?: string;
   model?: string;
   mode?: SarvamSttMode;
@@ -111,7 +113,7 @@ export class SarvamSttProvider implements StreamingSttProvider {
       ],
       interimResults: true,
       // The vendor emits vad.speech_start / vad.speech_end with endpointing=vad.
-      providerEndpointing: true,
+      providerEndpointing: this.options.endpointing !== "manual",
       // No transcript confidence is emitted by this endpoint. See the header.
       reportsConfidence: false,
     };
@@ -138,7 +140,9 @@ class SarvamSttStream implements SttStream {
     private readonly stream: SttStreamOptions,
     private readonly listener: (event: SttEvent) => void,
   ) {
-    this.maxPendingBytes = vendor.maxPendingBytes ?? DEFAULT_MAX_PENDING_BYTES;
+    // A bounded web utterance is 16 kHz PCM (32 KB/s), not 8 kHz μ-law.
+    // Keep up to ten seconds while connecting; phone defaults stay unchanged.
+    this.maxPendingBytes = vendor.maxPendingBytes ?? (vendor.endpointing === "manual" ? 320_000 : DEFAULT_MAX_PENDING_BYTES);
     const connect = vendor.connect ?? wsSocketFactory;
     // `open()` never throws for a runtime problem (port contract): a bad URL
     // or an immediately-failing factory becomes an `error` event.
@@ -191,7 +195,7 @@ class SarvamSttStream implements SttStream {
     url.searchParams.set("sample_rate", String(this.stream.format.sampleRate));
     // Vendor-side VAD: HALO keeps its own endpointer either way, but a
     // provider endpoint is earlier and more accurate than energy alone.
-    url.searchParams.set("endpointing", "vad");
+    url.searchParams.set("endpointing", this.vendor.endpointing ?? "vad");
     if (this.vendor.streamType) url.searchParams.set("stream_type", this.vendor.streamType);
     const keyterms = boundedKeyterms(this.stream.phraseHints);
     if (keyterms) url.searchParams.set("keyterms", keyterms);
@@ -227,6 +231,7 @@ class SarvamSttStream implements SttStream {
     if (this.closed) return;
     this.opened = true;
     this.clearConnectTimer();
+    if (this.vendor.endpointing === "manual") this.socket?.send(JSON.stringify({ event: "speech_start" }));
     const queued = this.pending;
     this.pending = [];
     this.pendingBytes = 0;

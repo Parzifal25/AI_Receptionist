@@ -41,7 +41,7 @@ function getRecognitionCtor(): RecognitionCtor | null {
  * consumer.
  */
 export class BrowserSpeechProvider implements SpeechProvider {
-  readonly name = "browser";
+  readonly name: string = "browser";
 
   isRecognitionSupported(): boolean {
     // Browsers hard-fail recognition on insecure origins (http:// embeds get

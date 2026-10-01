@@ -69,3 +69,12 @@ status callback at `POST https://<host>/telephony/<provider>/status`.
   its webhook (single instance or sticky routing).
 - `GET /health` reports `ok` / `draining` and the live session count.
 - `SIGTERM` drains: every live call is ended and finalized (`gateway_shutdown`) before exit.
+
+## Browser microphone input
+
+The widget now sends bounded mono 16 kHz PCM utterances through the authenticated
+Next API proxy to `POST /web/stt`. Set `VOICE_GATEWAY_INTERNAL_URL` on the Next
+server and share `VOICE_STREAM_TOKEN_SECRET` with the gateway. This route uses
+the existing STT adapter/fallback configuration and rejects fake speech. It does
+not create a telephony session or invoke Pipecat. Browser TTS remains unchanged.
+See [the runtime trace and local setup](../../docs/WEB_MIC_STT_DIAGNOSIS.md).

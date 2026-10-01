@@ -66,17 +66,21 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
   // engine-independent.
   const pipecat = config.mediaEngine === "pipecat" ? new PipecatBridge() : null;
 
-  const gateway = new VoiceGateway({
-    callStore,
-    telephony,
-    stt: createSttProvider({
+  const sttConfig = {
       provider: config.sttProvider,
       ...(config.sttFallbackBaseUrl ? { fallback: { provider: "self-hosted" as const, baseUrl: config.sttFallbackBaseUrl } } : {}),
       ...(config.sttApiKey ? { apiKey: config.sttApiKey } : {}),
       ...(config.sttModel ? { model: config.sttModel } : {}),
       ...(config.sttMode ? { mode: config.sttMode } : {}),
       ...(config.sttBaseUrl ? { baseUrl: config.sttBaseUrl } : {}),
-    }),
+    };
+  const stt = createSttProvider(sttConfig);
+  const webStt = createSttProvider({ ...sttConfig, endpointing: "manual" });
+
+  const gateway = new VoiceGateway({
+    callStore,
+    telephony,
+    stt,
     tts: createTtsProvider({
       provider: config.ttsProvider,
       ...(config.ttsFallbackBaseUrl ? { fallback: { provider: "self-hosted" as const, baseUrl: config.ttsFallbackBaseUrl } } : {}),
@@ -156,6 +160,7 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
   pipecat?.bindGateway(gateway);
 
   const server = createGatewayServer({
+    webStt,
     config,
     gateway,
     telephony,

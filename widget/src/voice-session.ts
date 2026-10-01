@@ -25,7 +25,7 @@ import type { SpeechProvider, SpeechRecognitionSession } from "@halo/ports/speec
 
 export type VoiceState = "idle" | "listening" | "processing" | "speaking";
 
-export type VoiceFallbackReason = "unsupported" | "mic-blocked" | "no-mic" | "network" | "failed";
+export type VoiceFallbackReason = "unsupported" | "mic-blocked" | "no-mic" | "network" | "failed" | "halo-unavailable";
 
 export interface VoiceSessionOptions {
   language: string;
@@ -56,10 +56,11 @@ export interface VoiceSessionOptions {
 
 const DEFAULT_MAX_SILENT_ATTEMPTS = 3;
 const DEFAULT_MAX_ERROR_RETRIES = 2;
-const DEFAULT_LISTEN_TIMEOUT_MS = 20_000;
+const DEFAULT_LISTEN_TIMEOUT_MS = 40_000;
 const DEFAULT_ERROR_RETRY_DELAY_MS = 750;
 
 const FATAL_ERRORS: Record<string, VoiceFallbackReason> = {
+  "halo-unavailable": "halo-unavailable",
   "not-allowed": "mic-blocked",
   "service-not-allowed": "mic-blocked",
   "audio-capture": "no-mic",

@@ -26,6 +26,7 @@ export type SttProviderName = (typeof STT_PROVIDER_NAMES)[number];
 export type TtsProviderName = (typeof TTS_PROVIDER_NAMES)[number];
 
 export interface SttFactoryConfig {
+  endpointing?: "vad" | "manual";
   fallback?: Omit<SttFactoryConfig, "fallback">;
   provider: SttProviderName;
   apiKey?: string;
@@ -52,6 +53,7 @@ export function createSttProvider(config: SttFactoryConfig): StreamingSttProvide
       return new SelfHostedSttProvider({ baseUrl: requireValue(config.baseUrl, "VOICE_STT_BASE_URL", "self-hosted"), apiKey: config.apiKey });
     case "sarvam":
       return new SarvamSttProvider({
+        endpointing: config.endpointing,
         apiKey: requireValue(config.apiKey, "VOICE_STT_API_KEY", "sarvam"),
         ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
         ...(config.model ? { model: config.model } : {}),
