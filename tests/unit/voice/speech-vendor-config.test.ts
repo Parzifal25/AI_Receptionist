@@ -101,3 +101,18 @@ it("requires a configured endpoint for self-hosted providers", () => {
   expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "self-hosted" })).toThrow(/BASE_URL/);
   expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_TTS_PROVIDER: "self-hosted" })).toThrow(/BASE_URL/);
 });
+
+it("accepts the existing shared Sarvam credential names with explicit keys taking precedence", () => {
+  for (const name of ["SARVAM_API_KEY", "SARVAM_API"]) {
+    const config = loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "sarvam", VOICE_TTS_PROVIDER: "sarvam", VOICE_TTS_DEFAULT_VOICE: "shubh", [name]: "shared-test-key" });
+    expect(config.sttApiKey).toBe("shared-test-key"); expect(config.ttsApiKey).toBe("shared-test-key");
+  }
+  const config = loadGatewayConfig({ ...BASE_ENV, SARVAM_API: "shared", VOICE_STT_API_KEY: "explicit-stt", VOICE_TTS_API_KEY: "explicit-tts", VOICE_WEB_TTS_SAMPLE_RATE: "16000" });
+  expect(config.sttApiKey).toBe("explicit-stt"); expect(config.ttsApiKey).toBe("explicit-tts"); expect(config.webTtsSampleRate).toBe(16000);
+  expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_WEB_TTS_SAMPLE_RATE: "44100" })).toThrow();
+});
+
+it("never forwards shared Sarvam credentials to self-hosted endpoints", () => {
+  const config = loadGatewayConfig({ ...BASE_ENV, SARVAM_API: "shared-sarvam-key", VOICE_STT_PROVIDER: "self-hosted", VOICE_STT_BASE_URL: "http://localhost:9000", VOICE_TTS_PROVIDER: "self-hosted", VOICE_TTS_BASE_URL: "http://localhost:9001" });
+  expect(config.sttApiKey).toBeUndefined(); expect(config.ttsApiKey).toBeUndefined();
+});

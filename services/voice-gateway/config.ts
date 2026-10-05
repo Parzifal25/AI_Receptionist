@@ -36,6 +36,7 @@ export const gatewayConfigSchema = z
     ttsProvider: z.enum(TTS_PROVIDER_NAMES).default("fake"),
     ttsApiKey: z.string().optional(),
     ttsModel: z.string().optional(),
+    webTtsSampleRate: z.coerce.number().int().refine(value => [8000, 16000, 22050, 24000].includes(value)).default(24000),
     /**
      * Voice used only when an agent version configures no `voice.ttsVoice`.
      * Required with a real vendor: the platform does not pick a voice for a
@@ -80,6 +81,9 @@ export const gatewayConfigSchema = z
 export type GatewayConfig = z.infer<typeof gatewayConfigSchema>;
 
 export function loadGatewayConfig(env: Record<string, string | undefined> = process.env): GatewayConfig {
+  const sttProvider = env.VOICE_STT_PROVIDER ?? (env.TELEPHONY_PROVIDER === "twilio" && env.VOICE_MEDIA_ENGINE !== "pipecat" ? "sarvam" : undefined);
+  const ttsProvider = env.VOICE_TTS_PROVIDER ?? (env.TELEPHONY_PROVIDER === "twilio" && env.VOICE_MEDIA_ENGINE !== "pipecat" ? "sarvam" : undefined);
+  const sarvamKey = env.SARVAM_API_KEY ?? env.SARVAM_API;
   const parsed = gatewayConfigSchema.safeParse({
     port: env.VOICE_GATEWAY_PORT,
     publicWsUrl: env.VOICE_GATEWAY_PUBLIC_WS_URL,
@@ -89,15 +93,16 @@ export function loadGatewayConfig(env: Record<string, string | undefined> = proc
     twilioAccountSid: env.TWILIO_ACCOUNT_SID,
     twilioAuthToken: env.TWILIO_AUTH_TOKEN,
     fakeWebhookSecret: env.VOICE_FAKE_WEBHOOK_SECRET,
-    sttProvider: env.VOICE_STT_PROVIDER ?? (env.TELEPHONY_PROVIDER === "twilio" && env.VOICE_MEDIA_ENGINE !== "pipecat" ? "sarvam" : undefined),
-    sttApiKey: env.VOICE_STT_API_KEY,
+    sttProvider,
+    sttApiKey: env.VOICE_STT_API_KEY ?? (sttProvider === "sarvam" ? sarvamKey : undefined),
     sttModel: env.VOICE_STT_MODEL,
     sttMode: env.VOICE_STT_MODE,
     sttBaseUrl: env.VOICE_STT_BASE_URL,
     sttFallbackBaseUrl: env.VOICE_STT_FALLBACK_BASE_URL,
-    ttsProvider: env.VOICE_TTS_PROVIDER ?? (env.TELEPHONY_PROVIDER === "twilio" && env.VOICE_MEDIA_ENGINE !== "pipecat" ? "sarvam" : undefined),
-    ttsApiKey: env.VOICE_TTS_API_KEY,
+    ttsProvider,
+    ttsApiKey: env.VOICE_TTS_API_KEY ?? (ttsProvider === "sarvam" ? sarvamKey : undefined),
     ttsModel: env.VOICE_TTS_MODEL,
+    webTtsSampleRate: env.VOICE_WEB_TTS_SAMPLE_RATE,
     ttsDefaultVoice: env.VOICE_TTS_DEFAULT_VOICE,
     ttsBaseUrl: env.VOICE_TTS_BASE_URL,
     ttsFallbackBaseUrl: env.VOICE_TTS_FALLBACK_BASE_URL,

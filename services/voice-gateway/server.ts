@@ -1,3 +1,5 @@
+import { handleWebTts } from "./web-tts";
+import type { StreamingTtsProvider } from "@halo/ports/streaming-tts-provider";
 import { handleWebStt } from "./web-stt";
 import type { StreamingSttProvider } from "@halo/ports/streaming-stt-provider";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
@@ -37,6 +39,7 @@ const MAX_BODY_BYTES = 64 * 1024;
 export interface GatewayServerDeps {
   config: GatewayConfig;
   webStt?: StreamingSttProvider;
+  webTts?: StreamingTtsProvider;
   gateway: VoiceGateway;
   telephony: TelephonyProvider;
   /**
@@ -86,14 +89,16 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
         status: shuttingDown ? "draining" : "ok",
         sessions: gateway.activeSessions,
         provider: telephony.name,
+        speech: { stt: deps.webStt?.name ?? null, tts: deps.webTts?.name ?? null },
       }));
     }
 
-    if (req.method === "POST" && url.pathname === "/web/stt") {
+    if (req.method === "POST" && ["/web/stt", "/web/tts"].includes(url.pathname)) {
       if (shuttingDown) return send(res, 503, "application/json", JSON.stringify({ error: "draining" }));
       if (webTranscriptions >= config.maxConcurrentSessions) return send(res, 429, "application/json", JSON.stringify({ error: "capacity" }));
       webTranscriptions++;
-      try { return await handleWebStt(req, res, config.streamTokenSecret, deps.webStt); }
+      try { if (url.pathname === "/web/tts") return await handleWebTts(req, res, config.streamTokenSecret, config.webTtsSampleRate, deps.webTts);
+        return await handleWebStt(req, res, config.streamTokenSecret, deps.webStt); }
       finally { webTranscriptions--; }
     }
 

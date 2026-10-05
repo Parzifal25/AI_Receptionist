@@ -59,6 +59,10 @@ export class WidgetApi {
     return result.text;
   }
 
+  synthesize(visitorToken: string, signal: AbortSignal): Promise<{ audio: string; format: { encoding: string; sampleRate: number; channels: number } }> {
+    return this.request("/api/v1/widget/synthesis", { method: "POST", body: JSON.stringify({ visitorToken }), signal });
+  }
+
   getConfig(): Promise<WidgetConfig> {
     return this.request<WidgetConfig>(
       `/api/v1/widget/config?key=${encodeURIComponent(this.widgetKey)}`,

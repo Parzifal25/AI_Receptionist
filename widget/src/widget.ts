@@ -53,7 +53,9 @@ export class ReceptionistWidget {
     private readonly api: WidgetApi,
     private readonly config: WidgetConfig,
     private readonly storageKey: string,
-  ) { this.speech = new HaloSpeechProvider((audio, signal) => this.api.transcribe(audio, signal)); }
+  ) { this.speech = new HaloSpeechProvider((audio, signal) => this.api.transcribe(audio, signal),
+    signal => { if (!this.visitorToken) throw new Error("No conversation"); return this.api.synthesize(this.visitorToken, signal); },
+    () => { this.voice?.stop(); this.addMessage("bot error", "HALO audio playback failed. You can keep typing."); }); }
 
   mount(): void {
     const host = document.createElement("div");
@@ -285,9 +287,8 @@ export class ReceptionistWidget {
       const message =
         error instanceof Error ? error.message : "Something went wrong — please try again.";
       this.addMessage("bot error", message);
-      // Keep the voice conversation alive through an API hiccup: say the
-      // problem out loud and go back to listening instead of going mute.
-      if (this.voice?.isActive()) this.voice.speakReply(message);
+      // Only persisted HALO replies are eligible for synthesis.
+      this.voice?.stop();
     } finally {
       this.sending = false;
     }

@@ -1,11 +1,47 @@
-import { BrowserSpeechProvider } from "@halo/providers/speech/browser-speech-provider";
+import type { SpeechProvider } from "@halo/ports/speech-provider";
 import type { SpeechRecognitionCallbacks, SpeechRecognitionSession } from "@halo/ports/speech-provider";
 
-/** Server STT, with the existing browser synthesis retained explicitly for web
- * playback. Never invokes browser speech recognition, even on server failure. */
-export class HaloSpeechProvider extends BrowserSpeechProvider {
+/** Server STT/TTS through HALO. Web Audio captures and plays PCM; no Web Speech API. */
+export class HaloSpeechProvider implements SpeechProvider {
   readonly name = "halo-web";
-  constructor(private readonly transcribe: (audio: string, signal: AbortSignal) => Promise<string>) { super(); }
+  private playback?: AudioContext;
+  private playbackAbort?: AbortController;
+  constructor(
+    private readonly transcribe: (audio: string, signal: AbortSignal) => Promise<string>,
+    private readonly synthesize?: (signal: AbortSignal) => Promise<{ audio: string; format: { encoding: string; sampleRate: number; channels: number } }>,
+    private readonly onPlaybackError: () => void = () => {},
+  ) {}
+  isSynthesisSupported(): boolean { return !!this.synthesize && typeof AudioContext !== "undefined"; }
+  cancelSpeech(): void {
+    this.playbackAbort?.abort(); this.playbackAbort = undefined;
+    if (this.playback && this.playback.state !== "closed") void this.playback.close().catch(() => {});
+    this.playback = undefined;
+  }
+  speak(_text: string, _language: string, onEnd?: () => void): void {
+    this.cancelSpeech();
+    const abort = new AbortController(); this.playbackAbort = abort;
+    void (async () => {
+      if (!this.synthesize) throw new Error("tts_not_configured");
+      const result = await this.synthesize(abort.signal);
+      if (abort.signal.aborted) return;
+      const { format } = result;
+      if (format.encoding !== "pcm16le" || format.channels !== 1 || ![8000, 16000, 22050, 24000].includes(format.sampleRate)) throw new Error("bad_audio");
+      const binary = atob(result.audio);
+      if (!binary.length || binary.length % 2) throw new Error("bad_audio");
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+      const view = new DataView(bytes.buffer);
+      const context = new AudioContext(); this.playback = context;
+      await context.resume();
+      if (abort.signal.aborted) return;
+      if (context.state !== "running") throw new Error("playback_blocked");
+      const buffer = context.createBuffer(1, bytes.length / 2, format.sampleRate);
+      const samples = buffer.getChannelData(0);
+      for (let i = 0; i < samples.length; i++) samples[i] = view.getInt16(i * 2, true) / 32768;
+      const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination);
+      source.onended = () => { if (!abort.signal.aborted) { this.cancelSpeech(); onEnd?.(); } };
+      source.start();
+    })().catch(() => { if (!abort.signal.aborted) { this.cancelSpeech(); this.onPlaybackError(); } });
+  }
   isRecognitionSupported(): boolean {
     return typeof window !== "undefined" && window.isSecureContext !== false && !!navigator.mediaDevices?.getUserMedia && !!window.AudioContext;
   }

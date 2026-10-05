@@ -14,7 +14,7 @@ export async function handleWebStt(req: IncomingMessage, res: ServerResponse, se
   const body = Buffer.concat(chunks).toString("utf8");
   const signature = req.headers["x-halo-signature"];
   const expected = signWebAudio(secret, body);
-  if (typeof signature !== "string" || signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) { send(403, { error: "unauthorized" }); return; }
+  if (typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature) || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) { send(403, { error: "unauthorized" }); return; }
   const parsed = schema.safeParse((() => { try { return JSON.parse(body); } catch { return null; } })());
   if (!parsed.success || Math.abs(Date.now() - parsed.data.timestamp) > 30000) { send(400, { error: "bad_audio" }); return; }
   if (!provider || provider.name.includes("fake")) { send(503, { error: "stt_not_configured" }); return; }
@@ -22,7 +22,9 @@ export async function handleWebStt(req: IncomingMessage, res: ServerResponse, se
   const onClose = () => { if (!res.writableEnded) abort.abort(); };
   res.on("close", onClose);
   try {
+    const started = Date.now();
     const text = await transcribeAudio(provider, Buffer.from(parsed.data.audio, "base64"), parsed.data.language, abort.signal);
+    logger.info("web STT completed", { provider: provider.name, latencyMs: Date.now() - started });
     send(200, { text, provider: provider.name });
   } catch (error) {
     const code = error instanceof Error && /^(stt_[a-z_]+|bad_audio|aborted)$/.test(error.message) ? error.message : "stt_provider";

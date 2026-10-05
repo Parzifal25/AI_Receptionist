@@ -77,18 +77,20 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
   const stt = createSttProvider(sttConfig);
   const webStt = createSttProvider({ ...sttConfig, endpointing: "manual" });
 
-  const gateway = new VoiceGateway({
-    callStore,
-    telephony,
-    stt,
-    tts: createTtsProvider({
+  const tts = createTtsProvider({
       provider: config.ttsProvider,
       ...(config.ttsFallbackBaseUrl ? { fallback: { provider: "self-hosted" as const, baseUrl: config.ttsFallbackBaseUrl } } : {}),
       ...(config.ttsApiKey ? { apiKey: config.ttsApiKey } : {}),
       ...(config.ttsModel ? { model: config.ttsModel } : {}),
       ...(config.ttsDefaultVoice ? { defaultSpeaker: config.ttsDefaultVoice } : {}),
       ...(config.ttsBaseUrl ? { baseUrl: config.ttsBaseUrl } : {}),
-    }),
+    });
+
+  const gateway = new VoiceGateway({
+    callStore,
+    telephony,
+    stt,
+    tts,
     speechForCall: ctx => {
       const id = ctx.route.version.config.voice.profileId;
       if (!id) throw new Error("Internal profile resolver called without a profile");
@@ -161,6 +163,7 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
 
   const server = createGatewayServer({
     webStt,
+    webTts: tts,
     config,
     gateway,
     telephony,
