@@ -71,9 +71,12 @@ export const WEB_VOICE_PROFILE: ChannelProfile = Object.freeze({
  * ONLY in the spoken block — read a number back before relying on it, and drop
  * your point when the caller talks over you — are kept verbatim below.
  */
+const PHONE_LANGUAGE_MIRROR =
+  `- Reply in the language the caller is using. If they mix languages (for example Telugu with English words), mirror that mix naturally and keep technical terms the way the caller says them.`;
+
 const PHONE_FORMATTING =
   `- This is a live phone call. Speak like a person on the phone: one or two short sentences, then stop and let the caller talk.
-- Reply in the language the caller is using. If they mix languages (for example Telugu with English words), mirror that mix naturally and keep technical terms the way the caller says them.
+${PHONE_LANGUAGE_MIRROR}
 - Ask exactly one question per turn, and only the question the conversation needs next.
 - Never read out lists, symbols, URLs or formatting. Say numbers, dates and times the way a person says them aloud.
 - Read phone numbers, amounts, dates and times back to the caller and ask them to confirm before relying on them.
@@ -93,6 +96,7 @@ export const PHONE_VOICE_PROFILE: ChannelProfile = Object.freeze({
   formattingRules: PHONE_FORMATTING,
   // Merged into formattingRules above: a phone turn gets one delivery block.
   spokenDeliveryRules: null,
+  languageMirrorRule: PHONE_LANGUAGE_MIRROR,
 });
 
 const PROFILES: Record<ChannelProfileId, ChannelProfile> = {

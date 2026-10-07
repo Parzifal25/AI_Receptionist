@@ -185,6 +185,11 @@ export type PipecatCommand =
       chunks: string[];
       /** False while a handoff or hang-up sequence owns the call. */
       interruptible: boolean;
+      /**
+       * The configured language tag this line is synthesized in. HALO decides
+       * it per line; the worker applies it and never detects one itself.
+       */
+      language: string;
     }
   | { type: "stop_playback"; playbackId: string; reason: string }
   | { type: "hangup"; reason: string };

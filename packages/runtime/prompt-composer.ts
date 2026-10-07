@@ -1,5 +1,6 @@
 import type { Business, BusinessHours, KnowledgeSnippet, Weekday } from "@halo/core/domain/types";
 import type { ChannelProfile, CustomerContext, ToolDescriptor } from "./contracts";
+import { describeResponseLanguage, type ResponseLanguage } from "@halo/language/response-language";
 import { hasStateContent, type ConversationState } from "./conversation-state";
 
 /**
@@ -29,7 +30,7 @@ import { hasStateContent, type ConversationState } from "./conversation-state";
  *   - deterministic: same inputs → same prompt. No timestamps, no randomness.
  */
 
-export const PROMPT_COMPOSER_VERSION = "2026-09-22.1";
+export const PROMPT_COMPOSER_VERSION = "2026-10-07.1";
 
 export type PromptSectionId =
   | "identity"
@@ -78,6 +79,13 @@ export interface ComposeInput {
   promptTemplate: string;
   customInstructions: string;
   language: string;
+  /**
+   * The reply language the runtime decided for THIS turn. When set it is the
+   * only language instruction rendered: the channel's "mirror the caller"
+   * line and the "defaulting to" rule both ask the model to make a decision
+   * that has already been made. Null keeps both, unchanged.
+   */
+  responseLanguage?: ResponseLanguage | null;
   channel: ChannelProfile;
   state: ConversationState;
   summary: string;
@@ -254,10 +262,14 @@ function stateSection(state: ConversationState): string | null {
         `Nothing has been done yet; wait for a clear yes before treating it as agreed.`,
     );
   }
-  if (state.escalation.status !== "none") {
+  if (state.escalation.status === "requested" || state.escalation.reason === "explicit_human_request") {
     lines.push(
       `The visitor has asked for a human. Do not claim anyone has been contacted; offer the business phone number if listed and take their details for a callback.`,
     );
+  } else if (state.escalation.status !== "none") {
+    // Escalated by the system, not by the visitor: saying they asked for a
+    // person would be false, and the model then offers one unprompted.
+    lines.push(`This conversation is flagged for the team to follow up. Do not claim anyone has been contacted.`);
   }
   return lines.join("\n");
 }
@@ -324,7 +336,12 @@ export function composePrompt(input: ComposeInput): ComposedPrompt {
   push("conversation_recap", recapSection(input.summary));
   push("knowledge", knowledgeSection(input.knowledge));
 
-  push("channel", `## How you converse\n${channel.formattingRules}`);
+  const decided = input.responseLanguage ?? null;
+  const formattingRules =
+    decided && channel.languageMirrorRule
+      ? channel.formattingRules.split("\n").filter((line) => line !== channel.languageMirrorRule).join("\n")
+      : channel.formattingRules;
+  push("channel", `## How you converse\n${formattingRules}`);
   if (channel.spokenDeliveryRules) push("channel", `## Voice mode\n${channel.spokenDeliveryRules}`);
 
   push("situations", `## Handling situations\n${doctrine.situations.map((s) => `- ${s}`).join("\n")}`);
@@ -335,7 +352,9 @@ export function composePrompt(input: ComposeInput): ComposedPrompt {
   let rules = buildSafetyRules(business.name, {
     hasGroundedContext: input.knowledge.length > 0 || input.summary.trim().length > 0,
   });
-  if (input.language && input.language !== "en") {
+  if (decided) {
+    rules += `\n- Reply language for this turn (set by the system): ${describeResponseLanguage(decided)}.`;
+  } else if (input.language && input.language !== "en") {
     rules += `\n- Respond in the language the visitor writes in, defaulting to ${input.language}.`;
   }
   push("rules", rules);

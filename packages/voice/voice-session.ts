@@ -639,6 +639,7 @@ export class VoiceSession {
         turnId: result.turnId,
         directive: result.directive,
         speechEndedAt: params.speechEndedAt,
+        ...(result.language ? { language: result.language } : {}),
       });
       return;
     }
@@ -702,6 +703,8 @@ export class VoiceSession {
     turnId: string | null;
     directive: VoiceDirective;
     speechEndedAt?: number;
+    /** Replies carry the runtime's choice; policy lines are in the agent's language. */
+    language?: string;
   }): Promise<void> {
     if (this.state === "ended") return;
     // INVARIANT: at most one playback is ever active. Two concurrent
@@ -766,7 +769,7 @@ export class VoiceSession {
               for await (const audio of this.deps.tts.synthesize(
                 {
                   text: chunks[index],
-                  language: this.config.language,
+                  language: params.language ?? this.config.language,
                   voiceId: this.config.voiceId,
                   speakingRate: this.config.speakingRate,
                   format: ttsFormat,

@@ -52,7 +52,9 @@ can be tested without a media stack. A worker binds it to the pipeline:
 - `on_ready(identity, voice)` — configure STT language, alternative
   languages and phrase hints; configure the TTS voice and rate; configure VAD
   from `vad_min_speech_ms` / `vad_end_hangover_ms`.
-- `on_speak(request)` — synthesize `request.chunks` **in order**, emit
+- `on_speak(request)` — switch TTS to `request.language` (HALO decides the
+  language of every line from the caller's words; the worker never detects
+  one), then synthesize `request.chunks` **in order**, emit
   `playback_first_audio` once, `playback_chunk_played(i)` as each chunk
   finishes playing out, then `playback_stopped(..., "completed")`. If
   `request.interruptible` is false (a handoff or hang-up line), do not cut it

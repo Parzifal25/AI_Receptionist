@@ -114,6 +114,9 @@ class SpeakRequest:
     turn_id: Optional[str]
     chunks: list[str]
     interruptible: bool
+    # The language HALO decided this line is spoken in. None = the session's
+    # configured language (an older HALO that does not send one).
+    language: Optional[str] = None
 
 
 @dataclass
@@ -313,6 +316,7 @@ class HaloControlClient:
                     turn_id=command.get("turnId"),
                     chunks=list(command.get("chunks", [])),
                     interruptible=bool(command.get("interruptible", True)),
+                    language=command.get("language"),
                 )
             )
             return

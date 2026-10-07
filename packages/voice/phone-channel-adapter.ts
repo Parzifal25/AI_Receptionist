@@ -2,6 +2,7 @@ import { DEFAULT_BRANDING, type ChatMessage } from "@halo/core/domain/types";
 import type { TranscriptDelivery } from "@halo/core/domain/voice";
 import type { AgentVersion } from "@halo/core/domain/agents";
 import type { Business } from "@halo/core/domain/types";
+import { speechLanguageFor } from "@halo/language/response-language";
 import type { LLMDelta, LLMProvider } from "@halo/ports/llm-provider";
 import { AgentRuntime, newTurnId, type DoctrineProvider, type RuntimePolicy } from "@halo/runtime/agent-runtime";
 import { isRuntimeCancelled } from "@halo/runtime/cancellation";
@@ -239,7 +240,13 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
       events: options.events,
       // Voice-sized context budget: the caller waits in silence, so prompt
       // size is the part of time-to-first-token we control (§VOICE_TOKEN_BUDGET).
-      policy: { turnTimeoutMs: 12_000, maxToolRounds: 1, contextLimits: VOICE_CONTEXT_LIMITS, ...options.policy },
+      // Output ceiling: the runtime default (400) is an English number. A
+      // spoken reply may be 450 characters, Telugu costs about a token per
+      // character, and a reasoning model spends part of the same allowance
+      // before it writes a word — so a full Telugu reply ran out mid-stream
+      // and the caller heard the provider-failure line instead. The reply
+      // itself is still cut to the channel's 450 characters by validation.
+      policy: { turnTimeoutMs: 12_000, maxToolRounds: 1, contextLimits: VOICE_CONTEXT_LIMITS, defaultMaxTokens: 900, ...options.policy },
     });
   }
 
@@ -288,6 +295,10 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
       },
       degraded: output.degraded.provider || output.degraded.knowledge || output.degraded.state,
       timings: this.timingsFor(output),
+      // From the words about to be spoken, not from the decision that asked
+      // for them: the tenant's fallback line is in the agent's own language
+      // whatever the caller was speaking.
+      language: speechLanguageFor(output.reply, agent.config.language.primary || "en", agent.config.language.fallbacks),
     };
   }
 

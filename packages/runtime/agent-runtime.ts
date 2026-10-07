@@ -3,6 +3,7 @@ import { classifyTurn } from "./turn-complexity";
 import type { ChatMessage } from "@halo/core/domain/types";
 import { AppError, isAppError } from "@halo/core/errors/app-error";
 import { isSubstantiveQuestion } from "@halo/knowledge/retrieval-query";
+import { resolveResponseLanguage } from "@halo/language/response-language";
 import { estimateTokens } from "@halo/language/tokens";
 import { describeCapabilities, type LLMDelta, type LLMMessage, type LLMProvider } from "@halo/ports/llm-provider";
 import { logger } from "@halo/platform/logger";
@@ -239,6 +240,26 @@ export class AgentRuntime {
         await this.deps.conversations.loadHistory(trusted.conversationId, trusted.businessId, limits.maxHistoryFetch),
       );
 
+      // ---- response language ---------------------------------------------------
+      // Decided here, once, from the caller's words and the previous turn's
+      // decision — before the prompt is composed, so the model is told rather
+      // than asked. Persisted with the rest of the state at the end of the turn.
+      const responseLanguage = resolveResponseLanguage({
+        utterance: userMessage,
+        previous: state.responseLanguage,
+        primary: agent.config.language.primary || agent.receptionist.language || "en",
+        fallbacks: agent.config.language.fallbacks,
+        codeSwitchPolicy: agent.config.language.codeSwitchPolicy,
+      });
+      if (responseLanguage) {
+        events.emit("language.resolved", {
+          tag: responseLanguage.tag,
+          mixed: responseLanguage.mixed,
+          previous: state.responseLanguage?.tag ?? null,
+        });
+        state = applyStatePatch(state, { responseLanguage });
+      }
+
       checkpoint("history");
       // ---- knowledge --------------------------------------------------------
       const retrievalStart = Date.now();
@@ -346,6 +367,7 @@ export class AgentRuntime {
         promptTemplate: context.agent.promptTemplate,
         customInstructions: context.agent.customInstructions,
         language: context.agent.language,
+        responseLanguage,
         channel,
         state: context.state,
         summary: context.summary,
@@ -695,7 +717,7 @@ export class AgentRuntime {
         reply = streamedReply;
         validation = { ok: true, violations: streamedViolations, regenerated: false, fallbackUsed: false };
       } else {
-        let verdict = validateReply({ reply: replyDraft, channel, actions, claimPhrases });
+        let verdict = validateReply({ reply: replyDraft, channel, actions, claimPhrases, responseLanguage });
         let regenerated = false;
         let fallbackUsed = false;
         if (verdict.needsRegeneration && this.policy.maxRegenerations > 0) {
@@ -721,11 +743,11 @@ export class AgentRuntime {
             verdict = { ...second, violations: [...verdict.violations, ...second.violations] };
           } catch (error) {
             if (isRuntimeCancelled(error) && !committed) throw error;
-            fallbackUsed = true;
-            log.warn("repair generation failed, using safe fallback", { error });
+            fallbackUsed = needsSafeFallback(verdict.violations);
+            log.warn("repair generation failed", { error, fallbackUsed });
           }
         } else if (verdict.needsRegeneration) {
-          fallbackUsed = true;
+          fallbackUsed = needsSafeFallback(verdict.violations);
         }
         reply = fallbackUsed ? safeFallbackReply(verdict.violations, agent.config.guardrails.safeFallbackReply) : verdict.reply;
         validation = {
@@ -876,6 +898,15 @@ export class AgentRuntime {
       throw error;
     }
   }
+}
+
+/**
+ * A reply in the wrong language is still an honest, usable answer. When it
+ * cannot be regenerated it is delivered as it is; only violations that make a
+ * reply unsafe to say are replaced by the canned fallback line.
+ */
+function needsSafeFallback(violations: ValidationOutcome["violations"]): boolean {
+  return violations.some((v) => v.repairable === "regenerate" && v.kind !== "wrong_language");
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {

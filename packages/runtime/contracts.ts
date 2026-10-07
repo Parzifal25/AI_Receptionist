@@ -102,6 +102,12 @@ export interface ChannelProfile {
   formattingRules: string;
   /** Extra delivery rules for spoken channels (rendered as its own section); null for text. */
   spokenDeliveryRules: string | null;
+  /**
+   * The line of `formattingRules` that asks the model to mirror the caller's
+   * language. Named so the composer can drop it on turns where the runtime
+   * has already decided the reply language and states it once, as a fact.
+   */
+  languageMirrorRule?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -438,7 +444,8 @@ export type ValidationViolationKind =
   | "instruction_leak"
   | "max_length"
   | "markdown_not_supported"
-  | "invalid_json";
+  | "invalid_json"
+  | "wrong_language";
 
 export interface ValidationViolation {
   kind: ValidationViolationKind;
@@ -524,6 +531,7 @@ export type RuntimeEventType =
   | "runtime.started"
   | "context.built"
   | "knowledge.retrieved"
+  | "language.resolved"
   | "model.requested"
   | "model.completed"
   | "model.failed"

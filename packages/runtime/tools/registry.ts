@@ -102,8 +102,14 @@ export const BUILTIN_TOOLS = {
     argsSchema: requestHumanHandoffArgs,
     sideEffecting: false,
     requiresConfirmation: false,
+    // Withheld only once the VISITOR has asked. The system also escalates on
+    // its own (repeated unanswered questions, a failed action): that flags the
+    // conversation for the team, and a caller who then asks for a person must
+    // still be able to get one.
     precondition: (ctx) =>
-      ctx.state.escalation.status !== "none" ? "a handoff has already been requested in this conversation" : null,
+      ctx.state.escalation.status === "requested" || ctx.state.escalation.reason === "explicit_human_request"
+        ? "a handoff has already been requested in this conversation"
+        : null,
   } satisfies ControlledToolDefinition<z.infer<typeof requestHumanHandoffArgs>>,
   save_contact_details: {
     name: "save_contact_details",

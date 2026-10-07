@@ -169,6 +169,31 @@ class MediaGateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, len(errors))
         self.assertTrue(errors[0]["kwargs"].get("retryable", True) in (True, False))
 
+    # -- speak: language ---------------------------------------------------
+
+    async def test_speak_applies_the_language_halo_named_only_on_change(self):
+        from pipecat.frames.frames import TTSUpdateSettingsFrame
+
+        self.gate._default_language = self.gate._tts_language = "te-IN"
+
+        async def play(playback_id, language):
+            await self.gate.on_speak(SpeakRequest(playback_id=playback_id, kind="reply", turn_id="t", chunks=["x"], interruptible=True, language=language))
+            await self._wait_armed()
+            await self.gate.on_stop_playback(playback_id, "test")
+            await self._drain(0.05)
+
+        await play("pb-te", "te-IN")
+        await play("pb-en", "en-IN")
+        await play("pb-en-2", "en-IN")
+        await play("pb-policy", None)  # no language named: back to the session's own
+
+        updates = [f for f in self.task.frames if isinstance(f, TTSUpdateSettingsFrame)]
+        self.assertEqual(["en-IN", "te-IN"], [f.delta.language for f in updates])
+        # The switch is queued ahead of the line it applies to.
+        first_update = self.task.frames.index(updates[0])
+        english_line = [i for i, f in enumerate(self.task.frames) if isinstance(f, TTSSpeakFrame)][1]
+        self.assertLess(first_update, english_line)
+
     # -- speak: chunk attribution ------------------------------------------
 
     async def test_speak_runs_one_context_per_chunk_in_order(self):

@@ -63,6 +63,16 @@ export const lastToolIntentSchema = z.object({
   at: z.string(),
 });
 
+/**
+ * The language the next reply is written and spoken in. Decided by the
+ * runtime from the caller's words (`@halo/language/response-language`), never
+ * by the model, and carried across turns so a one-word answer does not flip it.
+ */
+export const responseLanguageSchema = z.object({
+  tag: z.string().min(2).max(16),
+  mixed: z.boolean(),
+});
+
 export const conversationStateSchema = z.object({
   version: z.literal(CONVERSATION_STATE_VERSION),
   /** What the visitor is currently trying to accomplish, if known. */
@@ -94,6 +104,8 @@ export const conversationStateSchema = z.object({
   /** Consecutive substantive questions with no grounding and no action. */
   unansweredStreak: z.int().min(0),
   turnCount: z.int().min(0),
+  /** Null until decided; defaulted so rows persisted before it existed still parse. */
+  responseLanguage: responseLanguageSchema.nullable().default(null),
 });
 
 export type ConversationState = z.infer<typeof conversationStateSchema>;
@@ -112,6 +124,7 @@ export function emptyConversationState(): ConversationState {
     messagesObserved: 0,
     unansweredStreak: 0,
     turnCount: 0,
+    responseLanguage: null,
   };
 }
 
@@ -143,6 +156,7 @@ export const conversationStatePatchSchema = z.object({
   messagesObserved: z.int().min(0).optional(),
   unansweredStreak: z.int().min(0).optional(),
   turnCount: z.int().min(0).optional(),
+  responseLanguage: responseLanguageSchema.nullable().optional(),
 });
 
 export type ConversationStatePatch = z.infer<typeof conversationStatePatchSchema>;
@@ -200,6 +214,7 @@ export function applyStatePatch(
     messagesObserved: patch.messagesObserved ?? state.messagesObserved,
     unansweredStreak: patch.unansweredStreak ?? state.unansweredStreak,
     turnCount: patch.turnCount ?? state.turnCount,
+    responseLanguage: patch.responseLanguage !== undefined ? patch.responseLanguage : state.responseLanguage,
   };
 }
 

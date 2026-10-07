@@ -64,6 +64,11 @@ export interface VoiceTurnResult {
   degraded: boolean;
   /** Optional: handlers that cannot break a turn down simply omit it. */
   timings?: VoiceTurnTimings;
+  /**
+   * The configured language tag to speak `reply` in. Omitted by handlers that
+   * do not decide one; the session then uses the agent's primary language.
+   */
+  language?: string;
 }
 
 /** Thrown by a handler whose turn was aborted before it committed anything. */

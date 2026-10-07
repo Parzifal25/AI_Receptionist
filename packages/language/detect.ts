@@ -26,14 +26,28 @@ const ROMANIZED_MARKERS = [
   "cheppandi", "unnaru", "undi", "ledu", "kadu", "vaddu", "avunu", "sare", "entha", "enta",
   "ela", "emi", "enni", "eppudu", "ekkada", "vastundi", "chesaru", "chala", "bagundi", "garu",
   "repu", "ivala", "ellundi", "roju", "ippudu", "tarvatha", "gurinchi", "kosam", "daggara",
+  "padutundi", "cheyali", "kuda", "kani", "ante",
 ];
+
+/**
+ * Long markers match as prefixes, because Telugu agglutinates ("kavali" →
+ * "kavalante"). Short ones must be whole words: as prefixes "mee", "repu" and
+ * "ela" claim "meeting", "republic" and "elaborate", and an English sentence
+ * is then read as Telugu.
+ */
+const WHOLE_WORD_MAX_CHARS = 4;
+
+function hasMarker(words: string, marker: string): boolean {
+  return words.includes(marker.length <= WHOLE_WORD_MAX_CHARS ? ` ${marker} ` : ` ${marker}`);
+}
 
 export function detectLanguage(text: string): LanguageDetection {
   const normalized = normalizeForMatching(text);
   if (!normalized) return { primary: "unknown", isCodeSwitched: false, romanized: false, confidence: 0 };
 
   const counts = scriptCounts(normalized);
-  const romanizedHits = ROMANIZED_MARKERS.filter((marker) => ` ${normalized} `.includes(` ${marker}`)).length;
+  const words = ` ${normalized.replace(/[^\p{L}\p{M}\p{N}]+/gu, " ").trim()} `;
+  const romanizedHits = ROMANIZED_MARKERS.filter((marker) => hasMarker(words, marker)).length;
 
   if (counts.telugu > 0) {
     const teluguShare = counts.telugu / Math.max(1, counts.telugu + counts.latin);

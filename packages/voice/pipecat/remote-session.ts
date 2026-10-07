@@ -84,6 +84,8 @@ interface RemotePlayback {
   startedAt: number;
   settled: boolean;
   directive: VoiceDirective;
+  /** The tag this line was synthesized in; recorded on its transcript row. */
+  language: string;
   speechEndedAt?: number;
   resolveDone: () => void;
 }
@@ -480,6 +482,7 @@ export class RemoteVoiceSession implements VoiceMediaSession {
         turnId: result.turnId,
         directive: result.directive,
         speechEndedAt: params.speechEndedAt,
+        ...(result.language ? { language: result.language } : {}),
       });
       return;
     }
@@ -546,6 +549,8 @@ export class RemoteVoiceSession implements VoiceMediaSession {
     turnId: string | null;
     directive: VoiceDirective;
     speechEndedAt?: number;
+    /** Replies carry the runtime's choice; policy lines are in the agent's language. */
+    language?: string;
   }): Promise<void> {
     if (this.state === "ended") return;
     const active = this.playback;
@@ -576,12 +581,13 @@ export class RemoteVoiceSession implements VoiceMediaSession {
       startedAt: this.now(),
       settled: false,
       directive: params.directive,
+      language: params.language ?? this.config.language,
       ...(params.speechEndedAt !== undefined ? { speechEndedAt: params.speechEndedAt } : {}),
       resolveDone,
     };
     this.playback = playback;
     this.requestedTtsCharacters += params.text.length;
-    this.emit("tts_start", null, { chunks: chunks.length, chars: params.text.length, kind: params.kind });
+    this.emit("tts_start", null, { chunks: chunks.length, chars: params.text.length, kind: params.kind, language: playback.language });
     this.deps.commands.send({
       type: "speak",
       playbackId: playback.id,
@@ -591,6 +597,7 @@ export class RemoteVoiceSession implements VoiceMediaSession {
       // A handoff or hang-up line must be heard in full: it is the honest
       // account of what is about to happen to the caller.
       interruptible: this.config.bargeIn.enabled && this.state !== "transferring" && this.state !== "ending",
+      language: playback.language,
     });
     // A lost `stopped` report must not wedge the session forever. The
     // watchdog settles with the chunks Pipecat actually acknowledged — it
@@ -621,6 +628,7 @@ export class RemoteVoiceSession implements VoiceMediaSession {
       playback.turnId,
       playback.kind === "reply" ? "runtime" : "voice_policy",
       playback.startedAt,
+      playback.language,
     );
     if (playback.turnId) void this.safeRecordDelivery(playback.turnId, delivery, deliveredText);
     if (status !== "complete") playback.resolveDone();
@@ -825,6 +833,7 @@ export class RemoteVoiceSession implements VoiceMediaSession {
     turnId: string | null,
     source: "runtime" | "voice_policy",
     startedAt: number,
+    language: string = this.config.language,
   ): void {
     this.pushTranscript({
       turnIndex: this.turnIndex,
@@ -832,7 +841,7 @@ export class RemoteVoiceSession implements VoiceMediaSession {
       text,
       ...(delivery === "complete" ? {} : { deliveredText }),
       delivery,
-      language: this.config.language,
+      language,
       sttConfidence: null,
       startedAt: new Date(startedAt).toISOString(),
       endedAt: new Date(this.now()).toISOString(),

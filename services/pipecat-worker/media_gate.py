@@ -50,11 +50,13 @@ from pipecat.frames.frames import (
     TTSSpeakFrame,
     TTSStartedFrame,
     TTSStoppedFrame,
+    TTSUpdateSettingsFrame,
     TranscriptionFrame,
     VADUserStartedSpeakingFrame,
     VADUserStoppedSpeakingFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+from pipecat.services.settings import TTSSettings
 
 log = logging.getLogger("halo.gate")
 
@@ -95,6 +97,11 @@ class MediaGate(FrameProcessor):
         self._speak_loop_task: Optional[asyncio.Task] = None
         self._active: Optional[_Playback] = None
         self._interrupted_ids: set[str] = set()
+        # The language the TTS service is configured for right now, and the
+        # one the session started with. HALO names a language per line; the
+        # worker never chooses one and never detects one.
+        self._default_language: Optional[str] = None
+        self._tts_language: Optional[str] = None
 
         # --- STT session state ---------------------------------------------
         self._utterance_seq = 0
@@ -172,6 +179,8 @@ class MediaGate(FrameProcessor):
         # Identity is logged, never acted on: the tenant was resolved by HALO
         # from the dialled number, and the worker has no use for it beyond
         # correlation. Media knobs are the worker's to apply.
+        self._default_language = voice.language
+        self._tts_language = voice.language
         self._usage_task = asyncio.create_task(self._usage_loop())
         self._max_duration_task = asyncio.create_task(
             self._max_duration_watchdog(max(voice.max_call_duration_ms / 1000.0, 1.0))
@@ -281,6 +290,7 @@ class MediaGate(FrameProcessor):
 
     async def _play_chunks(self, playback: _Playback) -> None:
         request = playback.request
+        await self._apply_language(request.language or self._default_language)
         for index, chunk in enumerate(request.chunks):
             if self._closed or request.playback_id in self._interrupted_ids:
                 break
@@ -348,6 +358,18 @@ class MediaGate(FrameProcessor):
             )
             playback.settled = True
         self._interrupted_ids.discard(request.playback_id)
+
+    async def _apply_language(self, language: Optional[str]) -> None:
+        """Point the TTS service at the language HALO named for this line.
+
+        A control frame queued ahead of the line's TTSSpeakFrames, so it is
+        applied in order. Sent only on a change: the vendor re-reads its
+        whole configuration each time.
+        """
+        if not language or language == self._tts_language or self._task is None:
+            return
+        self._tts_language = language
+        await self._task.queue_frame(TTSUpdateSettingsFrame(delta=TTSSettings(language=language)))
 
     async def _maybe_barge_in(self) -> None:
         active = self._active
