@@ -1,0 +1,55 @@
+{
+  "business": {
+    "name": "HALO Phase A Demo",
+    "slug": "halo-phase-a-demo",
+    "description": "Fictional demo tenant for the HALO browser voice loop: a home appliance service centre offering repairs and annual maintenance for washing machines, refrigerators and air conditioners.",
+    "industry": "home services",
+    "address": "Hyderabad, Telangana",
+    "businessHours": {
+      "mon": { "open": "09:00", "close": "18:00", "closed": false },
+      "tue": { "open": "09:00", "close": "18:00", "closed": false },
+      "wed": { "open": "09:00", "close": "18:00", "closed": false },
+      "thu": { "open": "09:00", "close": "18:00", "closed": false },
+      "fri": { "open": "09:00", "close": "18:00", "closed": false },
+      "sat": { "open": "09:00", "close": "18:00", "closed": false },
+      "sun": { "open": "09:00", "close": "18:00", "closed": true }
+    }
+  },
+  "ownerEmail": "phase-a-demo@halo.local",
+  "voiceRoute": "+919999900101",
+  "receptionist": {
+    "name": "HALO Assistant",
+    "language": "te-IN",
+    "greeting": "నమస్కారం! నేను ఆటోమేటెడ్ అసిస్టెంట్‌ని. మీకు ఎలా సహాయం చేయగలను?"
+  },
+  "agent": {
+    "identity": { "name": "HALO Assistant", "persona": "Calm, plain-spoken and helpful." },
+    "objective": "Answer enquiries from verified business information, take the caller's requirement, and hand anything it cannot resolve to the team.",
+    "instructions": {
+      "promptTemplate": "",
+      "customInstructions": "Speak everyday spoken Telugu by default. If the caller speaks English, answer in English; if they mix Telugu and English, mix it back the same way. Say plainly that you are an automated assistant if asked. State only facts given to you about this business; if you do not have a verified answer, say so and offer to have the team follow up."
+    },
+    "language": { "primary": "te-IN", "fallbacks": ["en-IN"], "codeSwitchPolicy": "allow" },
+    "voice": {
+      "bargeIn": true,
+      "bargeInMinSpeechMs": 250,
+      "endOfSpeechMs": 900,
+      "prompts": {
+        "greeting": "నమస్కారం. నేను ఆటోమేటెడ్ అసిస్టెంట్‌ని మాట్లాడుతున్నాను — నేను ఒక కంప్యూటర్ ప్రోగ్రామ్‌ని. మీకు ఎలా సహాయం చేయగలను?",
+        "reprompt": "హలో, నేను మాట్లాడేది వినిపిస్తోందా?",
+        "goodbye": "మీ సమయానికి ధన్యవాదాలు. మంచి రోజు కావాలి.",
+        "turnFailure": "క్షమించండి, సరిగా వినిపించలేదు. ఒకసారి మళ్ళీ చెప్తారా?",
+        "transferAnnounce": "కొంచెం ఆగండి, మా టీమ్ సభ్యుడికి కలుపుతున్నాను.",
+        "transferFailed": "క్షమించండి, ఇప్పుడు ఎవరూ అందుబాటులో లేరు. మా టీమ్ మీకు తిరిగి ఫోన్ చేస్తారు."
+      }
+    },
+    "tools": { "grantedToolIds": ["request_human_handoff"], "policy": {} },
+    "guardrails": {
+      "humanRequestPhrases": ["మనిషితో మాట్లాడాలి", "మీ టీమ్‌తో మాట్లాడాలి", "manishi tho matladali", "talk to a person", "talk to a human"],
+      "actionClaimPhrases": {
+        "handoff": ["కలిపేశాను", "కనెక్ట్ చేశాను", "కలుపుతున్నాను", "connect chesanu", "connect chestunnanu"]
+      },
+      "safeFallbackReply": "క్షమించండి, ఇప్పుడు అది నేను పూర్తి చేయలేకపోయాను. మా టీమ్ నుంచి ఒకరు మీకు ఫోన్ చేసి చెప్తారు."
+    }
+  }
+}

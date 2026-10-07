@@ -68,7 +68,6 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
 
   const sttConfig = {
       provider: config.sttProvider,
-      ...(config.sttFallbackBaseUrl ? { fallback: { provider: "self-hosted" as const, baseUrl: config.sttFallbackBaseUrl } } : {}),
       ...(config.sttApiKey ? { apiKey: config.sttApiKey } : {}),
       ...(config.sttModel ? { model: config.sttModel } : {}),
       ...(config.sttMode ? { mode: config.sttMode } : {}),
@@ -79,7 +78,6 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
 
   const tts = createTtsProvider({
       provider: config.ttsProvider,
-      ...(config.ttsFallbackBaseUrl ? { fallback: { provider: "self-hosted" as const, baseUrl: config.ttsFallbackBaseUrl } } : {}),
       ...(config.ttsApiKey ? { apiKey: config.ttsApiKey } : {}),
       ...(config.ttsModel ? { model: config.ttsModel } : {}),
       ...(config.ttsDefaultVoice ? { defaultSpeaker: config.ttsDefaultVoice } : {}),
@@ -188,6 +186,15 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
       const route = await callStore.resolveCallRoute(call);
       if (route?.version.config.voice.profileId) profiles.resolve(route.business.id, route.version.config.voice.profileId, telephony.createMediaCodec().format);
       return Boolean(route && buildSessionConfig(route.version.config).ok);
+    },
+    resolveWebCallNumber: async (businessId) => {
+      // A browser call reaches the same published agent the tenant's own
+      // number routes to. No route provisioned means no call, never a default.
+      const { data, error } = await getAdminClient().from("phone_numbers").select("e164")
+        .eq("business_id", businessId).eq("provider", telephony.name).eq("status", "active")
+        .order("created_at", { ascending: true }).limit(1).maybeSingle();
+      if (error) throw new Error("Web call route lookup failed");
+      return data?.e164 ?? null;
     },
     canAnswer: async ({ to }) => {
       try {

@@ -33,8 +33,10 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      // Supabase auth/data + configured Supabase URL over https/wss.
-      "connect-src 'self' https: wss:",
+      // Supabase auth/data + configured Supabase URL over https/wss. The live
+      // voice media socket is wss: in production; a local Pipecat worker is
+      // plain ws: on loopback, allowed only outside production.
+      `connect-src 'self' https: wss:${process.env.NODE_ENV !== "production" ? " ws://127.0.0.1:* ws://localhost:*" : ""}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

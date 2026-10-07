@@ -3,12 +3,12 @@ import { VoiceProfiles } from "@halo/providers/voice-vendors/profiles";
 import { parseAgentConfig } from "@halo/core/domain/agents";
 import { buildSessionConfig } from "@halo/voice/session-config";
 const wire = { encoding: "mulaw" as const, sampleRate: 8000, channels: 1 as const };
-const json = JSON.stringify({ alpha: { local: { sampleRate: 8000, stt: { provider: "self-hosted", baseUrl: "http://speech.local" },
-  tts: { provider: "self-hosted", baseUrl: "http://speech.local" } } } });
+const json = JSON.stringify({ alpha: { local: { sampleRate: 8000, stt: { provider: "sarvam", apiKey: "profile-stt-key" },
+  tts: { provider: "sarvam", apiKey: "profile-tts-key", defaultSpeaker: "anushka" } } } });
 describe("tenant voice profiles", () => {
   it("selects configured providers only within the profile tenant", () => {
     const profiles = new VoiceProfiles(json);
-    expect(profiles.resolve("alpha", "local", wire).stt.name).toBe("self-hosted-stt");
+    expect(profiles.resolve("alpha", "local", wire).stt.name).toBe("sarvam-stt");
     expect(() => profiles.resolve("beta", "local", wire)).toThrow("tenant");
     expect(() => profiles.resolve("alpha", "missing", wire)).toThrow("tenant");
   });
@@ -20,6 +20,6 @@ describe("tenant voice profiles", () => {
       goodbye: "Goodbye", turnFailure: "Try again", transferAnnounce: "Connecting", transferFailed: "Unavailable" } } })!;
     const result = buildSessionConfig(config);
     expect(result).toMatchObject({ ok: true, config: { profileId: "local" } });
-    expect(JSON.stringify(config)).not.toContain("speech.local");
+    expect(JSON.stringify(config)).not.toContain("profile-stt-key");
   });
 });

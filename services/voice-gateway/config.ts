@@ -32,7 +32,6 @@ export const gatewayConfigSchema = z
     /** Vendor output mode; see the adapter for what each one returns. */
     sttMode: z.enum(["transcribe", "verbatim", "translit", "codemix"]).optional(),
     sttBaseUrl: z.string().url().optional(),
-    sttFallbackBaseUrl: z.string().url().optional(),
     ttsProvider: z.enum(TTS_PROVIDER_NAMES).default("fake"),
     ttsApiKey: z.string().optional(),
     ttsModel: z.string().optional(),
@@ -44,7 +43,6 @@ export const gatewayConfigSchema = z
      */
     ttsDefaultVoice: z.string().optional(),
     ttsBaseUrl: z.string().url().optional(),
-    ttsFallbackBaseUrl: z.string().url().optional(),
     maxConcurrentSessions: z.coerce.number().int().min(1).max(500).default(50),
     /**
      * Where the media loop runs. `in_process` is the Phase 3 engine (STT,
@@ -66,17 +64,15 @@ export const gatewayConfigSchema = z
   .refine((c) => c.telephonyProvider !== "fake" || (c.fakeWebhookSecret ?? "").length >= 16, {
     message: "VOICE_FAKE_WEBHOOK_SECRET (≥16 chars) is required for the fake provider",
   })
-  .refine((c) => c.sttProvider !== "sarvam" || Boolean(c.sttApiKey || c.sttFallbackBaseUrl), {
+  .refine((c) => c.sttProvider !== "sarvam" || Boolean(c.sttApiKey), {
     message: "VOICE_STT_API_KEY is required unless VOICE_STT_PROVIDER=fake",
   })
-  .refine((c) => c.ttsProvider !== "sarvam" || Boolean(c.ttsApiKey || c.ttsFallbackBaseUrl), {
+  .refine((c) => c.ttsProvider !== "sarvam" || Boolean(c.ttsApiKey), {
     message: "VOICE_TTS_API_KEY is required unless VOICE_TTS_PROVIDER=fake",
   })
-  .refine((c) => c.ttsProvider !== "sarvam" || Boolean(c.ttsDefaultVoice || c.ttsFallbackBaseUrl), {
+  .refine((c) => c.ttsProvider !== "sarvam" || Boolean(c.ttsDefaultVoice), {
     message: "VOICE_TTS_DEFAULT_VOICE is required unless VOICE_TTS_PROVIDER=fake",
-  })
-  .refine(c => c.sttProvider !== "self-hosted" || Boolean(c.sttBaseUrl), { message: "VOICE_STT_BASE_URL is required for self-hosted STT" })
-  .refine(c => c.ttsProvider !== "self-hosted" || Boolean(c.ttsBaseUrl), { message: "VOICE_TTS_BASE_URL is required for self-hosted TTS" });
+  });
 
 export type GatewayConfig = z.infer<typeof gatewayConfigSchema>;
 
@@ -98,14 +94,12 @@ export function loadGatewayConfig(env: Record<string, string | undefined> = proc
     sttModel: env.VOICE_STT_MODEL,
     sttMode: env.VOICE_STT_MODE,
     sttBaseUrl: env.VOICE_STT_BASE_URL,
-    sttFallbackBaseUrl: env.VOICE_STT_FALLBACK_BASE_URL,
     ttsProvider,
     ttsApiKey: env.VOICE_TTS_API_KEY ?? (ttsProvider === "sarvam" ? sarvamKey : undefined),
     ttsModel: env.VOICE_TTS_MODEL,
     webTtsSampleRate: env.VOICE_WEB_TTS_SAMPLE_RATE,
     ttsDefaultVoice: env.VOICE_TTS_DEFAULT_VOICE,
     ttsBaseUrl: env.VOICE_TTS_BASE_URL,
-    ttsFallbackBaseUrl: env.VOICE_TTS_FALLBACK_BASE_URL,
     maxConcurrentSessions: env.VOICE_MAX_CONCURRENT_SESSIONS,
     mediaEngine: env.VOICE_MEDIA_ENGINE,
     pipecatMediaWsUrl: env.VOICE_PIPECAT_MEDIA_WS_URL,

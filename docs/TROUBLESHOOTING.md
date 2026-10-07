@@ -104,7 +104,9 @@ PostgREST schema cache is stale after hand-applied migrations:
 
 ## Local development (`supabase start` stack)
 
-`.env.local` points `NEXT_PUBLIC_SUPABASE_URL` at `http://127.0.0.1:54321`,
+`.env.local` points `NEXT_PUBLIC_SUPABASE_URL` at `http://127.0.0.1:55321`
+(this project's stack runs on 5532x, not the CLI default 5432x, so it can run
+beside another local Supabase project),
 so **the app needs the local Supabase stack running**. `next dev` starts and
 serves pages regardless — marketing pages and `/login` render fine without a
 database, which is why a stopped stack looks like a working app.
@@ -113,7 +115,7 @@ database, which is why a stopped stack looks like a working app.
 Check the stack first:
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:54321/auth/v1/health  # want 200
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:55321/auth/v1/health  # want 200
 npx supabase status
 ```
 
@@ -157,7 +159,7 @@ where not exists (select 1 from agents a
 ```
 
 **`npm run check:rls` wiped my local database**
-It used to default to the Supabase CLI database (`:54322`) and it *drops*
+It used to default to the Supabase CLI database (then `:54322`, now `:55322`) and it *drops*
 `public`/`auth`/`storage` to rebuild them. It now refuses that target. Run it
 against a throwaway instead:
 

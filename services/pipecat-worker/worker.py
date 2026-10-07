@@ -1,9 +1,9 @@
 """HALO Pipecat worker — the runnable media side of the Phase 4 integration.
 
-STATUS: IMPLEMENTED, offline-tested (an end-to-end run over real WebSockets
-with fake STT/TTS/VAD). It has never been run against real Sarvam credentials
-or a real telephony provider, so no Telugu quality or latency claim is made
-anywhere.
+STATUS: IMPLEMENTED. Offline-tested end to end over real WebSockets with fake
+STT/TTS, and run live against Sarvam STT/TTS from a browser microphone client
+(2026-10-06). It has never carried a real telephony provider's call, so no
+PSTN quality or latency claim is made anywhere.
 
     telephony provider ──▶ media WS ──▶ this worker ──▶ control WS ──▶ HALO
     (μ-law 8 kHz)                    VAD ─ STT ─ TTS ─ GATE ─ pacer
@@ -33,19 +33,24 @@ Design notes
 *   The session waits for HALO's `ready` BEFORE running the pipeline: without
     identity the worker must not bridge audio, and the services are built
     from the voice config that `ready` carries.
-*   Vendors: Sarvam STT/TTS when SARVAM_API_KEY is set, in-process fakes
-    otherwise — so the offline loop is closed end to end without credentials.
-    The Sarvam path is wired to the vendor's documented APIs but is
-    UNVERIFIED against the live service; in particular the streaming SDK
-    types the audio encoding as `audio/wav` only, so raw PCM is sent with
-    that label, which the real endpoint may reject — that must be settled by
-    §15 of docs/PHASE4_REPORT.md, not assumed away here.
+*   Vendors: Sarvam STT/TTS with the deployment key (SARVAM_API_KEY); the
+    in-process fakes only with an explicit HALO_SPEECH_PROVIDER=fake. The
+    Sarvam path was run against the live service on 2026-10-06 (Telugu,
+    English and Tenglish speech, barge-in) at the 8 kHz wire rate. The SDK
+    types the streaming audio encoding as `audio/wav` only; the live endpoint
+    accepts the pipeline's raw PCM16 under that label.
+*   Besides a carrier, a browser may be the media peer: HALO's web server
+    obtains the same token-bound `start` parameters from the gateway
+    (`POST /web/call`) and the widget streams microphone audio here in the
+    same wire format. Nothing in this worker distinguishes the two.
 
 Running it
 ----------
     .venv/bin/python services/pipecat-worker/worker.py
     # env: HALO_WORKER_HOST (default 127.0.0.1), HALO_WORKER_PORT (default 8900)
-    #      SARVAM_API_KEY (enables real Sarvam STT/TTS), HALO_LOG_LEVEL (default INFO)
+    #      HALO_CONTROL_URL (trusted control socket), SARVAM_API_KEY,
+    #      VOICE_STT_MODEL / VOICE_STT_MODE / VOICE_TTS_MODEL / VOICE_TTS_DEFAULT_VOICE
+    #      (the same names the gateway reads), HALO_LOG_LEVEL (default INFO)
 
 Tests: test_media_gate.py (gate semantics) and test_worker_e2e.py (the whole
 loop over real WebSockets with fake vendors).
@@ -192,18 +197,20 @@ def _pipecat_language(code: Optional[str]):
         return None
 
 
+def _sarvam_key(selected: dict) -> str:
+    """Profile credential first, then the deployment key the gateway also reads."""
+    return str(selected.get("apiKey") or os.environ.get("SARVAM_API_KEY") or os.environ.get("SARVAM_API") or "").strip()
+
+
 def _build_stt(voice: VoiceConfig, script: Optional[list[str]], profile=None):
     """Deployment-selected speech; fake transcripts require explicit test mode."""
     selected = (profile or {}).get("stt", {})
-    api_key = selected.get("apiKey", os.environ.get("SARVAM_API_KEY", "")).strip()
+    api_key = _sarvam_key(selected)
     provider = selected.get("provider", os.environ.get("HALO_SPEECH_PROVIDER", "sarvam"))
     if provider == "sarvam" and not api_key and selected.get("fallback"):
         selected = selected["fallback"]
         provider = selected.get("provider")
         api_key = selected.get("apiKey", "")
-    if provider == "self-hosted":
-        from self_hosted_speech import SelfHostedSTT
-        return SelfHostedSTT(selected, voice.language, WIRE_SAMPLE_RATE)
     if provider not in ("fake", "sarvam"):
         raise RuntimeError("Unsupported STT profile provider")
     if provider == "fake":
@@ -212,31 +219,37 @@ def _build_stt(voice: VoiceConfig, script: Optional[list[str]], profile=None):
         raise RuntimeError("Sarvam STT is not configured; fake speech is disabled")
     from pipecat.services.sarvam.stt import SarvamSTTService
 
-    # input_audio_codec stays the SDK-typed default ("wav"); see the module
-    # docstring for the caveat that the real endpoint must be probed with.
+    # Same deployment settings the gateway reads (services/voice-gateway/config.ts).
+    model = selected.get("model") or os.environ.get("VOICE_STT_MODEL") or os.environ.get("HALO_STT_MODEL", "saarika:v2.5")
+    # `mode` is a constructor argument that only some models accept, so it is
+    # passed only when the deployment configured one.
+    mode = selected.get("mode") or os.environ.get("VOICE_STT_MODE")
+    # The agent's primary language is pinned. Live Sarvam runs showed vendor
+    # auto-detection mishearing a short Telugu greeting as Hindi, while a
+    # pinned te-IN session still transcribed English and Tenglish correctly
+    # (use VOICE_STT_MODEL=saaras:v3 with VOICE_STT_MODE=codemix to keep
+    # English words in Latin script).
+    language = _pipecat_language(voice.language)
     return SarvamSTTService(
         api_key=api_key,
-        settings=SarvamSTTService.Settings(
-            model=selected.get("model", os.environ.get("HALO_STT_MODEL", "saarika:v2.5")),
-            mode=selected.get("mode"),
-            language=_pipecat_language(voice.language),
-        ),
+        settings=SarvamSTTService.Settings(model=model, language=language),
         sample_rate=WIRE_SAMPLE_RATE,
+        # input_audio_codec stays the SDK default ("wav"): the SDK's message
+        # type accepts no other label, and the live endpoint takes the
+        # pipeline's headerless PCM16 under it.
+        **({"mode": mode} if mode else {}),
     )
 
 
 def _build_tts(voice: VoiceConfig, profile=None):
     """Deployment-selected speech; synthetic tones require explicit test mode."""
     selected = (profile or {}).get("tts", {})
-    api_key = selected.get("apiKey", os.environ.get("SARVAM_API_KEY", "")).strip()
+    api_key = _sarvam_key(selected)
     provider = selected.get("provider", os.environ.get("HALO_SPEECH_PROVIDER", "sarvam"))
     if provider == "sarvam" and not api_key and selected.get("fallback"):
         selected = selected["fallback"]
         provider = selected.get("provider")
         api_key = selected.get("apiKey", "")
-    if provider == "self-hosted":
-        from self_hosted_speech import SelfHostedTTS
-        return SelfHostedTTS(selected, voice.language, voice.voice_id or selected.get("defaultSpeaker"), voice.speaking_rate, WIRE_SAMPLE_RATE)
     if provider not in ("fake", "sarvam"):
         raise RuntimeError("Unsupported TTS profile provider")
     if provider == "fake":
@@ -246,11 +259,14 @@ def _build_tts(voice: VoiceConfig, profile=None):
     from pipecat.services.sarvam.tts import SarvamTTSService
 
     settings_kwargs: dict[str, Any] = {
-        "model": selected.get("model", os.environ.get("HALO_TTS_MODEL", "bulbul:v2")),
+        "model": selected.get("model") or os.environ.get("VOICE_TTS_MODEL") or os.environ.get("HALO_TTS_MODEL", "bulbul:v2"),
         "language": _pipecat_language(voice.language),
     }
-    if voice.voice_id or selected.get("defaultSpeaker"):
-        settings_kwargs["voice"] = voice.voice_id or selected["defaultSpeaker"]
+    # Agent voice, then the profile's, then the deployment default the gateway
+    # requires (VOICE_TTS_DEFAULT_VOICE). The worker never picks one itself.
+    speaker = voice.voice_id or selected.get("defaultSpeaker") or os.environ.get("VOICE_TTS_DEFAULT_VOICE")
+    if speaker:
+        settings_kwargs["voice"] = speaker
     if voice.speaking_rate:
         settings_kwargs["pace"] = float(voice.speaking_rate)
     return SarvamTTSService(
@@ -715,6 +731,13 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    # Pipecat logs through loguru at DEBUG by default, which prints caller
+    # transcripts and every line HALO speaks. Hold it to the worker's level.
+    import sys
+    from loguru import logger as pipecat_log
+
+    pipecat_log.remove()
+    pipecat_log.add(sys.stderr, level=os.environ.get("HALO_LOG_LEVEL", "INFO"))
     logging.basicConfig(
         level=os.environ.get("HALO_LOG_LEVEL", "INFO"),
         format="%(asctime)s %(name)s %(levelname)s %(message)s",

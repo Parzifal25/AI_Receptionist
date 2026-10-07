@@ -1,4 +1,3 @@
-import { SelfHostedSttProvider, SelfHostedTtsProvider } from "./self-hosted-speech";
 import { FallbackSttProvider } from "./fallback-stt-provider";
 import { FallbackTtsProvider } from "./fallback-tts-provider";
 import type { StreamingSttProvider } from "@halo/ports/streaming-stt-provider";
@@ -19,8 +18,8 @@ import { SarvamTtsProvider } from "./sarvam-tts-provider";
  * is also what lets the contract tests run them without a fake environment.
  */
 
-export const STT_PROVIDER_NAMES = ["fake", "sarvam", "self-hosted"] as const;
-export const TTS_PROVIDER_NAMES = ["fake", "sarvam", "self-hosted"] as const;
+export const STT_PROVIDER_NAMES = ["fake", "sarvam"] as const;
+export const TTS_PROVIDER_NAMES = ["fake", "sarvam"] as const;
 
 export type SttProviderName = (typeof STT_PROVIDER_NAMES)[number];
 export type TtsProviderName = (typeof TTS_PROVIDER_NAMES)[number];
@@ -49,8 +48,6 @@ export function createSttProvider(config: SttFactoryConfig): StreamingSttProvide
   if (config.fallback && config.provider === "sarvam" && !config.apiKey) return createSttProvider(config.fallback);
   if (config.fallback) return new FallbackSttProvider([createSttProvider({ ...config, fallback: undefined }), createSttProvider(config.fallback)]);
   switch (config.provider) {
-    case "self-hosted":
-      return new SelfHostedSttProvider({ baseUrl: requireValue(config.baseUrl, "VOICE_STT_BASE_URL", "self-hosted"), apiKey: config.apiKey });
     case "sarvam":
       return new SarvamSttProvider({
         endpointing: config.endpointing,
@@ -68,8 +65,6 @@ export function createTtsProvider(config: TtsFactoryConfig): StreamingTtsProvide
   if (config.fallback && config.provider === "sarvam" && (!config.apiKey || !config.defaultSpeaker)) return createTtsProvider(config.fallback);
   if (config.fallback) return new FallbackTtsProvider([{ provider: createTtsProvider({ ...config, fallback: undefined }) }, { provider: createTtsProvider(config.fallback), voiceId: config.fallback.defaultSpeaker }]);
   switch (config.provider) {
-    case "self-hosted":
-      return new SelfHostedTtsProvider({ baseUrl: requireValue(config.baseUrl, "VOICE_TTS_BASE_URL", "self-hosted"), apiKey: config.apiKey });
     case "sarvam":
       return new SarvamTtsProvider({
         apiKey: requireValue(config.apiKey, "VOICE_TTS_API_KEY", "sarvam"),

@@ -1,4 +1,5 @@
 /** Minimal API client for the widget. Talks only to the public widget API. */
+import type { LiveCallOffer } from "./live-call";
 
 export interface WidgetConfig {
   receptionistName: string;
@@ -61,6 +62,11 @@ export class WidgetApi {
 
   synthesize(visitorToken: string, signal: AbortSignal): Promise<{ audio: string; format: { encoding: string; sampleRate: number; channels: number } }> {
     return this.request("/api/v1/widget/synthesis", { method: "POST", body: JSON.stringify({ visitorToken }), signal });
+  }
+
+  /** A live voice session offer; rejects when live voice is not deployed. */
+  startVoiceCall(): Promise<LiveCallOffer> {
+    return this.request("/api/v1/widget/voice-call", { method: "POST", body: JSON.stringify({ widgetKey: this.widgetKey }) });
   }
 
   getConfig(): Promise<WidgetConfig> {

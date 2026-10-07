@@ -188,7 +188,7 @@ class SarvamSttStream implements SttStream {
   private url(): string {
     const base = (this.vendor.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     const url = new URL(`${base}/speech-to-text-realtime/ws`);
-    url.searchParams.set("model", this.vendor.model ?? DEFAULT_MODEL);
+    url.searchParams.set("model", realtimeModel(this.vendor.model ?? DEFAULT_MODEL));
     url.searchParams.set("language_code", this.languageCode());
     url.searchParams.set("mode", this.vendor.mode ?? "transcribe");
     url.searchParams.set("encoding", wireEncoding(this.stream.format));
@@ -362,6 +362,16 @@ class SarvamSttStream implements SttStream {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * `VOICE_STT_MODEL` is shared with the Pipecat worker, whose SDK names this
+ * model `saaras:v3`. The realtime socket rejects that name outright
+ * ("Only 'saaras:v3-realtime' and 'saaras:v4' are supported"), so the one
+ * deployment setting is sent here under the name this endpoint accepts.
+ */
+function realtimeModel(model: string): string {
+  return model === "saaras:v3" ? "saaras:v3-realtime" : model;
+}
 
 function wireEncoding(format: AudioFormat): string {
   return format.encoding === "mulaw" ? "mulaw" : "linear16";

@@ -35,7 +35,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { requireArunodhaya, ARUNODHAYA_TENANT_SLUG } from "../../src/content/tenants/arunodhaya";
 
-const DEFAULT_URL = "postgres://postgres:postgres@127.0.0.1:54322/postgres";
+const DEFAULT_URL = "postgres://postgres:postgres@127.0.0.1:55322/postgres";
 
 /** Fixed ids: the whole point is that re-running changes nothing. */
 const IDS = {

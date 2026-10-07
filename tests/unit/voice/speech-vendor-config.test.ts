@@ -91,17 +91,6 @@ describe("speech vendor selection", () => {
   });
 });
 
-it("uses explicitly configured self-hosted fallback when cloud credentials are absent", () => {
-  const config = loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "sarvam", VOICE_TTS_PROVIDER: "sarvam",
-    VOICE_STT_FALLBACK_BASE_URL: "http://127.0.0.1:9900", VOICE_TTS_FALLBACK_BASE_URL: "http://127.0.0.1:9900" });
-  expect(createSttProvider({ provider: config.sttProvider, fallback: { provider: "self-hosted", baseUrl: config.sttFallbackBaseUrl } }).name).toBe("self-hosted-stt");
-  expect(createTtsProvider({ provider: config.ttsProvider, fallback: { provider: "self-hosted", baseUrl: config.ttsFallbackBaseUrl } }).name).toBe("self-hosted-tts");
-});
-it("requires a configured endpoint for self-hosted providers", () => {
-  expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "self-hosted" })).toThrow(/BASE_URL/);
-  expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_TTS_PROVIDER: "self-hosted" })).toThrow(/BASE_URL/);
-});
-
 it("accepts the existing shared Sarvam credential names with explicit keys taking precedence", () => {
   for (const name of ["SARVAM_API_KEY", "SARVAM_API"]) {
     const config = loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "sarvam", VOICE_TTS_PROVIDER: "sarvam", VOICE_TTS_DEFAULT_VOICE: "shubh", [name]: "shared-test-key" });
@@ -112,7 +101,7 @@ it("accepts the existing shared Sarvam credential names with explicit keys takin
   expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_WEB_TTS_SAMPLE_RATE: "44100" })).toThrow();
 });
 
-it("never forwards shared Sarvam credentials to self-hosted endpoints", () => {
-  const config = loadGatewayConfig({ ...BASE_ENV, SARVAM_API: "shared-sarvam-key", VOICE_STT_PROVIDER: "self-hosted", VOICE_STT_BASE_URL: "http://localhost:9000", VOICE_TTS_PROVIDER: "self-hosted", VOICE_TTS_BASE_URL: "http://localhost:9001" });
+it("never forwards shared Sarvam credentials to a non-Sarvam provider", () => {
+  const config = loadGatewayConfig({ ...BASE_ENV, SARVAM_API: "shared-sarvam-key", VOICE_STT_PROVIDER: "fake", VOICE_TTS_PROVIDER: "fake" });
   expect(config.sttApiKey).toBeUndefined(); expect(config.ttsApiKey).toBeUndefined();
 });

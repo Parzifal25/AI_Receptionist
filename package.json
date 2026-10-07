@@ -27,7 +27,8 @@
     "eval:arunodhaya": "tsx --conditions react-server scripts/arunodhaya-eval.ts",
     "phase4:context": "tsx --conditions react-server scripts/phase4-context-budget.ts",
     "sprint2:tokens": "tsx --conditions react-server scripts/sprint2-token-report.ts",
-    "demo:arunodhaya": "tsx --conditions react-server scripts/demo/arunodhaya.ts"
+    "demo:arunodhaya": "tsx --conditions react-server scripts/demo/arunodhaya.ts",
+    "demo:voice-tenant": "node --env-file-if-exists=.env.local --import tsx --conditions react-server scripts/demo/voice-tenant.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

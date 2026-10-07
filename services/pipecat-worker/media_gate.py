@@ -39,6 +39,7 @@ from typing import Any, Optional
 
 from halo_client import HaloControlClient, SessionIdentity, SpeakRequest, VoiceConfig
 from pipecat.frames.frames import (
+    BotStoppedSpeakingFrame,
     ErrorFrame,
     Frame,
     InputAudioRawFrame,
@@ -431,6 +432,13 @@ class MediaGate(FrameProcessor):
         if playback.chunk_event is not None:
             playback.chunk_event.set()
         playback.context_id = None
+        # Streaming TTS services pause their frame queue after a speak frame
+        # until the output transport reports BotStoppedSpeaking. This pipeline
+        # has no pipecat output transport, and the gate already plays one
+        # chunk at a time, so it releases the service itself. Without this the
+        # caller's next transcript and HALO's next line both queue behind the
+        # pause and never move.
+        await self.push_frame(BotStoppedSpeakingFrame(), FrameDirection.UPSTREAM)
 
     # ------------------------------------------------------------------
     # Transcripts

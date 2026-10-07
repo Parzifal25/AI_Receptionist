@@ -49,6 +49,19 @@ describe("SarvamSttProvider", () => {
     await stream.close();
   });
 
+  it("sends the shared deployment model under the name the realtime socket accepts", () => {
+    const model = (configured?: string) => {
+      const harness = socketHarness();
+      new SarvamSttProvider({ apiKey: "test-key", connect: harness.factory, ...(configured ? { model: configured } : {}) }).open(streamOptions(), () => {});
+      return new URL(harness.last.url).searchParams.get("model");
+    };
+    // The Pipecat worker reads the same VOICE_STT_MODEL and needs `saaras:v3`.
+    expect(model("saaras:v3")).toBe("saaras:v3-realtime");
+    expect(model("saaras:v3-realtime")).toBe("saaras:v3-realtime");
+    expect(model("saaras:v4")).toBe("saaras:v4");
+    expect(model()).toBe("saaras:v3-realtime");
+  });
+
   it("buffers bounded 16 kHz web PCM through a delayed handshake", async () => {
     const harness = socketHarness({ autoOpen: false }); const events: SttEvent[] = [];
     const provider = new SarvamSttProvider({ apiKey: "test-key", endpointing: "manual", connect: harness.factory });

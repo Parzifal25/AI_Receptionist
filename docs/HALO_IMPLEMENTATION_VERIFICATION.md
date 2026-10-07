@@ -89,10 +89,9 @@ trusted control URL enforcement; tenant voice selection; safe startup fallback;
 interruption, late audio and carrier-mark acknowledgement tests. Full chunks are
 acknowledged only after completed synthesis and the matching carrier mark.
 
-**BLOCKED — missing carrier account credentials, authorized number/call, Sarvam
-credentials and self-hosted model endpoints/weights:** real PSTN audio quality,
-latency, carrier interruption behavior and IndicConformerASR/IndicF5 inference.
-The self-hosted HTTP contract is implemented; model validation is not claimed.
+**BLOCKED — missing carrier account credentials, authorized number/call and
+Sarvam credentials:** real PSTN audio quality, latency and carrier interruption
+behavior.
 
 ## I–J. LLM and token/context status
 
@@ -137,7 +136,7 @@ live business corpora and production rollout acceptance remain external work.
 ## M–N. External blockers and technical debt
 
 - **BLOCKED:** real carrier credentials/authorized number; Sarvam credentials;
-  self-hosted inference endpoints and model weights; production cron secret.
+  production cron secret.
 - **PARTIAL:** process loss is handled safely with `recovery_required`; seamless
   cross-process voice-session recovery is not implemented.
 - **PARTIAL:** uncertain outbound attempts require carrier/operator reconciliation;

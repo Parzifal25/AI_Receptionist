@@ -14,6 +14,7 @@ import { makeVersion, TENANT_A_DID, TENANT_B_DID } from "../mocks/voice-gateway-
 import { BUSINESS_A, BUSINESS_B } from "../mocks/runtime-fakes";
 import { loadGatewayConfig } from "../../services/voice-gateway/config";
 import { createGatewayServer, type GatewayServer } from "../../services/voice-gateway/server";
+import { signWebCall } from "@halo/voice/web-audio-auth";
 
 /**
  * Phase 4 — the Pipecat control plane over a real local WebSocket.
@@ -32,6 +33,8 @@ const SECRET = "fake-webhook-secret-value";
 const STREAM_SECRET = "stream-token-secret-at-least-32-chars";
 const PUBLIC = "wss://gateway.test/media";
 const PIPECAT_MEDIA = "wss://pipecat.test/ws";
+/** The web server names a tenant it already authorized; the gateway maps it to that tenant's own route. */
+const WEB_TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 const PROMPTS = {
   greeting: "Namaskaram, idi automated assistant.",
@@ -106,6 +109,7 @@ beforeEach(async () => {
     telephony,
     pipecat: bridge,
     canAnswer: async ({ to }) => (await store.resolveInboundRoute("fake", to)) !== null,
+    resolveWebCallNumber: async (businessId) => (businessId === WEB_TENANT_A ? TENANT_A_DID : null),
   });
   port = await server.listen(0);
 });
@@ -327,5 +331,43 @@ describe("pipecat control plane", () => {
     worker.ws.close();
     expect(await waitFor(() => [...store.calls.values()][0]?.finalization !== undefined, 5_000)).toBe(true);
     expect([...store.calls.values()][0].finalization?.hangupCause).toBe("media_disconnected");
+  });
+});
+
+describe("browser voice call offer", () => {
+  const offer = (businessId: string, sign = true, timestamp = Date.now()) => {
+    const body = JSON.stringify({ businessId, timestamp });
+    return fetch(`http://127.0.0.1:${port}/web/call`, { method: "POST", body,
+      headers: { "x-halo-signature": sign ? signWebCall(STREAM_SECRET, body) : "0".repeat(64) } });
+  };
+
+  it("offers the Pipecat media socket with a token HALO's control plane accepts for that tenant only", async () => {
+    const response = await offer(WEB_TENANT_A);
+    expect(response.status).toBe(200);
+    const body = await response.json() as { mediaUrl: string; format: unknown; start: { callId: string; parameters: Record<string, string> } };
+    expect(body.mediaUrl).toBe(PIPECAT_MEDIA);
+    expect(body.format).toEqual({ encoding: "mulaw", sampleRate: 8000, channels: 1 });
+    expect(body.start.parameters).toMatchObject({ to: TENANT_A_DID, callId: body.start.callId, haloControlUrl: "wss://gateway.test/pipecat/control" });
+    // A browser is never a phone number: it cannot match a CRM contact or a do-not-call entry.
+    expect(body.start.parameters.from).toMatch(/^web:/);
+
+    const worker = await connectWorker(helloFor(body.start, body.start.callId));
+    expect(await waitFor(() => worker.commands.some((c) => c.type === "ready"))).toBe(true);
+    const ready = worker.commands.find((c) => c.type === "ready") as { session: Record<string, string> };
+    expect(ready.session).toMatchObject({ tenantId: BUSINESS_A.id, agentId: "agent-a" });
+    worker.ws.close();
+
+    // The token is bound to the offered route: it opens nothing for another tenant.
+    const other = await connectWorker({ ...helloFor(body.start, body.start.callId), to: TENANT_B_DID });
+    expect(await waitFor(() => other.closes.length > 0)).toBe(true);
+    expect(other.closes[0].code).toBe(1008);
+  });
+
+  it("refuses unsigned, stale and unrouted requests without minting a token", async () => {
+    expect((await offer(WEB_TENANT_A, false)).status).toBe(403);
+    expect((await offer(WEB_TENANT_A, true, Date.now() - 120_000)).status).toBe(400);
+    const unrouted = await offer("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+    expect(unrouted.status).toBe(404);
+    expect(await unrouted.json()).toEqual({ error: "no_voice_agent" });
   });
 });

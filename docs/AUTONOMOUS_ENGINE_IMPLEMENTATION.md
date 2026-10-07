@@ -81,7 +81,7 @@ Review findings on it, to fix before committing:
 | G7 | Stable-prefix prompt ordering for native provider caching | NOT IMPLEMENTED |
 | G8 | Per-agent cost guardrails (max turns, max conversation tokens) | PARTIAL: global runtime policy, call duration only |
 | G9 | Turn-level voice profile by language (speaker, pace, sample rate) | NOT IMPLEMENTED: one voice per version |
-| G10 | STT/TTS fallback chain (self-hosted IndicConformer / IndicF5) | NOT IMPLEMENTED; live validation BLOCKED |
+| G10 | STT/TTS fallback chain | NOT IMPLEMENTED; live validation BLOCKED |
 | G11 | Controlled learning (proposal → human review → new draft version) | NOT IMPLEMENTED (eval harness exists) |
 | G12 | Business-agnostic demo tenants + multi-domain golden tests | NOT IMPLEMENTED |
 | G13 | Runtime events reach `call_events` from the gateway | NOT IMPLEMENTED (logs only) |
@@ -107,7 +107,7 @@ neutrality; one small commit per phase; no push)
 - **E** Token work: relevant-tool selection, per-layer accounting, stable-first
   prompt order (composer version bump), per-agent limits. (G5–G8)
 - **F** Voice: per-language voice profiles, turn-level selection, STT/TTS
-  fallback wrappers, self-hosted adapters (NOT VERIFIED). (G9, G10)
+  fallback wrappers. (G9, G10)
 - **G** Generic demo tenants (home services, solar, education) and golden
   conversations in English / Telugu / Tenglish. (G12)
 - **H** Controlled learning proposals. (G11)
@@ -117,7 +117,7 @@ neutrality; one small commit per phase; no push)
 
 - Real providers, telephony, audio and Telugu quality stay BLOCKED here; every
   latency/token figure from this work is mock or estimate unless it says otherwise.
-- `check:rls` / `check:migrations` need Postgres on :54322.
+- `check:rls` / `check:migrations` need Postgres on :55322.
 - Reordering the prompt changes snapshots and the golden corpus; it must be
   pinned by tests showing content is unchanged, only order.
 - Sample rate: the brief says 22000 Hz. Sarvam documents 22050 Hz. This is

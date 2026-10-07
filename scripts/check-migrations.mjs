@@ -23,7 +23,7 @@ const migrationsDir = path.join(root, "supabase", "migrations");
 const databaseUrl =
   process.argv[2] ??
   process.env.SUPABASE_DB_URL ??
-  "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+  "postgresql://postgres:postgres@127.0.0.1:55322/postgres";
 
 const files = readdirSync(migrationsDir)
   .filter((f) => f.endsWith(".sql"))

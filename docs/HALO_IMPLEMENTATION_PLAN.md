@@ -1534,7 +1534,7 @@ and a bad answer changes the *architecture*, not the schedule:
 ## P4.1 STT evaluation
 
 **Candidates** (all must support **streaming with partial results** — a batch-only API is
-disqualified regardless of accuracy): Sarvam AI (Saarika) · AI4Bharat IndicWhisper / IndicConformer
+disqualified regardless of accuracy): Sarvam AI (Saarika) · AI4Bharat IndicWhisper
 (self-host) · Google Cloud STT `te-IN` (Chirp) · Azure Speech `te-IN` · Deepgram · OpenAI
 streaming transcription. Test each on the **same recordings**.
 

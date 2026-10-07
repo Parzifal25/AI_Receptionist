@@ -1,5 +1,6 @@
 import type { SpeechProvider } from "@halo/ports/speech-provider";
 import { HaloSpeechProvider } from "./halo-speech-provider";
+import { LiveCall } from "./live-call";
 import { WidgetApi, WidgetApiError, type WidgetConfig } from "./api";
 import { WIDGET_CSS } from "./styles";
 import { VoiceSession, type VoiceFallbackReason, type VoiceState } from "./voice-session";
@@ -47,6 +48,11 @@ export class ReceptionistWidget {
 
   private visitorToken: string | null = null;
   private voice: VoiceSession | null = null;
+  /** The live Pipecat session, when one is up. */
+  private call: LiveCall | null = null;
+  private callStarting = false;
+  /** Live voice is not deployed here; use the turn-by-turn HALO path. */
+  private liveUnavailable = false;
   private sending = false;
 
   constructor(
@@ -163,7 +169,7 @@ export class ReceptionistWidget {
       this.micBtn.setAttribute("aria-label", "Talk to the receptionist");
       this.micBtn.setAttribute("aria-pressed", "false");
       this.micBtn.innerHTML = MIC_ICON;
-      this.micBtn.addEventListener("click", () => this.voice?.handleTap());
+      this.micBtn.addEventListener("click", () => void this.handleMicTap());
       composer.appendChild(this.micBtn);
     }
     composer.appendChild(sendBtn);
@@ -201,6 +207,34 @@ export class ReceptionistWidget {
     });
   }
 
+  /**
+   * Prefer the live session (streaming, server-side interruption). Where the
+   * deployment offers none, the existing turn-by-turn HALO speech path runs.
+   */
+  private async handleMicTap(): Promise<void> {
+    if (this.call) { this.call.stop(); return; }
+    if (this.callStarting) return;
+    if (this.voice?.isActive() || this.liveUnavailable || !LiveCall.isSupported()) { this.voice?.handleTap(); return; }
+    this.callStarting = true;
+    try {
+      const offer = await this.api.startVoiceCall();
+      const call = new LiveCall(offer, {
+        onState: (state) => {
+          if (state === "ended") { if (this.call === call) this.call = null; }
+          this.micBtn?.classList.toggle("listening", state !== "ended");
+          this.micBtn?.setAttribute("aria-pressed", String(state !== "ended"));
+          this.setVoiceStatus(state === "connecting" ? "Connecting…" : state === "live" ? "Live — speak naturally. Tap the mic to hang up." : "");
+        },
+        onError: (code) => this.addMessage("bot error", FALLBACK_MESSAGES[code === "not-allowed" ? "mic-blocked" : code === "audio-capture" ? "no-mic" : "halo-unavailable"]),
+      });
+      this.call = call;
+      await call.start();
+    } catch {
+      this.liveUnavailable = true;
+      this.voice?.handleTap();
+    } finally { this.callStarting = false; }
+  }
+
   private renderVoiceState(state: VoiceState): void {
     if (!this.micBtn) return;
     this.micBtn.classList.toggle("listening", state === "listening");
@@ -227,6 +261,7 @@ export class ReceptionistWidget {
       this.inputEl.focus();
     } else {
       this.voice?.stop();
+      this.call?.stop();
       // Return focus to the launcher that opened the dialog.
       this.launcher.focus();
     }
@@ -250,6 +285,7 @@ export class ReceptionistWidget {
     if (!text || this.sending) return;
     // Reaching for the keyboard is an implicit switch back to chat.
     this.voice?.stop();
+    this.call?.stop();
     this.inputEl.value = "";
     await this.send(text, "chat");
   }

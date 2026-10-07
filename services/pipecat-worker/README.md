@@ -66,6 +66,53 @@ can be tested without a media stack. A worker binds it to the pipeline:
 - `on_hangup` → end the call leg. `on_stop_playback` → stop that playback.
 - Transport gone → `bye(reason)`.
 
+## Browser voice
+
+A browser can be the media peer instead of a carrier. The widget asks
+`POST /api/v1/widget/voice-call`; the web server authorizes the widget and its
+origin and obtains a token-bound `start` frame from the gateway's signed
+`POST /web/call`. The widget then opens this worker's `/media` socket, sends
+that `start`, streams microphone audio in the session's wire format and plays
+what comes back. `clear` drops queued playback (barge-in) and each `mark` is
+echoed once the audio before it has played. The worker treats it as any other
+media session; tenant, agent and every spoken word still come from HALO.
+
+Speech settings come from the same variables the gateway reads:
+`SARVAM_API_KEY`, `VOICE_STT_MODEL`, `VOICE_STT_MODE`, `VOICE_TTS_MODEL` and
+`VOICE_TTS_DEFAULT_VOICE`. The agent's primary language is pinned for STT;
+`saaras:v3` with `codemix` handled Telugu, English and Tenglish in live runs.
+
+### Running the browser loop locally
+
+```bash
+# 1. A voice-ready tenant (idempotent; prints the widget URL). Generic: the
+#    tenant comes from a JSON file, see scripts/demo/voice-tenant.example.json.
+npm run demo:voice-tenant
+
+# 2. Gateway, with the media loop handed to Pipecat.
+VOICE_MEDIA_ENGINE=pipecat VOICE_PIPECAT_MEDIA_WS_URL=ws://127.0.0.1:8900/media \
+  npm run voice-gateway
+
+# 3. Worker: same key and speech settings, server-side only.
+( set -a; . ./.env.local; set +a
+  HALO_CONTROL_URL=ws://127.0.0.1:8787/pipecat/control \
+  VOICE_STT_MODEL=saaras:v3 VOICE_STT_MODE=codemix VOICE_TTS_MODEL=bulbul:v3 \
+  .venv/bin/python services/pipecat-worker/worker.py )
+
+# 4. The app, then open the URL the seed printed and tap the microphone.
+npm run dev
+```
+
+The gateway, the app and the seed must all point at the same Supabase
+(`NEXT_PUBLIC_SUPABASE_URL`). Outside production the app's CSP allows a
+loopback `ws://` media socket; a deployed worker must be reachable over `wss://`.
+
+Physical check, on a machine with a microphone and a speaker: grant the
+microphone, wait for the greeting, then speak Telugu, English and a
+Telugu-English mix and confirm each reply is audible and in a fitting language;
+ask a follow-up that depends on an earlier turn; talk over a long reply and
+confirm it stops and the new question is answered.
+
 ## Installing dependencies
 
 From the repository root, use Python 3.10 or newer to create a local
@@ -95,10 +142,8 @@ credentials in deployment configuration, never in the control protocol.
 
 The Twilio transport uses its 8 kHz mono μ-law wire format. Provider profiles
 must support that transport's rate; other adapter formats are configured
-independently. Self-hosted speech adapters implement HTTP contracts suitable
-for separately deployed IndicConformerASR/IndicF5 services. Model weights and
-inference servers were not installed or validated. Configured startup fallback
-is tested; seamless mid-call provider migration is not implemented.
+independently. Configured startup fallback is tested; seamless mid-call
+provider migration is not implemented.
 
 Playback acknowledgement waits for carrier marks. Interruption clears pending
 marks and buffered audio; late synthesis and incomplete chunks cannot become
@@ -107,5 +152,5 @@ confirmed transcript text.
 Before production activation, run the real PSTN acceptance procedure in
 `docs/PHASE4_REPORT.md` §15 with authorized numbers and provider credentials.
 Measure STT, LLM, first-audio and interruption latency, speech quality and
-failure recovery. Real carrier, Sarvam and local-model acceptance remain
-**BLOCKED** pending credentials, endpoints/model weights and authorized calls.
+failure recovery. Real carrier and Sarvam acceptance remain **BLOCKED**
+pending credentials and authorized calls.

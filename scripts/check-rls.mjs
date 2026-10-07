@@ -13,7 +13,7 @@
  * DESTRUCTIVE: the target database's public/auth/storage schemas are dropped
  * and rebuilt, so it must be a throwaway (the CI Postgres service, or a
  * local `docker run pgvector/pgvector:pg16`). It refuses to run against the
- * Supabase CLI stack (port 54322) unless CHECK_RLS_ALLOW_DESTRUCTIVE=1,
+ * Supabase CLI stack (port 55322, or the CLI default 54322) unless CHECK_RLS_ALLOW_DESTRUCTIVE=1,
  * because that database holds the developer's local data — running it there
  * silently destroys the dev environment.
  *
@@ -29,12 +29,13 @@ const migrationsDir = path.join(root, "supabase", "migrations");
 const stubsFile = path.join(root, "infrastructure", "ci", "supabase-stubs.sql");
 
 const databaseUrl =
-  process.argv[2] ?? process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+  process.argv[2] ?? process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:55322/postgres";
 
-// Guard: 54322 is the Supabase CLI's local database — a developer's working
+// Guard: 55322 is this project's Supabase CLI database (54322 is the CLI
+// default, which another local project may hold) — a developer's working
 // environment, not a throwaway. This script drops its schemas, so refuse by
 // default rather than destroy it.
-if (/:54322\b/.test(databaseUrl) && process.env.CHECK_RLS_ALLOW_DESTRUCTIVE !== "1") {
+if (/:5[45]322\b/.test(databaseUrl) && process.env.CHECK_RLS_ALLOW_DESTRUCTIVE !== "1") {
   console.error(
     `check-rls refuses to run against the local Supabase stack (${databaseUrl}).\n` +
       "This script DROPS the public/auth/storage schemas and rebuilds them, which\n" +
@@ -44,7 +45,7 @@ if (/:54322\b/.test(databaseUrl) && process.env.CHECK_RLS_ALLOW_DESTRUCTIVE !== 
       "  psql postgresql://postgres:postgres@127.0.0.1:55433/postgres \\\n" +
       "    --set ON_ERROR_STOP=1 -f infrastructure/ci/supabase-stubs.sql\n" +
       "  npm run check:rls -- postgresql://postgres:postgres@127.0.0.1:55433/postgres\n\n" +
-      "Set CHECK_RLS_ALLOW_DESTRUCTIVE=1 only if you really mean to wipe 54322.",
+      "Set CHECK_RLS_ALLOW_DESTRUCTIVE=1 only if you really mean to wipe that database.",
   );
   process.exit(1);
 }

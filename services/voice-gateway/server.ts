@@ -1,4 +1,5 @@
 import { handleWebTts } from "./web-tts";
+import { handleWebCall } from "./web-call";
 import type { StreamingTtsProvider } from "@halo/ports/streaming-tts-provider";
 import { handleWebStt } from "./web-stt";
 import type { StreamingSttProvider } from "@halo/ports/streaming-stt-provider";
@@ -22,6 +23,7 @@ import { mintStreamToken, verifyStreamToken } from "./stream-token";
  * HTTP  POST /telephony/:provider/inbound   verified webhook → media-stream answer
  *       POST /telephony/:provider/status    verified webhook → call state
  *       GET  /health                        liveness + live session count
+ *       POST /web/call                      signed by the HALO web server → browser media offer (Pipecat engine)
  * WS    /media                              bidirectional audio (in-process engine)
  * WS    /pipecat/control                    text control plane (Pipecat engine)
  *
@@ -51,6 +53,8 @@ export interface GatewayServerDeps {
   /** Must bind a verified callback to an existing authorized campaign claim. */
   bindOutbound?(params: { attemptKey: string; providerCallId: string; from: string; to: string }): Promise<boolean>;
   canAnswerOutbound?(params: { providerCallId: string; from: string; to: string }): Promise<boolean>;
+  /** The tenant's active voice route for a browser call, or null to decline. */
+  resolveWebCallNumber?(businessId: string): Promise<string | null>;
   /** Required when `config.mediaEngine === "pipecat"`; unused otherwise. */
   pipecat?: PipecatBridge;
   now?: () => number;
@@ -91,6 +95,21 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
         provider: telephony.name,
         speech: { stt: deps.webStt?.name ?? null, tts: deps.webTts?.name ?? null },
       }));
+    }
+
+    if (req.method === "POST" && url.pathname === "/web/call") {
+      if (shuttingDown) return send(res, 503, "application/json", JSON.stringify({ error: "draining" }));
+      // A browser call is a Pipecat media session; the in-process engine has
+      // no socket a browser may stream to.
+      const resolve = deps.resolveWebCallNumber;
+      return handleWebCall(req, res, config.mediaEngine === "pipecat" && resolve ? {
+        secret: config.streamTokenSecret, tokenTtlMs: config.streamTokenTtlMs, mediaUrl: config.pipecatMediaWsUrl!,
+        controlUrl: controlUrl(config.publicWsUrl), format: telephony.createMediaCodec().format, now,
+        resolveNumber: async (businessId) => {
+          const to = await resolve(businessId);
+          return to && (!deps.canAnswer || await deps.canAnswer({ to, from: "" })) ? to : null;
+        },
+      } : null);
     }
 
     if (req.method === "POST" && ["/web/stt", "/web/tts"].includes(url.pathname)) {

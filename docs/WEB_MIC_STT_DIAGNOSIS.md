@@ -14,11 +14,11 @@ bounded retries. It identifies the failing implementation, not the underlying
 browser vendor/network cause. No browser console/network trace was available to
 identify why that external browser service failed. This error is distinct from
 permission denial (`not-allowed`) or missing/busy hardware (`audio-capture`).
-Sarvam and self-hosted STT were not involved in that failure.
+Sarvam STT was not involved in that failure.
 
 Independent deployment inspection found the local gateway unreachable at
 127.0.0.1:8787 even outside the network sandbox. STT selection, gateway URL,
-stream signing secret, Sarvam credentials and self-hosted endpoint were unset.
+stream signing secret and Sarvam credentials were unset.
 Only variable presence was inspected; credentials were not printed.
 
 ## Corrected path
@@ -62,9 +62,8 @@ and flush. Phone sessions keep their existing VAD setting. English/Hindi widget
 language tags resolve to the provider's declared regional code; unsupported
 languages fail rather than switching languages. Sarvam accepts mono linear16 at
 8/16 kHz on this endpoint; see the [official realtime protocol](https://docs.sarvam.ai/api/api-guides-tutorials/speech-to-text/realtime-streaming).
-Self-hosted STT receives the existing JSON/base64 PCM contract with explicit
-encoding, sample rate and channel count. Telephony's 8 kHz μ-law boundary is
-unchanged and is not used by this web input path.
+Telephony's 8 kHz μ-law boundary is unchanged and is not used by this web
+input path.
 
 ## Required local configuration
 
@@ -75,11 +74,8 @@ characters). These are server-only variables. Do not expose them with NEXT_PUBLI
 Configure the existing gateway as documented in `services/voice-gateway/README.md`.
 For a local web test, the existing fake *carrier* can be used, but STT must be real:
 
-- `VOICE_STT_PROVIDER=sarvam` and `VOICE_STT_API_KEY`, or
-- `VOICE_STT_PROVIDER=self-hosted` and `VOICE_STT_BASE_URL` pointing to an actual
-  inference service implementing `/transcribe`.
+- `VOICE_STT_PROVIDER=sarvam` and `VOICE_STT_API_KEY`.
 
-`VOICE_STT_FALLBACK_BASE_URL` retains the existing explicit fallback configuration.
 The Node gateway consumes `VOICE_STT_API_KEY`; the Python worker's separate
 `SARVAM_API_KEY` is not a substitute for that setting.
 
@@ -112,7 +108,7 @@ adjustment was followed by the targeted speech suites and typecheck/lint.
 No real-provider success is inferred from these results.
 
 No physical audio device (`/dev/snd`) or controllable browser session is available
-in this execution environment. No Sarvam key or live self-hosted STT endpoint is
+in this execution environment. No Sarvam key is
 configured. An actual microphone/audio-sample-to-live-transcript test is therefore
 BLOCKED, and STT is not claimed WORKING.
 
