@@ -9,7 +9,7 @@ async function collect(provider: FallbackTtsProvider, signal = new AbortControll
   const chunks = []; for await (const chunk of provider.synthesize(request, signal)) chunks.push(chunk); return chunks;
 }
 it("falls back before audio and preserves the requested sample rate", async () => {
-  const primary = new FakeTtsProvider(), secondary = new FakeTtsProvider(); primary.failNext();
+  const primary = new FakeTtsProvider(), secondary = new FakeTtsProvider(); primary.failNext("network", true);
   expect((await collect(new FallbackTtsProvider([{ provider: primary }, { provider: secondary }]))).length).toBeGreaterThan(0);
   expect(secondary.requests[0].format).toEqual(format);
 });
@@ -18,6 +18,14 @@ it("never replays speech after partial audio", async () => {
   primary.synthesize = async function* () { yield new Uint8Array([0, 0]); throw new Error("partial failure"); };
   await expect(collect(new FallbackTtsProvider([{ provider: primary }, { provider: secondary }]))).rejects.toThrow("partial failure");
   expect(secondary.requests).toHaveLength(0);
+});
+it("does not fall back from a non-recoverable TTS failure or a defect", async () => {
+  for (const fail of [(p: FakeTtsProvider) => p.failNext("auth", false), (p: FakeTtsProvider) => p.failNext("unsupported_voice", false),
+    (p: FakeTtsProvider) => { p.synthesize = () => { throw new TypeError("adapter bug"); }; }]) {
+    const primary = new FakeTtsProvider(), secondary = new FakeTtsProvider(); fail(primary);
+    await expect(collect(new FallbackTtsProvider([{ provider: primary }, { provider: secondary }]))).rejects.toThrow();
+    expect(secondary.requests).toHaveLength(0);
+  }
 });
 it("does not open any TTS provider after cancellation", async () => {
   const primary = new FakeTtsProvider(); const abort = new AbortController(); abort.abort();
@@ -57,13 +65,21 @@ it("advertises only audio formats every fallback can serve", () => {
   const provider = new FallbackTtsProvider([{ provider: primary }, { provider: secondary }]);
   expect(provider.capabilities().formats).toEqual([format]);
 });
-it("uses a fallback when vendor open throws synchronously", async () => {
-  const a = stt(), b = stt();
-  a.provider.open = () => { throw new Error("vendor startup bug"); };
-  const stream = new FallbackSttProvider([a.provider, b.provider]).open(options, () => {});
-  stream.write(new Uint8Array([1, 2])); await tick();
-  expect(b.stream.write).toHaveBeenCalledExactlyOnceWith(new Uint8Array([1, 2]));
+it("does not fall back from a non-recoverable STT failure", async () => {
+  const a = stt(), b = stt(), events: SttEvent[] = [];
+  const stream = new FallbackSttProvider([a.provider, b.provider]).open(options, e => events.push(e)); await tick();
+  a.emit({ type: "error", code: "auth", message: "rejected credential", retryable: false }); await tick();
+  expect(b.provider.open).not.toHaveBeenCalled();
+  expect(events).toEqual([expect.objectContaining({ type: "error", code: "auth", retryable: false }), { type: "closed" }]);
   await stream.close();
+});
+it("surfaces a vendor whose open throws instead of hiding the defect behind a fallback", async () => {
+  const a = stt(), b = stt(), events: SttEvent[] = [];
+  a.provider.open = () => { throw new Error("vendor startup bug"); };
+  const stream = new FallbackSttProvider([a.provider, b.provider]).open(options, e => events.push(e));
+  stream.write(new Uint8Array([1, 2])); await tick();
+  expect(b.provider.open).not.toHaveBeenCalled();
+  expect(events).toEqual([expect.objectContaining({ type: "error", code: "provider", retryable: false }), { type: "closed" }]);
 });
 it("turns a throwing vendor write into a closed stream, not an uncaught callback", async () => {
   const a = stt(), events: SttEvent[] = [];

@@ -1,12 +1,14 @@
 # Deployment Guide
 
+> **Release gate:** these instructions are not authorization to deploy or migrate. For Phase Beta, first identify and obtain approval for a dedicated staging project and follow [HALO Phase Beta readiness](HALO_PHASE_BETA_READINESS.md). Never point migration/recovery checks at production, a shared developer database, or an unidentified target. The repository currently has 31 ordered migration files; verify the exact candidate's migration ledger rather than relying on the historical `0001`–`0009` list below.
+
 The app is a standard Next.js App Router project — it deploys anywhere Next.js runs. The
 reference deployment is **Vercel + Supabase**.
 
-## 1. Supabase (production project)
+## 1. Supabase (dedicated environment project)
 
 1. Create a dedicated production project (never share the dev project).
-2. Run every file in `supabase/migrations/` in order, `0001` through `0009` (or `supabase db push`).
+2. For an approved environment, use the repository's supported migration procedure and apply every migration present in `supabase/migrations/` in order on that dedicated target. Do not assume an old numbered range is complete; record the candidate revision and compare the target migration ledger before and after. Do not use `scripts/check-migrations.mjs` or `scripts/check-rls.mjs` against an existing/shared target: they are local validation harnesses intended for disposable databases, and the RLS script drops schemas.
    `0008_appointments.sql` adds the appointment-booking schema, including a GiST exclusion
    constraint that prevents double-booking — requires the `btree_gist` extension, which the
    migration enables itself. `0009_workflows.sql` adds the workflow automation platform

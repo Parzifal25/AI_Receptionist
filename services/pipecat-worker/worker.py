@@ -33,6 +33,11 @@ Design notes
 *   The session waits for HALO's `ready` BEFORE running the pipeline: without
     identity the worker must not bridge audio, and the services are built
     from the voice config that `ready` carries.
+*   Speech providers: `sarvam` (the reference path), `local` (sherpa-onnx
+    models in this process, no credentials; local_speech.py) or `fake`,
+    selected by VOICE_STT_PROVIDER / VOICE_TTS_PROVIDER with an optional
+    VOICE_STT_FALLBACK_PROVIDER / VOICE_TTS_FALLBACK_PROVIDER used only for
+    recoverable provider failures (speech_fallback.py).
 *   Vendors: Sarvam STT/TTS with the deployment key (SARVAM_API_KEY); the
     in-process fakes only with an explicit HALO_SPEECH_PROVIDER=fake. The
     Sarvam path was run against the live service on 2026-10-06 (Telugu,
@@ -51,6 +56,8 @@ Running it
     #      HALO_CONTROL_URL (trusted control socket), SARVAM_API_KEY,
     #      VOICE_STT_MODEL / VOICE_STT_MODE / VOICE_TTS_MODEL / VOICE_TTS_DEFAULT_VOICE
     #      (the same names the gateway reads), HALO_LOG_LEVEL (default INFO)
+    #      local speech: VOICE_STT_PROVIDER=local VOICE_TTS_PROVIDER=local
+    #      VOICE_LOCAL_MODEL_DIR=<dir provisioned by setup_local_speech.py>
 
 Tests: test_media_gate.py (gate semantics) and test_worker_e2e.py (the whole
 loop over real WebSockets with fake vendors).
@@ -202,19 +209,73 @@ def _sarvam_key(selected: dict) -> str:
     return str(selected.get("apiKey") or os.environ.get("SARVAM_API_KEY") or os.environ.get("SARVAM_API") or "").strip()
 
 
+SPEECH_PROVIDERS = ("fake", "sarvam", "local")
+
+
+def _speech_selection(kind: str, profile) -> tuple[dict, Optional[dict]]:
+    """(primary, fallback) settings for `kind` ("stt" | "tts").
+
+    A tenant profile wins. Otherwise the provider is VOICE_STT_PROVIDER /
+    VOICE_TTS_PROVIDER (the names the gateway reads), then the worker-wide
+    HALO_SPEECH_PROVIDER, then Sarvam. The fallback is optional and explicit:
+    VOICE_STT_FALLBACK_PROVIDER / VOICE_TTS_FALLBACK_PROVIDER, or the
+    profile's `fallback`.
+    """
+    selected = dict((profile or {}).get(kind, {}))
+    if "provider" not in selected:
+        upper = kind.upper()
+        selected["provider"] = (
+            os.environ.get(f"VOICE_{upper}_PROVIDER") or os.environ.get("HALO_SPEECH_PROVIDER") or "sarvam"
+        )
+        fallback_provider = os.environ.get(f"VOICE_{upper}_FALLBACK_PROVIDER")
+        if fallback_provider:
+            selected["fallback"] = {"provider": fallback_provider}
+    fallback = selected.pop("fallback", None)
+    for candidate in (selected, fallback):
+        if candidate is not None and candidate.get("provider") not in SPEECH_PROVIDERS:
+            raise RuntimeError(f"Unsupported {kind.upper()} provider")
+    if fallback is not None and fallback.get("provider") == selected.get("provider"):
+        raise RuntimeError(f"{kind.upper()} fallback provider must differ from the primary")
+    return selected, fallback
+
+
+def _local_engine(selected: dict, *, stt: bool = False, tts: bool = False):
+    """The shared local engine, with the needed weights loaded (fails closed)."""
+    from local_speech import get_engine
+
+    engine = get_engine(selected.get("modelDir"))
+    if stt:
+        engine.load_stt()
+    if tts:
+        engine.load_tts()
+    return engine
+
+
 def _build_stt(voice: VoiceConfig, script: Optional[list[str]], profile=None):
-    """Deployment-selected speech; fake transcripts require explicit test mode."""
-    selected = (profile or {}).get("stt", {})
+    """Deployment-selected speech; fake transcripts require explicit test mode.
+
+    A missing credential or model is a configuration error and raises here:
+    the fallback is for a provider that fails at run time, never for a
+    deployment that was set up wrong.
+    """
+    selected, fallback = _speech_selection("stt", profile)
+    service = _make_stt(selected, voice, script)
+    if fallback is None:
+        return service
+    from speech_fallback import with_fallback
+
+    return with_fallback(service, _make_stt(fallback, voice, script))
+
+
+def _make_stt(selected: dict, voice: VoiceConfig, script: Optional[list[str]]):
     api_key = _sarvam_key(selected)
-    provider = selected.get("provider", os.environ.get("HALO_SPEECH_PROVIDER", "sarvam"))
-    if provider == "sarvam" and not api_key and selected.get("fallback"):
-        selected = selected["fallback"]
-        provider = selected.get("provider")
-        api_key = selected.get("apiKey", "")
-    if provider not in ("fake", "sarvam"):
-        raise RuntimeError("Unsupported STT profile provider")
+    provider = selected["provider"]
     if provider == "fake":
         return FakeSTTService(script=script)
+    if provider == "local":
+        from local_speech import LocalSTTService
+
+        return LocalSTTService(engine=_local_engine(selected, stt=True), sample_rate=WIRE_SAMPLE_RATE)
     if not api_key:
         raise RuntimeError("Sarvam STT is not configured; fake speech is disabled")
     from pipecat.services.sarvam.stt import SarvamSTTService
@@ -243,17 +304,29 @@ def _build_stt(voice: VoiceConfig, script: Optional[list[str]], profile=None):
 
 def _build_tts(voice: VoiceConfig, profile=None):
     """Deployment-selected speech; synthetic tones require explicit test mode."""
-    selected = (profile or {}).get("tts", {})
+    selected, fallback = _speech_selection("tts", profile)
+    service = _make_tts(selected, voice)
+    if fallback is None:
+        return service
+    from speech_fallback import with_fallback
+
+    return with_fallback(service, _make_tts(fallback, voice))
+
+
+def _make_tts(selected: dict, voice: VoiceConfig):
     api_key = _sarvam_key(selected)
-    provider = selected.get("provider", os.environ.get("HALO_SPEECH_PROVIDER", "sarvam"))
-    if provider == "sarvam" and not api_key and selected.get("fallback"):
-        selected = selected["fallback"]
-        provider = selected.get("provider")
-        api_key = selected.get("apiKey", "")
-    if provider not in ("fake", "sarvam"):
-        raise RuntimeError("Unsupported TTS profile provider")
+    provider = selected["provider"]
     if provider == "fake":
         return FakeTTSService()
+    if provider == "local":
+        from local_speech import LocalTTSService
+
+        return LocalTTSService(
+            engine=_local_engine(selected, tts=True),
+            sample_rate=WIRE_SAMPLE_RATE,
+            language=_pipecat_language(voice.language if voice else None),
+            speaking_rate=voice.speaking_rate if voice else None,
+        )
     if not api_key:
         raise RuntimeError("Sarvam TTS is not configured; fake speech is disabled")
     from pipecat.services.sarvam.tts import SarvamTTSService
@@ -472,12 +545,21 @@ class HaloWorkerSession:
 
         # The pipeline starts only now: services are built from HALO's voice
         # config, so no settings-update dance is needed mid-flight.
+        tts = _build_tts(voice, profile=self._speech_profile)
+        strategy = getattr(tts, "strategy", None)
+        if strategy is not None:
+            # A fallback TTS never saw the language switches sent to the
+            # primary: make the gate name the language again on the next line.
+            async def _on_tts_switched(_strategy, _service) -> None:
+                self._gate.forget_tts_language()
+
+            strategy.add_event_handler("on_service_switched", _on_tts_switched)
         pipeline = Pipeline(
             [
                 MediaSource(),
                 VadRunner(_build_vad(voice)),
                 _build_stt(voice, script=None, profile=self._speech_profile),
-                _build_tts(voice, profile=self._speech_profile),
+                tts,
                 self._gate,
                 self._sink,
             ]
@@ -712,6 +794,21 @@ async def _handler(socket: ServerConnection) -> None:
     await HaloWorkerSession(socket).run()
 
 
+def _preload_local_speech() -> None:
+    """Load local models before the first call when the deployment selects them.
+
+    A missing model directory or file stops the worker here, at startup,
+    instead of on a caller's first utterance; and the multi-second model load
+    is not paid by a live call. Tenant profiles that select `local` load on
+    their first session instead.
+    """
+    for kind in ("stt", "tts"):
+        selected, fallback = _speech_selection(kind, None)
+        for candidate in (selected, fallback):
+            if candidate is not None and candidate["provider"] == "local":
+                _local_engine(candidate, stt=kind == "stt", tts=kind == "tts")
+
+
 async def main() -> None:
     host = os.environ.get("HALO_WORKER_HOST", "127.0.0.1")
     port = int(os.environ.get("HALO_WORKER_PORT", "8900"))
@@ -724,6 +821,7 @@ async def main() -> None:
             loop.add_signal_handler(sig, stop.set)
         except NotImplementedError:  # pragma: no cover - non-unix
             pass
+    _preload_local_speech()
     async with serve(_handler, host, port):
         log.info("HALO pipecat worker listening on ws://%s:%s%s", host, port, MEDIA_PATH)
         await stop.wait()

@@ -252,6 +252,24 @@ expectError(
   asService(`insert into conversations (business_id, channel) values ('${bizA}', 'chat');`),
   "a widget conversation still requires a receptionist",
 );
+expectError(
+  asService(`insert into conversations (business_id, receptionist_id, visitor_token, channel, agent_id, agent_version_id)
+    values ('${bizA}', '${rA}', 'rls-null-agent-link', 'chat', null, null);`),
+  "service role cannot create a conversation without its required agent/version tuple",
+);
+expectError(
+  asService(`delete from agent_versions where id = ${versionOf(bizA)};`),
+  "service role cannot delete an immutable agent version or null historical conversation links",
+);
+expectError(
+  asService(`delete from agents where id = ${agentOf(bizA)};`),
+  "service role cannot cascade-delete immutable agent versions or null conversation links",
+);
+expectCount(
+  asService(`select count(*) from conversations where visitor_token = 'rls-token-a' and agent_id = ${agentOf(bizA)} and agent_version_id = ${versionOf(bizA)};`),
+  1,
+  "failed identity deletion leaves the persisted conversation tuple unchanged",
+);
 
 // Cross-tenant writes: inserts violate WITH CHECK (throw); UPDATE/DELETE
 // against invisible rows are denied by filtering (0 rows mutated).

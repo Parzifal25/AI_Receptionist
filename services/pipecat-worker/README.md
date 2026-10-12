@@ -84,6 +84,32 @@ Speech settings come from the same variables the gateway reads:
 `VOICE_TTS_DEFAULT_VOICE`. The agent's primary language is pinned for STT;
 `saaras:v3` with `codemix` handled Telugu, English and Tenglish in live runs.
 
+### Local speech (no credential)
+
+`VOICE_STT_PROVIDER=local` and/or `VOICE_TTS_PROVIDER=local` run open models
+inside the worker (`local_speech.py`, sherpa-onnx) instead of Sarvam.
+Provision the models once and point the worker at them:
+
+```bash
+.venv/bin/python services/pipecat-worker/setup_local_speech.py models/voice-local
+VOICE_STT_PROVIDER=local VOICE_TTS_PROVIDER=local \
+  VOICE_LOCAL_MODEL_DIR=$PWD/models/voice-local \
+  HALO_CONTROL_URL=ws://127.0.0.1:8787/pipecat/control \
+  .venv/bin/python services/pipecat-worker/worker.py
+```
+
+The worker loads the models at startup (about 10 s, about 760 MB) and refuses
+to start if the directory or a model file is missing. Local STT is not
+streaming and is markedly less accurate than Sarvam for Telugu; local TTS is
+intelligible but its naturalness is unassessed. The measurements, the browser
+run and the licences are in [`docs/LOCAL_SPEECH.md`](../../docs/LOCAL_SPEECH.md).
+
+`VOICE_STT_FALLBACK_PROVIDER` / `VOICE_TTS_FALLBACK_PROVIDER` name one
+fallback each. The worker switches to it (`speech_fallback.py`, on Pipecat's
+`ServiceSwitcher`) only when the primary reports a recoverable failure —
+unreachable, timed out, rate-limited, server error — and stays on it for the
+rest of that call. A missing or rejected credential never triggers it.
+
 ### Running the browser loop locally
 
 ```bash
@@ -144,8 +170,8 @@ credentials in deployment configuration, never in the control protocol.
 
 The Twilio transport uses its 8 kHz mono μ-law wire format. Provider profiles
 must support that transport's rate; other adapter formats are configured
-independently. Configured startup fallback is tested; seamless mid-call
-provider migration is not implemented.
+independently. A configured fallback is taken mid-call for a recoverable
+provider failure; the utterance or line that failed is not replayed.
 
 Playback acknowledgement waits for carrier marks. Interruption clears pending
 marks and buffered audio; late synthesis and incomplete chunks cannot become

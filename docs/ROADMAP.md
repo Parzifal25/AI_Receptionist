@@ -1,5 +1,7 @@
 # Roadmap, Limitations & Technical Debt
 
+> HALO v1 release-stage evidence is tracked in [HALO_V1_STATUS.md](HALO_V1_STATUS.md). As of 2026-10-12, local Phase Alpha is complete and Phase Beta staging verification is blocked pending an identified, authorized staging target; see [HALO_PHASE_BETA_READINESS.md](HALO_PHASE_BETA_READINESS.md). ENG-04/ENG-12 canonical naming remains pending owner approval.
+
 ## Shipped since Phase 1
 
 - **AI intelligence overhaul** — layered conversation-craft prompt, 14 industry playbooks,
@@ -41,7 +43,7 @@ agents reuse it through channel profiles. Deferred to later phases, with the dep
 | General Tool Runtime (custom/HTTP/database tools), tool console | needs the tool sandbox and console design | Phase 3+ |
 | Cross-conversation customer recall in the prompt | requires visitor identity verification and consent policy | Phase 3+ |
 | Prompt caching breakpoints, per-agent knowledge/doctrine budgets | optimization after a real-provider baseline exists | Phase 4 |
-| Removal of `HALO_AGENT_RESOLUTION_COMPAT_FAIL_OPEN` and the receptionist compatibility path | agent console must create agents at onboarding first | agent console |
+| Retirement of `HALO_AGENT_RESOLUTION_COMPAT_FAIL_OPEN` and null-linked widget starts | Implemented locally: migrations `0014`/`0021`/`0022` backfill or provision tenant-scoped receptionist agents; widget conversation creation fails closed when the published link is unavailable. Target migration ledger and existing-row audit remain required. | ENG-01 read-only deployment audit |
 
 ## Version 2 roadmap
 

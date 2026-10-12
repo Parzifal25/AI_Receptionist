@@ -40,7 +40,7 @@ export interface SttStreamOptions {
   phraseHints: string[];
 }
 
-export type SttErrorCode = "network" | "auth" | "quota" | "unsupported_language" | "bad_audio" | "provider";
+export type SttErrorCode = "network" | "auth" | "quota" | "unsupported_language" | "bad_audio" | "too_long" | "provider";
 
 export type SttEvent =
   | { type: "speech_started" }

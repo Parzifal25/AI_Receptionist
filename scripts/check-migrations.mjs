@@ -47,11 +47,124 @@ for (const file of files) {
   try {
     psql(`BEGIN;\n${sql}\nCOMMIT;`);
     console.log(`  ✅ ${file}`);
+    if (file === "0013_agents.sql") {
+      // Seed legacy conversations for two receptionist identities in one
+      // tenant. Migration 0015 must preserve this exact mapping rather than
+      // assigning every conversation to an arbitrary tenant receptionist.
+      psql(`
+        insert into businesses (id, name, slug)
+        values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'Alpha migration fixture', 'alpha-migration-fixture');
+        insert into receptionists (id, business_id, name, widget_key) values
+          ('ffffffff-ffff-4fff-8fff-fffffffffff1', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'Alpha receptionist one', 'alpha-migration-widget-one'),
+          ('ffffffff-ffff-4fff-8fff-fffffffffff2', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'Alpha receptionist two', 'alpha-migration-widget-two');
+        insert into conversations (business_id, receptionist_id, visitor_token, channel) values
+          ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'ffffffff-ffff-4fff-8fff-fffffffffff1', 'alpha-migration-conversation-one', 'chat'),
+          ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'ffffffff-ffff-4fff-8fff-fffffffffff2', 'alpha-migration-conversation-two', 'chat');
+      `);
+    }
+    if (file === "0014_agent_backfill.sql") {
+      // Model a legacy conversation whose receptionist has no exact agent
+      // mapping. Migration 0015 must leave it unlinked instead of guessing.
+      psql(`
+        insert into receptionists (id, business_id, name, widget_key)
+        values ('ffffffff-ffff-4fff-8fff-fffffffffff3', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'Unmapped legacy receptionist', 'alpha-migration-widget-three');
+        insert into conversations (business_id, receptionist_id, visitor_token, channel)
+        values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'ffffffff-ffff-4fff-8fff-fffffffffff3', 'alpha-migration-unmapped-conversation', 'chat');
+      `);
+    }
   } catch (err) {
     console.error(`  ❌ ${file} failed to apply:\n${err.stderr ?? err.message}`);
     process.exit(1);
   }
 }
+
+const linkedFixtureCount = psql(`
+  select count(*)
+  from conversations c
+  join agents a on a.id = c.agent_id
+    and a.business_id = c.business_id
+    and a.slug = c.receptionist_id::text
+  join agent_versions av on av.id = c.agent_version_id
+    and av.agent_id = a.id
+    and av.business_id = c.business_id
+  where c.visitor_token in (
+    'alpha-migration-conversation-one',
+    'alpha-migration-conversation-two'
+  );
+`, true).trim();
+if (linkedFixtureCount !== "2") {
+  console.error(`  ❌ legacy conversation identity fixture expected 2 correctly linked rows, got ${linkedFixtureCount}`);
+  process.exit(1);
+}
+console.log("  ✅ legacy conversation identity fixture preserves each receptionist mapping");
+const unmappedFixtureCount = psql(`
+  select count(*)
+  from conversations
+  where visitor_token = 'alpha-migration-unmapped-conversation'
+    and agent_id is null and agent_version_id is null;
+`, true).trim();
+if (unmappedFixtureCount !== "1") {
+  console.error(`  ❌ legacy conversation without an exact receptionist agent mapping was not left fail-closed: ${unmappedFixtureCount}`);
+  process.exit(1);
+}
+console.log("  ✅ legacy conversation without an exact mapping remains unlinked; no identity is guessed");
+
+psql(`
+  do $$ begin
+    begin
+      insert into conversations (business_id, receptionist_id, visitor_token, channel, agent_id, agent_version_id)
+      values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'ffffffff-ffff-4fff-8fff-fffffffffff1', 'alpha-migration-reject-null', 'chat', null, null);
+      raise exception using errcode = 'ZX001', message = 'missing identity insert unexpectedly succeeded';
+    exception when check_violation then
+      null;
+    end;
+    begin
+      insert into conversations (business_id, receptionist_id, visitor_token, channel, agent_id, agent_version_id)
+      select a1.business_id, 'ffffffff-ffff-4fff-8fff-fffffffffff1', 'alpha-migration-reject-mismatch', 'chat', a2.id, a2.live_version_id
+      from agents a1 cross join agents a2
+      where a1.slug = 'ffffffff-ffff-4fff-8fff-fffffffffff1'
+        and a2.slug = 'ffffffff-ffff-4fff-8fff-fffffffffff2';
+      raise exception using errcode = 'ZX001', message = 'receptionist mismatch insert unexpectedly succeeded';
+    exception when check_violation then
+      null;
+    end;
+  end $$;
+`);
+console.log("  ✅ new conversations reject missing and receptionist-mismatched identity tuples");
+
+for (const file of ["0014_agent_backfill.sql", "0022_backfill_agents_created_after_0014.sql"]) {
+  const sql = readFileSync(path.join(migrationsDir, file), "utf8");
+  psql(`BEGIN;\n${sql}\nCOMMIT;`);
+}
+const idempotentFixtureCount = psql(`
+  select count(*)
+  from conversations c
+  join agents a on a.id = c.agent_id
+    and a.business_id = c.business_id
+    and a.slug = c.receptionist_id::text
+  join agent_versions av on av.id = c.agent_version_id
+    and av.agent_id = a.id
+  where c.visitor_token in (
+    'alpha-migration-conversation-one',
+    'alpha-migration-conversation-two'
+  );
+`, true).trim();
+if (idempotentFixtureCount !== "2") {
+  console.error(`  ❌ replaying the documented idempotent backfills changed legacy links: ${idempotentFixtureCount} valid rows`);
+  process.exit(1);
+}
+console.log("  ✅ agent backfill migrations 0014 and 0022 replay without duplicate or changed fixture links");
+const stillUnmappedFixtureCount = psql(`
+  select count(*)
+  from conversations
+  where visitor_token = 'alpha-migration-unmapped-conversation'
+    and agent_id is null and agent_version_id is null;
+`, true).trim();
+if (stillUnmappedFixtureCount !== "1") {
+  console.error(`  ❌ replaying an agent backfill guessed an identity for an existing unmapped conversation: ${stillUnmappedFixtureCount}`);
+  process.exit(1);
+}
+console.log("  ✅ replayed backfills do not guess identities for existing unmapped conversations");
 
 // --- Schema assertions the application relies on ---------------------------
 // Every column list below mirrors a production .select() in src/.

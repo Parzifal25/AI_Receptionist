@@ -5,9 +5,8 @@ import { NextRequest } from "next/server";
  * Phase 2 — web-chat security through the real messages route:
  *   - an unknown visitor token never reaches the runtime;
  *   - agent/version identity comes from the conversation row, never the
- *     request body, and a version id belonging to another tenant cannot
- *     resolve (tenant-scoped lookup → compatibility path, never the foreign
- *     template);
+ *     request body, and malformed, mismatched, unpublished, or foreign
+ *     versions fail closed before the runtime or message writes;
  *   - the response envelope is unchanged: { data: { reply } }.
  */
 
@@ -112,6 +111,13 @@ const receptionistRow: Row = {
     business_settings: [{ allowed_domains: [] }],
   },
 };
+const otherReceptionistRow: Row = {
+  ...receptionistRow,
+  id: "r2",
+  name: "Rex",
+  greeting: "Welcome to the second desk.",
+  widget_key: "key-acme-other-123456",
+};
 
 const conversationRow = (overrides: Row = {}): Row => ({
   id: "conv-1",
@@ -129,9 +135,11 @@ const conversationRow = (overrides: Row = {}): Row => ({
 });
 
 const ownVersion: Row = {
-  id: "av-1", agent_id: "agent-1", business_id: "b1", version: 1, config: {}, prompt_template: "TENANT A TEMPLATE", prompt_version: "x", model: {}, published_at: "2026-01-01T00:00:00Z", created_by: null, created_at: "2026-01-01T00:00:00Z",
+  id: "av-1", agent_id: "agent-1", business_id: "b1", version: 1, config: {}, prompt_template: "You are Riley, the receptionist for Acme. TENANT A TEMPLATE", prompt_version: "x", model: {}, published_at: "2026-01-01T00:00:00Z", created_by: null, created_at: "2026-01-01T00:00:00Z",
 };
 const foreignVersion: Row = { ...ownVersion, id: "av-foreign", agent_id: "agent-foreign", business_id: "b2", prompt_template: "TENANT B SECRET TEMPLATE" };
+const otherAgentVersion: Row = { ...ownVersion, id: "av-other-agent", agent_id: "agent-2", prompt_template: "OTHER AGENT TEMPLATE" };
+const draftVersion: Row = { ...ownVersion, id: "av-draft", published_at: null, prompt_template: "DRAFT TEMPLATE" };
 
 function makeRequest(body: unknown) {
   return new NextRequest("http://localhost/api/v1/widget/messages", {
@@ -154,7 +162,12 @@ beforeEach(() => {
   tables = {
     receptionists: [receptionistRow],
     conversations: [conversationRow()],
-    agent_versions: [ownVersion, foreignVersion],
+    agents: [{
+      id: "agent-1", business_id: "b1", type: "receptionist", slug: "r1", display_name: "Riley",
+      status: "active", live_version_id: "av-1", default_channel: "web",
+      created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+    }],
+    agent_versions: [ownVersion, foreignVersion, otherAgentVersion, draftVersion],
     messages: [],
     conversation_state: [],
     business_settings: [],
@@ -167,6 +180,7 @@ describe("POST /api/v1/widget/messages — Phase 2 security and compatibility", 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: { reply: "Hello from the runtime." } });
     expect(prompts[0]).toContain("TENANT A TEMPLATE");
+    expect(prompts[0]).toContain("You are Riley, the receptionist for Acme");
     expect(inserts.filter((i) => i.table === "messages")).toHaveLength(1);
     expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(1);
     const usage = inserts.find((i) => i.table === "usage_events")?.payload as { event_type: string; metadata: Record<string, unknown> };
@@ -191,10 +205,73 @@ describe("POST /api/v1/widget/messages — Phase 2 security and compatibility", 
   it("a conversation row pointing at another tenant's version cannot resolve it (tenant-scoped lookup)", async () => {
     tables.conversations = [conversationRow({ agent_version_id: "av-foreign", agent_id: "agent-foreign" })];
     const res = await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }));
-    expect(res.status).toBe(200);
-    expect(prompts[0]).not.toContain("TENANT B SECRET TEMPLATE");
-    // Falls back to the receptionist compatibility path of the trusted tenant.
-    expect(prompts[0]).toContain("You are Riley, the receptionist for Acme");
+    expect(res.status).toBe(409);
+    expect(prompts).toHaveLength(0);
+    expect(inserts.filter((i) => i.table === "messages")).toHaveLength(0);
+    expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(0);
+  });
+
+  it("rejects a conversation with missing agent linkage before runtime or writes", async () => {
+    tables.conversations = [conversationRow({ agent_id: null, agent_version_id: null })];
+    const res = await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: { code: "CONFLICT", message: "This conversation's agent configuration is unavailable" },
+    });
+    expect(prompts).toHaveLength(0);
+    expect(inserts.filter((i) => ["messages", "usage_events"].includes(i.table))).toHaveLength(0);
+    expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(0);
+  });
+
+  it("rejects a conversation whose tenant does not own its receptionist context", async () => {
+    tables.conversations = [conversationRow({ business_id: "b2" })];
+    const res = await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }));
+    expect(res.status).toBe(409);
+    expect(prompts).toHaveLength(0);
+    expect(inserts.filter((i) => i.table === "messages")).toHaveLength(0);
+    expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(0);
+  });
+
+  it("rejects a valid same-tenant agent tuple pinned to a different receptionist", async () => {
+    tables.receptionists = [receptionistRow, otherReceptionistRow];
+    tables.conversations = [conversationRow({ receptionist_id: "r2" })];
+    const res = await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }));
+    expect(res.status).toBe(409);
+    expect(prompts).toHaveLength(0);
+    expect(inserts.filter((i) => ["messages", "usage_events"].includes(i.table))).toHaveLength(0);
+    expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(0);
+  });
+
+  it("rejects partial or unresolved agent linkage", async () => {
+    for (const linkage of [
+      { agent_id: "agent-1", agent_version_id: null },
+      { agent_id: "agent-1", agent_version_id: "missing-version" },
+    ]) {
+      tables.conversations = [conversationRow(linkage)];
+      const res = await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }));
+      expect(res.status).toBe(409);
+    }
+    expect(prompts).toHaveLength(0);
+    expect(inserts.filter((i) => i.table === "messages")).toHaveLength(0);
+    expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(0);
+  });
+
+  it("rejects a published version owned by a different agent", async () => {
+    tables.conversations = [conversationRow({ agent_version_id: "av-other-agent" })];
+    const res = await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }));
+    expect(res.status).toBe(409);
+    expect(prompts).toHaveLength(0);
+    expect(inserts.filter((i) => i.table === "messages")).toHaveLength(0);
+    expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(0);
+  });
+
+  it("rejects an unpublished pinned version", async () => {
+    tables.conversations = [conversationRow({ agent_version_id: "av-draft" })];
+    const res = await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }));
+    expect(res.status).toBe(409);
+    expect(prompts).toHaveLength(0);
+    expect(inserts.filter((i) => i.table === "messages")).toHaveLength(0);
+    expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(0);
   });
 
   it("only user/assistant rows are read back as history (tool rows are runtime records)", async () => {

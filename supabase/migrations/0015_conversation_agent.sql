@@ -6,13 +6,15 @@
 -- version) that served it — the precondition for evals, A/B, incident
 -- forensics and cost attribution.
 --
--- Both columns are NULLABLE in this migration (plan: backfilled now,
--- NOT NULL in a follow-up migration after the write path is fully wired).
--- Historical conversations are backfilled deterministically to the
--- business's single default active receptionist agent (the 0014 backfill
--- creates exactly one per business, keyed slug = receptionist id).
--- In-flight/legacy conversations stay valid: agent fields are optional for
--- every existing read path.
+-- Both columns are added NULLABLE so existing conversations without a proven
+-- exact mapping can remain untouched and fail closed at runtime. Migration
+-- 0031 guards new identity-bearing writes while preserving these legacy NULLs.
+-- Historical conversations are backfilled to the exact receptionist already
+-- recorded on each conversation. Migration 0014 keys that receptionist's
+-- agent by slug = receptionist id; do not substitute another receptionist
+-- from the same business or invent an identity when the mapping is missing.
+-- In-flight/legacy conversations stay representable; application reads must
+-- reject missing or inconsistent identity before model execution or writes.
 -- ============================================================================
 
 alter table public.conversations
@@ -29,15 +31,6 @@ set agent_id = a.id,
     agent_version_id = a.live_version_id
 from public.agents a
 where c.business_id = a.business_id
+  and a.slug = c.receptionist_id::text
   and a.type = 'receptionist'
-  and a.status = 'active'
-  and a.id = (
-    select a2.id
-    from public.agents a2
-    where a2.business_id = c.business_id
-      and a2.type = 'receptionist'
-      and a2.status = 'active'
-    order by a2.id
-    limit 1
-  )
   and c.agent_id is null;

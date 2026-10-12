@@ -371,6 +371,11 @@ class MediaGate(FrameProcessor):
         self._tts_language = language
         await self._task.queue_frame(TTSUpdateSettingsFrame(delta=TTSSettings(language=language)))
 
+    def forget_tts_language(self) -> None:
+        """The TTS service was replaced by its fallback, which has seen none
+        of the language switches: name the language again on the next line."""
+        self._tts_language = None
+
     async def _maybe_barge_in(self) -> None:
         active = self._active
         if active is None or active.settled:

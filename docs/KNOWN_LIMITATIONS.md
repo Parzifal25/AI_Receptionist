@@ -49,6 +49,23 @@ Specifically outstanding:
   inside `tts_first_byte`, i.e. measured rather than hidden. Connection reuse
   needs a pooling design that cannot leak one call's audio into another's.
 
+## Local speech (Phase B)
+
+`local` STT/TTS run open models in-process with no credential. Full numbers,
+method and licences: [`LOCAL_SPEECH.md`](LOCAL_SPEECH.md). In short:
+
+- Local Telugu STT is far below Sarvam (WER 67 % against 6 % on the same 11
+  clips), unreliable on spoken digits, and occasionally emits another script.
+  It is offline: no interim results and no confidence.
+- Local TTS is intelligible to a recognizer; **no human has listened to it**.
+  English words inside a Telugu line are spoken by a second (American
+  English) voice.
+- On the 4-core development laptop a local-mode browser call completed, but
+  HALO's turn time was 3–15 s (median 7.5 s) against about 1 s with Sarvam.
+- Not verified: a human microphone or listener, a phone line, concurrent
+  calls, or any other host.
+- sherpa-onnx bundles espeak-ng (GPL-3.0); review before distributing.
+
 ## The local voice loop
 
 `scripts/local-call.ts` runs a real microphone and speaker against a real

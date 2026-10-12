@@ -144,10 +144,9 @@ export class WidgetRepository {
     channel: "chat" | "voice";
     pageUrl: string;
     userAgent: string;
-    /** HALO Phase 1: agent serving this conversation (optional during the
-     *  compatibility period; resolved by AgentResolver when available). */
-    agentId?: string | null;
-    agentVersionId?: string | null;
+    /** Server-resolved pinned identity; widget conversations cannot be unattributed. */
+    agentId: string;
+    agentVersionId: string;
   }): Promise<Conversation> {
     const { data, error } = await this.db
       .from("conversations")
@@ -157,8 +156,8 @@ export class WidgetRepository {
         channel: params.channel,
         page_url: params.pageUrl.slice(0, 2000),
         user_agent: params.userAgent.slice(0, 500),
-        ...(params.agentId !== undefined ? { agent_id: params.agentId } : {}),
-        ...(params.agentVersionId !== undefined ? { agent_version_id: params.agentVersionId } : {}),
+        agent_id: params.agentId,
+        agent_version_id: params.agentVersionId,
       })
       .select("id, business_id, receptionist_id, visitor_token, channel, status, message_count, started_at, last_message_at, agent_id, agent_version_id")
       .single();

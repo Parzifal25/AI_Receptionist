@@ -1,5 +1,7 @@
 # HALO — Implementation Plan
 
+> **Release evidence note (2026-10-12):** this plan contains historical design and phase material. Current Phase Alpha/ Beta disposition is in [HALO_V1_STATUS.md](HALO_V1_STATUS.md) and [HALO_PHASE_BETA_READINESS.md](HALO_PHASE_BETA_READINESS.md). Beta staging checks are blocked pending an identified, authorized staging target. The ENG-04/ENG-12 naming conflict remains pending owner approval; use descriptive scopes until decided. No pilot or production gate is closed by this plan.
+
 **Document status:** PLAN. Nothing in this document is implemented.
 **Plan date:** 2026-09-04
 **Repository:** `/home/parzifal/AI_Receptionist` — branch `main`, commit `1cd187d` + uncommitted working tree

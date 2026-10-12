@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { AudioFormat } from "@halo/ports/streaming-stt-provider";
 import { createSttProvider, createTtsProvider, STT_PROVIDER_NAMES, TTS_PROVIDER_NAMES } from "./factory";
-const common = { apiKey: z.string().optional(), baseUrl: z.url().optional(), model: z.string().max(100).optional() };
+const common = { apiKey: z.string().optional(), baseUrl: z.url().optional(), model: z.string().max(100).optional(),
+  modelDir: z.string().max(1000).optional(), threads: z.int().min(1).max(64).optional() };
 const stt = z.object({ ...common, provider: z.enum(STT_PROVIDER_NAMES), mode: z.enum(["transcribe", "verbatim", "translit", "codemix"]).optional() }).strict();
 const tts = z.object({ ...common, provider: z.enum(TTS_PROVIDER_NAMES), defaultSpeaker: z.string().max(100).optional() }).strict();
 const profile = z.object({ sampleRate: z.int().min(8000).max(48000), stt: stt.extend({ fallback: stt.optional() }), tts: tts.extend({ fallback: tts.optional() }) }).strict();

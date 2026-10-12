@@ -66,22 +66,42 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
   // engine-independent.
   const pipecat = config.mediaEngine === "pipecat" ? new PipecatBridge() : null;
 
-  const sttConfig = {
-      provider: config.sttProvider,
+  // One settings object serves the primary and the optional fallback: each
+  // adapter reads only its own fields (credentials for a vendor, the model
+  // directory for `local`).
+  const local = {
+      ...(config.localModelDir ? { modelDir: config.localModelDir } : {}),
+      ...(config.localThreads ? { threads: config.localThreads } : {}),
+    };
+  const sttSettings = {
       ...(config.sttApiKey ? { apiKey: config.sttApiKey } : {}),
       ...(config.sttModel ? { model: config.sttModel } : {}),
       ...(config.sttMode ? { mode: config.sttMode } : {}),
       ...(config.sttBaseUrl ? { baseUrl: config.sttBaseUrl } : {}),
+      ...local,
     };
-  const stt = createSttProvider(sttConfig);
-  const webStt = createSttProvider({ ...sttConfig, endpointing: "manual" });
+  const sttConfig = (endpointing?: "manual") => ({
+      ...sttSettings,
+      ...(endpointing ? { endpointing } : {}),
+      provider: config.sttProvider,
+      ...(config.sttFallbackProvider
+        ? { fallback: { ...sttSettings, ...(endpointing ? { endpointing } : {}), provider: config.sttFallbackProvider } }
+        : {}),
+    });
+  const stt = createSttProvider(sttConfig());
+  const webStt = createSttProvider(sttConfig("manual"));
 
-  const tts = createTtsProvider({
-      provider: config.ttsProvider,
+  const ttsSettings = {
       ...(config.ttsApiKey ? { apiKey: config.ttsApiKey } : {}),
       ...(config.ttsModel ? { model: config.ttsModel } : {}),
       ...(config.ttsDefaultVoice ? { defaultSpeaker: config.ttsDefaultVoice } : {}),
       ...(config.ttsBaseUrl ? { baseUrl: config.ttsBaseUrl } : {}),
+      ...local,
+    };
+  const tts = createTtsProvider({
+      ...ttsSettings,
+      provider: config.ttsProvider,
+      ...(config.ttsFallbackProvider ? { fallback: { ...ttsSettings, provider: config.ttsFallbackProvider } } : {}),
     });
 
   const gateway = new VoiceGateway({
@@ -229,6 +249,8 @@ export async function main(): Promise<void> {
     mediaEngine: config.mediaEngine,
     stt: config.sttProvider,
     tts: config.ttsProvider,
+    sttFallback: config.sttFallbackProvider ?? null,
+    ttsFallback: config.ttsFallbackProvider ?? null,
   });
 
   let closing = false;

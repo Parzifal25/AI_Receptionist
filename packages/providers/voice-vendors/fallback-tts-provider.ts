@@ -1,7 +1,12 @@
 import { TtsError, type StreamingTtsProvider, type TtsRequest } from "@halo/ports/streaming-tts-provider";
 
 /** A failed utterance may switch providers only BEFORE any audio is released.
- * Replaying after partial speech would repeat promises/actions to the caller. */
+ * Replaying after partial speech would repeat promises/actions to the caller.
+ *
+ * Only a RECOVERABLE failure moves on: a `TtsError` the vendor marked
+ * `retryable`, or a provider that returned no audio. A non-retryable error
+ * (a rejected credential, an unknown voice) and anything that is not a
+ * `TtsError` (a defect) are thrown as they are. */
 export class FallbackTtsProvider implements StreamingTtsProvider {
   readonly name = "fallback-tts";
   constructor(private readonly providers: readonly { provider: StreamingTtsProvider; voiceId?: string }[]) {
@@ -31,7 +36,7 @@ export class FallbackTtsProvider implements StreamingTtsProvider {
         error = new TtsError("provider", "Speech provider returned no audio", true);
       } catch (cause) {
         if (signal.aborted) return;
-        if (released) throw cause;
+        if (released || !(cause instanceof TtsError) || !cause.retryable) throw cause;
         error = cause;
       }
     }

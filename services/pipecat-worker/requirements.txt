@@ -1,3 +1,7 @@
 # Direct worker dependencies, matching the previously committed environment.
 pipecat-ai[sarvam]==0.0.108
 websockets==15.0.1
+# Local speech (VOICE_STT_PROVIDER=local / VOICE_TTS_PROVIDER=local); imported
+# only when selected. onnx is used once, by setup_local_speech.py.
+sherpa-onnx==1.13.8
+onnx==1.23.2

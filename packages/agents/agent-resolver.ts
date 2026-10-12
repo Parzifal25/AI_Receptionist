@@ -39,7 +39,7 @@ export interface ResolvedAgentContext {
 export type AgentResolverDeps = {
   agentRepository: AgentRepository;
   /** Resolves the tenant + agent selector from an untrusted channel credential. */
-  tenantResolver: (widgetKey: string) => Promise<{ businessId: string; agentSlug: string }>;
+  tenantResolver?: (widgetKey: string) => Promise<{ businessId: string; agentSlug: string }>;
 };
 
 /**
@@ -72,6 +72,7 @@ export class AgentResolver {
    * deterministic for every receptionist-shaped tenant.
    */
   async resolveForWidgetKey(widgetKey: string): Promise<ResolvedAgentContext> {
+    if (!this.deps.tenantResolver) throw AppError.internal();
     const { businessId, agentSlug } = await this.deps.tenantResolver(widgetKey);
     return this.resolveForAgentSlug(businessId, agentSlug);
   }

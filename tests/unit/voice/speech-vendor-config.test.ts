@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createSttProvider, createTtsProvider } from "@halo/providers/voice-vendors/factory";
 import { loadGatewayConfig } from "../../../services/voice-gateway/config";
+import { localModelDirFixture } from "../../mocks/local-speech";
 
 /**
  * Phase 4.5 Sprint 1 — selecting a real speech vendor must fail CLOSED.
@@ -88,6 +89,57 @@ describe("speech vendor selection", () => {
   it("requires the credential at construction too, not only in the config schema", () => {
     expect(() => createSttProvider({ provider: "sarvam" })).toThrow(/VOICE_STT_API_KEY/);
     expect(() => createTtsProvider({ provider: "sarvam", apiKey: "k" })).toThrow(/VOICE_TTS_DEFAULT_VOICE/);
+  });
+});
+
+describe("local speech and provider fallback (Phase B)", () => {
+  it("selects the local providers with a model directory and no credential", () => {
+    const config = loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "local", VOICE_TTS_PROVIDER: "local", VOICE_LOCAL_MODEL_DIR: localModelDirFixture() });
+    expect(config).toMatchObject({ sttProvider: "local", ttsProvider: "local", sttApiKey: undefined, ttsApiKey: undefined });
+    const stt = createSttProvider({ provider: config.sttProvider, modelDir: config.localModelDir });
+    const tts = createTtsProvider({ provider: config.ttsProvider, modelDir: config.localModelDir });
+    expect([stt.name, tts.name]).toEqual(["local-stt", "local-tts"]);
+    expect(stt.capabilities()).toMatchObject({ languages: ["te-IN", "en-IN"], interimResults: false, reportsConfidence: false });
+    expect(stt.capabilities().formats).toContainEqual({ encoding: "mulaw", sampleRate: 8000, channels: 1 });
+    expect(tts.capabilities().languages).toEqual(["en-IN", "te-IN"]);
+  });
+
+  it("refuses to start with local speech and no usable model directory", () => {
+    expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_STT_PROVIDER: "local" })).toThrow(/VOICE_LOCAL_MODEL_DIR is required/);
+    expect(() => loadGatewayConfig({ ...BASE_ENV, VOICE_TTS_FALLBACK_PROVIDER: "local" })).toThrow(/VOICE_LOCAL_MODEL_DIR is required/);
+    expect(() => createSttProvider({ provider: "local" })).toThrow(/VOICE_LOCAL_MODEL_DIR/);
+    expect(() => createTtsProvider({ provider: "local", modelDir: "/nonexistent/halo-models" })).toThrow(/manifest/);
+  });
+
+  it("routes a configured fallback and validates everything the fallback needs", () => {
+    const modelDir = localModelDirFixture();
+    const config = loadGatewayConfig({ ...BASE_ENV, SARVAM_API: "shared", VOICE_STT_PROVIDER: "sarvam", VOICE_TTS_PROVIDER: "sarvam", VOICE_TTS_DEFAULT_VOICE: "anushka",
+      VOICE_STT_FALLBACK_PROVIDER: "local", VOICE_TTS_FALLBACK_PROVIDER: "local", VOICE_LOCAL_MODEL_DIR: modelDir });
+    expect(config).toMatchObject({ sttFallbackProvider: "local", ttsFallbackProvider: "local" });
+    expect(createSttProvider({ provider: "sarvam", apiKey: "k", fallback: { provider: "local", modelDir } }).name).toBe("fallback-stt");
+    expect(createTtsProvider({ provider: "sarvam", apiKey: "k", defaultSpeaker: "anushka", fallback: { provider: "local", modelDir } }).name).toBe("fallback-tts");
+    // The reverse direction: Sarvam as the fallback still needs its credential and voice up front.
+    const reverse = { ...BASE_ENV, VOICE_STT_PROVIDER: "local", VOICE_TTS_PROVIDER: "local", VOICE_LOCAL_MODEL_DIR: modelDir };
+    expect(() => loadGatewayConfig({ ...reverse, VOICE_STT_FALLBACK_PROVIDER: "sarvam" })).toThrow(/VOICE_STT_API_KEY is required/);
+    expect(() => loadGatewayConfig({ ...reverse, VOICE_TTS_FALLBACK_PROVIDER: "sarvam", SARVAM_API: "shared" })).toThrow(/VOICE_TTS_DEFAULT_VOICE is required/);
+    expect(loadGatewayConfig({ ...reverse, VOICE_STT_FALLBACK_PROVIDER: "sarvam", SARVAM_API: "shared" }).sttApiKey).toBe("shared");
+    expect(() => loadGatewayConfig({ ...reverse, VOICE_STT_FALLBACK_PROVIDER: "local" })).toThrow(/must differ/);
+  });
+
+  it("never falls back from a misconfigured primary: a missing credential is still an error", () => {
+    const modelDir = localModelDirFixture();
+    expect(() => createSttProvider({ provider: "sarvam", fallback: { provider: "local", modelDir } })).toThrow(/VOICE_STT_API_KEY/);
+    expect(() => createTtsProvider({ provider: "sarvam", fallback: { provider: "local", modelDir } })).toThrow(/VOICE_TTS_API_KEY/);
+    expect(() => createSttProvider({ provider: "sarvam", apiKey: "k", fallback: { provider: "local" } })).toThrow(/VOICE_LOCAL_MODEL_DIR/);
+  });
+
+  it("leaves the Sarvam-only configuration exactly as it was", () => {
+    const config = loadGatewayConfig({ ...BASE_ENV, SARVAM_API: "shared", VOICE_STT_PROVIDER: "sarvam", VOICE_TTS_PROVIDER: "sarvam", VOICE_TTS_DEFAULT_VOICE: "anushka" });
+    expect(config).toMatchObject({ sttProvider: "sarvam", ttsProvider: "sarvam", sttApiKey: "shared", ttsApiKey: "shared" });
+    expect([config.sttFallbackProvider, config.ttsFallbackProvider, config.localModelDir]).toEqual([undefined, undefined, undefined]);
+    // Bare vendor adapters: no wrapper in the path.
+    expect(createSttProvider({ provider: "sarvam", apiKey: "k" }).name).toBe("sarvam-stt");
+    expect(createTtsProvider({ provider: "sarvam", apiKey: "k", defaultSpeaker: "anushka" }).name).toBe("sarvam-tts");
   });
 });
 

@@ -1,9 +1,13 @@
 import { FallbackSttProvider } from "./fallback-stt-provider";
 import { FallbackTtsProvider } from "./fallback-tts-provider";
+import { logger } from "@halo/platform/logger";
 import type { StreamingSttProvider } from "@halo/ports/streaming-stt-provider";
 import type { StreamingTtsProvider } from "@halo/ports/streaming-tts-provider";
 import { FakeSttProvider } from "../voice-fakes/fake-stt-provider";
 import { FakeTtsProvider } from "../voice-fakes/fake-tts-provider";
+import { getLocalSpeechEngine } from "./local-speech-engine";
+import { LocalSttProvider } from "./local-stt-provider";
+import { LocalTtsProvider } from "./local-tts-provider";
 import { SarvamSttProvider, type SarvamSttMode } from "./sarvam-stt-provider";
 import { SarvamTtsProvider } from "./sarvam-tts-provider";
 
@@ -16,10 +20,17 @@ import { SarvamTtsProvider } from "./sarvam-tts-provider";
  * startup, so a missing credential is a refusal to boot, never a call that
  * answers and then cannot speak. Keeping `process.env` out of the adapters
  * is also what lets the contract tests run them without a fake environment.
+ *
+ * Phase B adds `local` (in-process sherpa-onnx models, no credential) and an
+ * optional `fallback`. A fallback is for a provider that FAILS AT RUN TIME
+ * with a recoverable error; it never stands in for a provider that was
+ * configured wrong. A missing credential or model directory throws here.
  */
 
-export const STT_PROVIDER_NAMES = ["fake", "sarvam"] as const;
-export const TTS_PROVIDER_NAMES = ["fake", "sarvam"] as const;
+const log = logger.child({ component: "local-speech" });
+
+export const STT_PROVIDER_NAMES = ["fake", "sarvam", "local"] as const;
+export const TTS_PROVIDER_NAMES = ["fake", "sarvam", "local"] as const;
 
 export type SttProviderName = (typeof STT_PROVIDER_NAMES)[number];
 export type TtsProviderName = (typeof TTS_PROVIDER_NAMES)[number];
@@ -32,6 +43,9 @@ export interface SttFactoryConfig {
   model?: string;
   mode?: SarvamSttMode;
   baseUrl?: string;
+  /** `local` only: directory provisioned by services/pipecat-worker/setup_local_speech.py. */
+  modelDir?: string;
+  threads?: number;
 }
 
 export interface TtsFactoryConfig {
@@ -42,10 +56,12 @@ export interface TtsFactoryConfig {
   /** Used only when the agent version configures no `voice.ttsVoice`. */
   defaultSpeaker?: string;
   baseUrl?: string;
+  /** `local` only: directory provisioned by services/pipecat-worker/setup_local_speech.py. */
+  modelDir?: string;
+  threads?: number;
 }
 
 export function createSttProvider(config: SttFactoryConfig): StreamingSttProvider {
-  if (config.fallback && config.provider === "sarvam" && !config.apiKey) return createSttProvider(config.fallback);
   if (config.fallback) return new FallbackSttProvider([createSttProvider({ ...config, fallback: undefined }), createSttProvider(config.fallback)]);
   switch (config.provider) {
     case "sarvam":
@@ -56,13 +72,15 @@ export function createSttProvider(config: SttFactoryConfig): StreamingSttProvide
         ...(config.model ? { model: config.model } : {}),
         ...(config.mode ? { mode: config.mode } : {}),
       });
+    case "local":
+      return new LocalSttProvider(getLocalSpeechEngine(requireValue(config.modelDir, "VOICE_LOCAL_MODEL_DIR", "local"), config.threads),
+        { onMetric: metric => (metric.event === "error" ? log.warn : log.info).call(log, "local stt", metric) });
     case "fake":
       return new FakeSttProvider();
   }
 }
 
 export function createTtsProvider(config: TtsFactoryConfig): StreamingTtsProvider {
-  if (config.fallback && config.provider === "sarvam" && (!config.apiKey || !config.defaultSpeaker)) return createTtsProvider(config.fallback);
   if (config.fallback) return new FallbackTtsProvider([{ provider: createTtsProvider({ ...config, fallback: undefined }) }, { provider: createTtsProvider(config.fallback), voiceId: config.fallback.defaultSpeaker }]);
   switch (config.provider) {
     case "sarvam":
@@ -72,6 +90,9 @@ export function createTtsProvider(config: TtsFactoryConfig): StreamingTtsProvide
         ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
         ...(config.model ? { model: config.model } : {}),
       });
+    case "local":
+      return new LocalTtsProvider(getLocalSpeechEngine(requireValue(config.modelDir, "VOICE_LOCAL_MODEL_DIR", "local"), config.threads),
+        { onMetric: metric => (metric.event === "error" ? log.warn : log.info).call(log, "local tts", metric) });
     case "fake":
       return new FakeTtsProvider();
   }

@@ -54,5 +54,8 @@
     "tsx": "^4.23.0",
     "typescript": "^5",
     "vitest": "^4.1.9"
+  },
+  "optionalDependencies": {
+    "sherpa-onnx-node": "1.13.8"
   }
 }

@@ -57,6 +57,8 @@ Full setup instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 
 ## Documentation
 
+HALO v1 status and release evidence: **[docs/HALO_V1_STATUS.md](docs/HALO_V1_STATUS.md)**.
+
 | Document | Contents |
 | --- | --- |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Local setup: Supabase, Ollama, env, migrations |

@@ -2,7 +2,13 @@ import type { StreamingSttProvider, SttEvent, SttStream, SttStreamOptions } from
 
 /** Bounded startup fallback. Audio is replayed only before the first final.
  * Once a final may have caused a business action, failure is surfaced instead
- * of replaying audio into a different recognizer and duplicating the action. */
+ * of replaying audio into a different recognizer and duplicating the action.
+ *
+ * Only a RECOVERABLE failure moves to the next provider: an error the vendor
+ * marked `retryable`, or a stream that closed without one. A non-retryable
+ * error (a rejected credential, unsupported audio) and a provider that
+ * throws from `open()` — which the port forbids for runtime problems, so it
+ * is a defect — are surfaced, never papered over by another provider. */
 export class FallbackSttProvider implements StreamingSttProvider {
   readonly name = "fallback-stt";
   constructor(private readonly providers: readonly StreamingSttProvider[], private readonly maxBufferedBytes = 480_000) {
@@ -38,7 +44,8 @@ export class FallbackSttProvider implements StreamingSttProvider {
         active = providers[index].open(options, event => queueMicrotask(() => {
           if (closed || current !== generation) return;
           if (event.type === "error" || event.type === "closed") {
-            if (!finalized && !overflow && index + 1 < providers.length) {
+            const recoverable = event.type === "closed" || event.retryable;
+            if (recoverable && !finalized && !overflow && index + 1 < providers.length) {
               generation++; closeActive(); start();
               if (!closed) { for (const audio of buffered) { if (!closed) write(audio); } if (!closed && pendingFinalize) finalize(); }
             } else fail(event.type === "error" ? event : { type: "error", code: "provider", message: "STT stream closed", retryable: true });
@@ -48,8 +55,7 @@ export class FallbackSttProvider implements StreamingSttProvider {
           listener(event.type === "final" ? { ...event, utteranceId: `${index}:${event.utteranceId}` } : event);
         }));
       } catch {
-        if (!finalized && !overflow && index + 1 < providers.length) start();
-        else fail({ type: "error", code: "provider", message: "STT open failed", retryable: true });
+        fail({ type: "error", code: "provider", message: "STT open failed", retryable: false });
       }
     };
     // Defer startup so a synchronous vendor error still follows the port contract.

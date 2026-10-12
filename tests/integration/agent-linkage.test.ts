@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { resetEnvCacheForTests } from "@halo/platform/env";
 
 vi.mock("@halo/workflows/event-bus", () => ({ emitBusinessEvent: vi.fn(async () => {}) }));
 vi.mock("@halo/platform/rate-limit", () => ({
@@ -14,9 +13,7 @@ vi.mock("@halo/platform/rate-limit", () => ({
  *
  * The route resolves the agent and its published version from the widget
  * key's tenant (never from the request) and persists both ids on the
- * conversation row. When resolution fails, creation fails CLOSED (503) —
- * except for the pre-backfill "agent_not_found" signature when the explicit
- * compatibility flag is set.
+ * conversation row. Every resolution failure fails closed (503).
  */
 
 type Row = Record<string, unknown>;
@@ -79,6 +76,7 @@ const versionRow: Row = {
 
 let tables: Record<string, Row[]>;
 const inserts: Array<{ table: string; payload: Row }> = [];
+let remapWidgetKeyAfterFirstRead = false;
 
 vi.mock("@halo/tenancy/supabase/admin", () => ({
   getAdminClient: () => fakeSupabase(),
@@ -127,6 +125,28 @@ function fakeSupabase() {
           return Promise.resolve({ data: single ? row : [row], error: null });
         }
         const data = rows.filter((r) => state.filters.every(([c, v]) => r[c] === v));
+        if (
+          table === "receptionists" &&
+          remapWidgetKeyAfterFirstRead &&
+          state.filters.some(([column]) => column === "widget_key")
+        ) {
+          // Return Tenant A's first proof, then model a privileged key remap
+          // before any later lookup can resolve the agent selector.
+          remapWidgetKeyAfterFirstRead = false;
+          tables.receptionists = [{
+            ...receptionistRow,
+            id: "r2",
+            business_id: "b2",
+            businesses: { ...(receptionistRow.businesses as Row), id: "b2", name: "Other tenant" },
+          }];
+          tables.agents = [{ ...agentRow, id: "agent-2", business_id: "b2", slug: "r2", live_version_id: "av-2" }];
+          tables.agent_versions = [{
+            ...versionRow,
+            id: "av-2",
+            agent_id: "agent-2",
+            business_id: "b2",
+          }];
+        }
         return Promise.resolve({ data: single ? (data[0] ?? null) : data, error: null });
       };
       b.maybeSingle = () => finish(true);
@@ -152,10 +172,20 @@ function makeRequest() {
   });
 }
 
+function makeExistingClientRequest() {
+  // The published widget client sends only the public key plus the stable
+  // channel/page fields; it never supplies agent identity.
+  return new NextRequest("http://localhost:3000/api/v1/widget/conversations", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ widgetKey: "key-acme-123456", channel: "chat", pageUrl: "" }),
+  });
+}
+
 beforeEach(() => {
   inserts.length = 0;
+  remapWidgetKeyAfterFirstRead = false;
   delete process.env.HALO_AGENT_RESOLUTION_COMPAT_FAIL_OPEN;
-  resetEnvCacheForTests();
   tables = {
     receptionists: [receptionistRow],
     agents: [agentRow],
@@ -203,14 +233,52 @@ describe("conversation creation — agent linkage (Phase 1)", () => {
     expect(conversationInsert?.payload.agent_version_id).toBe("av-1");
   });
 
+  it("keeps the existing widget client request and success response contract", async () => {
+    const res = await (await POST())(makeExistingClientRequest());
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.data.visitorToken).toBe("visitor-token-abcdef0123456789");
+    expect(body.data.greeting).toBe("Hi");
+    expect(Object.keys(body.data).sort()).toEqual(["greeting", "visitorToken"]);
+    const conversationInsert = inserts.find((i) => i.table === "conversations");
+    expect(conversationInsert?.payload.agent_id).toBe("agent-1");
+    expect(conversationInsert?.payload.agent_version_id).toBe("av-1");
+  });
+
   it("rejects an unknown widget key (no tenant can be proven)", async () => {
     tables.receptionists = [];
     const res = await (await POST())(makeRequest());
     expect(res.status).toBe(404);
   });
+
+  it("does not resolve a same-slug agent from another tenant", async () => {
+    tables.agents = [{ ...agentRow, business_id: "b2" }];
+    tables.agent_versions = [{ ...versionRow, business_id: "b2" }];
+
+    const res = await (await POST())(makeRequest());
+    expect(res.status).toBe(503);
+    expect(inserts.find((i) => i.table === "conversations")).toBeUndefined();
+  });
+
+  it("does not resolve a foreign-tenant version for this tenant's agent", async () => {
+    tables.agent_versions = [{ ...versionRow, business_id: "b2" }];
+
+    const res = await (await POST())(makeRequest());
+    expect(res.status).toBe(503);
+    expect(inserts.find((i) => i.table === "conversations")).toBeUndefined();
+  });
+
+  it("fails safely if the widget key is remapped after its first tenant proof", async () => {
+    remapWidgetKeyAfterFirstRead = true;
+
+    const res = await (await POST())(makeRequest());
+
+    expect(res.status).toBe(503);
+    expect(inserts.find((i) => i.table === "conversations")).toBeUndefined();
+  });
 });
 
-describe("conversation creation — fail-closed resolution (Phase 1.5, WS5)", () => {
+describe("conversation creation — fail-closed agent resolution", () => {
   it("fails CLOSED (503) with no conversation row when the agent is not backfilled", async () => {
     tables.agents = [];
     tables.agent_versions = [];
@@ -223,7 +291,7 @@ describe("conversation creation — fail-closed resolution (Phase 1.5, WS5)", ()
     expect(body.error.code).toBe("SERVICE_UNAVAILABLE");
   });
 
-  it("fails CLOSED (503) when the agent is inactive — never eligible for the compat path", async () => {
+  it("fails CLOSED (503) when the resolved agent is inactive", async () => {
     tables.agents = [{ ...agentRow, status: "paused" }];
 
     const res = await (await POST())(makeRequest());
@@ -248,33 +316,9 @@ describe("conversation creation — fail-closed resolution (Phase 1.5, WS5)", ()
     expect(inserts.find((i) => i.table === "conversations")).toBeUndefined();
   });
 
-  it("compat flag admits ONLY the pre-backfill signature (agent_not_found)", async () => {
+  it("fails closed when the tenant has no linked agent, even if the retired compatibility flag is set", async () => {
     process.env.HALO_AGENT_RESOLUTION_COMPAT_FAIL_OPEN = "true";
-    resetEnvCacheForTests();
     tables.agents = [];
-    tables.agent_versions = [];
-
-    const res = await (await POST())(makeRequest());
-    expect(res.status).toBe(201);
-    const conversationInsert = inserts.find((i) => i.table === "conversations");
-    expect(conversationInsert?.payload.agent_id ?? null).toBeNull();
-    expect(conversationInsert?.payload.agent_version_id ?? null).toBeNull();
-  });
-
-  it("compat flag does NOT admit an inactive agent (fails closed even with flag set)", async () => {
-    process.env.HALO_AGENT_RESOLUTION_COMPAT_FAIL_OPEN = "true";
-    resetEnvCacheForTests();
-    tables.agents = [{ ...agentRow, status: "paused" }];
-
-    const res = await (await POST())(makeRequest());
-    expect(res.status).toBe(503);
-    expect(inserts.find((i) => i.table === "conversations")).toBeUndefined();
-  });
-
-  it("compat flag does NOT admit a missing live version (fails closed even with flag set)", async () => {
-    process.env.HALO_AGENT_RESOLUTION_COMPAT_FAIL_OPEN = "true";
-    resetEnvCacheForTests();
-    tables.agents = [{ ...agentRow, live_version_id: null }];
     tables.agent_versions = [];
 
     const res = await (await POST())(makeRequest());

@@ -33,16 +33,6 @@ const serverEnvSchema = z.object({
   // Shared secret authorizing scheduled jobs (e.g. the data-retention cron).
   CRON_SECRET: z.string().min(16).optional(),
 
-  // Phase 1.5 compatibility switch (workstream 5): conversation creation
-  // fails CLOSED when agent resolution fails, except for the pre-0014
-  // "no agent backfilled yet" signature, which may start a conversation on
-  // the receptionist compatibility path — but only when this flag is set.
-  // Temporary; removal is tracked with the Phase 2 agent-console work.
-  HALO_AGENT_RESOLUTION_COMPAT_FAIL_OPEN: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((v) => v === "true"),
-
   // Outbound messaging (booking confirmations, reminders). "log" delivers to
   // the application log; real gateways (Twilio, ...) plug in via the factory.
   MESSAGING_PROVIDER: z.enum(["log", "whatsapp", "resend", "resend+whatsapp"]).default("log"),

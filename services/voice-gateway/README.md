@@ -22,10 +22,13 @@ Configuration is validated at startup and **fails closed** (`config.ts`):
 | `TELEPHONY_PROVIDER` | yes | `twilio` (reference adapter) or `fake` (deterministic, for local/demo). |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | with `twilio` | Account + webhook signing key. |
 | `VOICE_FAKE_WEBHOOK_SECRET` | with `fake` | Signing key for the fake provider (≥16 chars). |
-| `VOICE_STT_PROVIDER` | no (`fake`) | `fake` or `sarvam`. A real vendor requires its credential below, or the process refuses to start. |
+| `VOICE_STT_PROVIDER` | no (`fake`) | `fake`, `sarvam` or `local`. A vendor requires its credential below and `local` requires `VOICE_LOCAL_MODEL_DIR`, or the process refuses to start. |
 | `VOICE_STT_API_KEY` | with a real vendor | Vendor credential. Server-side only; never reaches a browser or a URL. |
 | `VOICE_STT_MODEL`, `VOICE_STT_MODE`, `VOICE_STT_BASE_URL` | no | Vendor model, output mode (`transcribe`\|`verbatim`\|`translit`\|`codemix`) and endpoint override. |
-| `VOICE_TTS_PROVIDER` | no (`fake`) | `fake` or `sarvam`. |
+| `VOICE_TTS_PROVIDER` | no (`fake`) | `fake`, `sarvam` or `local`. |
+| `VOICE_STT_FALLBACK_PROVIDER`, `VOICE_TTS_FALLBACK_PROVIDER` | no | One fallback each, different from the primary. Used only when the primary fails at run time with a recoverable error; everything the fallback needs is validated at startup. |
+| `VOICE_LOCAL_MODEL_DIR` | with `local` | Model directory provisioned by `services/pipecat-worker/setup_local_speech.py`. See [`docs/LOCAL_SPEECH.md`](../../docs/LOCAL_SPEECH.md) for measured quality, memory and licences. |
+| `VOICE_LOCAL_THREADS` | no (4) | Inference threads for `local`. |
 | `VOICE_TTS_API_KEY` | with a real vendor | Vendor credential. |
 | `VOICE_TTS_DEFAULT_VOICE` | with a real vendor | Voice used when an agent version sets no `voice.ttsVoice`. **No default** — which voice a tenant's callers hear is a decision, not a fallback. |
 | `VOICE_TTS_MODEL`, `VOICE_TTS_BASE_URL` | no | Vendor model and endpoint override. |

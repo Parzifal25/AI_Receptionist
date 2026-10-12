@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { AppError } from "@halo/core/errors/app-error";
-import { ChatService, type ResolvedAgentRuntimeContext, resolvedContextFromReceptionist } from "@/core/services/chat-service";
+import { ChatService, type ResolvedAgentRuntimeContext } from "@/core/services/chat-service";
 import { SupabaseAgentRepository } from "@halo/agents/agent-repository";
 import { BookingOrchestrator } from "@halo/scheduling/booking-orchestrator";
 import { WidgetRepository } from "@/core/services/widget-repository";
@@ -54,6 +54,11 @@ export const POST = withErrorHandling("widget.messages", async (request: NextReq
   const { receptionist, business, allowedDomains } = await repository.getReceptionistById(
     conversation.receptionistId,
   );
+  const unavailableAgentContext = () =>
+    fail(AppError.conflict("This conversation's agent configuration is unavailable"), headers);
+  if (conversation.businessId !== business.id) {
+    return unavailableAgentContext();
+  }
 
   // Same embed-domain policy as conversation start — a stolen visitor token
   // is useless from a site the business hasn't allowed.
@@ -61,34 +66,53 @@ export const POST = withErrorHandling("widget.messages", async (request: NextReq
     return fail(AppError.forbidden("This domain is not allowed to use this widget"), headers);
   }
 
-  // HALO Phase 1: the runtime executes against the agent version the
-  // conversation was started with. Both ids come from the conversation row
-  // (server-persisted at creation) — never from the request. Conversations
-  // without linkage (pre-migration rows, or a fail-open start) run on the
-  // receptionist compatibility path.
-  let agentContext: ResolvedAgentRuntimeContext;
-  if (conversation.agentId && conversation.agentVersionId) {
-    const version = await new SupabaseAgentRepository().getVersion(
-      conversation.agentVersionId,
-      business.id,
-    );
-    if (version) {
-      agentContext = {
-        business,
-        agentId: conversation.agentId,
-        agentVersionId: conversation.agentVersionId,
-        agentVersion: version.version,
-        config: version.config,
-        promptTemplate: version.promptTemplate,
-        model: version.model,
-        receptionist,
-      };
-    } else {
-      agentContext = resolvedContextFromReceptionist({ business, receptionist });
-    }
-  } else {
-    agentContext = resolvedContextFromReceptionist({ business, receptionist });
+  // The pinned identity tuple is persisted at conversation creation. Never
+  // infer a replacement runtime from the receptionist row when linkage is
+  // absent or invalid: legacy/inconsistent rows must stop before any turn is
+  // written or sent to a model.
+  if (
+    typeof conversation.agentId !== "string" || conversation.agentId.length === 0 ||
+    typeof conversation.agentVersionId !== "string" || conversation.agentVersionId.length === 0
+  ) {
+    return unavailableAgentContext();
   }
+
+  const agents = new SupabaseAgentRepository();
+  const agent = await agents.getAgent(conversation.agentId, business.id);
+  if (
+    !agent ||
+    agent.type !== "receptionist" ||
+    agent.slug !== conversation.receptionistId
+  ) {
+    // A valid same-tenant agent tuple can still belong to a different
+    // receptionist profile. This also fails closed on rows produced by the
+    // old migration backfill that selected one arbitrary tenant receptionist.
+    return unavailableAgentContext();
+  }
+
+  const version = await agents.getVersion(
+    conversation.agentVersionId,
+    business.id,
+  );
+  if (
+    !version ||
+    version.businessId !== business.id ||
+    version.agentId !== conversation.agentId ||
+    !version.publishedAt
+  ) {
+    return unavailableAgentContext();
+  }
+
+  const agentContext: ResolvedAgentRuntimeContext = {
+    business,
+    agentId: conversation.agentId,
+    agentVersionId: conversation.agentVersionId,
+    agentVersion: version.version,
+    config: version.config,
+    promptTemplate: version.promptTemplate,
+    model: version.model,
+    receptionist,
+  };
 
   if (conversation.messageCount >= MAX_MESSAGES_PER_CONVERSATION) {
     await repository.endConversation(conversation.id);
