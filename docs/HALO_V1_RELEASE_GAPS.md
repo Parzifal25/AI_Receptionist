@@ -79,3 +79,24 @@ The earlier “ENG-04 Phase 2” label for the database migration/linkage audit 
 - **Blocked:** authorized carrier setup and real calls; speech vendor credentials and native-speaker quality; supplied/approved business facts and policy; production cron/carrier configuration; real provider-backed calendar or follow-up delivery.
 - **Validation:** the current dirty candidate passed the 2026-10-12 full application and worker suites, lint, typecheck, production build, config preflight, disposable migration replay, real-role RLS harness, and `git diff --check`. These checks do not establish external provider or pilot acceptance.
 - **Preservation:** no existing runtime behavior or user changes were discarded. No production data, provider, deployment, or live call was touched.
+
+
+## Three production-readiness gates — 2026-10-13 execution
+
+**NO-GO: inference BLOCKED; real dashboard Auth BLOCKED; hosted monitoring,
+recovery and rollback BLOCKED.** The owner confirmed no verified target-bound
+quota/Auth/recovery evidence is available and authorized local work only.
+[Execution report](HALO_THREE_GATE_EXECUTION.md) records fresh reproductions,
+fixes, commands, owner dependencies and exact future acceptance procedures;
+[local evidence](HALO_THREE_GATE_LOCAL_EVIDENCE.json) records the disposable restore
+and post-restore application-path results. Local tests do not close external gates.
+
+This execution fixed tenant-admin cross-tenant operational counts, unsafe redirect
+normalization, lost Auth refresh/deletion cookies and cache headers, Auth outage
+and logout failure handling, production cookie scope, misleading readiness/queue
+signals, and raw exception logging. It added a guarded synthetic dump/restore
+exercise: 44 table fingerprints and six identity/tenant checks passed, followed
+by 15 restored application-path assertions. No hosted Auth login, inference,
+alert delivery or artifact rollback was performed. Preserve the existing ten
+criteria and Alpha/Beta/Charlie boundaries. External traffic stays disabled;
+no deployment, hosted mutation, commit, push or paid operation was authorized.

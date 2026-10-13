@@ -66,6 +66,8 @@ export interface WorkflowStore {
 
 /** What an action executor gets to work with. */
 export interface ActionContext {
+  /** Aborted at the step deadline. Never treat cancellation as proof of no side effect. */
+  signal?: AbortSignal;
   event: BusinessEvent;
   businessId: string;
   correlationId: string;

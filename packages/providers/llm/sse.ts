@@ -37,7 +37,9 @@ export async function* readSseEvents(body: ReadableStream<Uint8Array>): AsyncGen
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+      buffer += decoder.decode(value, { stream: true });
+      // Normalize after joining chunks: a CR/LF pair may straddle reads.
+      buffer = buffer.replace(/\r\n/g, "\n");
       let boundary: number;
       while ((boundary = buffer.indexOf("\n\n")) !== -1) {
         const block = buffer.slice(0, boundary);
@@ -52,6 +54,8 @@ export async function* readSseEvents(body: ReadableStream<Uint8Array>): AsyncGen
       if (event) yield event;
     }
   } finally {
+    // Early return (including [DONE]) must close the upstream HTTP body.
+    try { await reader.cancel(); } catch { /* preserve the original failure */ }
     reader.releaseLock();
   }
 }
@@ -76,6 +80,8 @@ export async function* readNdjson(body: ReadableStream<Uint8Array>): AsyncGenera
     const rest = buffer.trim();
     if (rest) yield JSON.parse(rest) as unknown;
   } finally {
+    // Early return (including [DONE]) must close the upstream HTTP body.
+    try { await reader.cancel(); } catch { /* preserve the original failure */ }
     reader.releaseLock();
   }
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getServerEnv } from "@halo/platform/env";
+import { authCookieOptions } from "./cookie-options";
 
 /**
  * Request-scoped Supabase client for Server Components, Server Actions and
@@ -12,6 +13,7 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+    cookieOptions: authCookieOptions,
     cookies: {
       getAll() {
         return cookieStore.getAll();

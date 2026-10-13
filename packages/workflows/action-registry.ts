@@ -115,6 +115,7 @@ export function createActionRegistry(deps: {
       // SSRF guard: tenant-supplied URL must be https and resolve only to
       // publicly routable addresses (no loopback/private/link-local/metadata).
       const target = await assertPublicHttpsUrl(requireParam(params, "url"), deps.lookupImpl);
+      ctx.signal?.throwIfAborted();
       const format = str(params.format) || "json";
       const response = await doFetch(target.toString(), {
         method: "POST",
@@ -127,6 +128,7 @@ export function createActionRegistry(deps: {
         // Never follow redirects — a public host could 302 into a private
         // one. A 3xx counts as a failed delivery (not response.ok).
         redirect: "manual",
+        signal: ctx.signal ?? AbortSignal.timeout(30_000),
       });
       if (!response.ok) throw new Error(`webhook responded ${response.status}`);
       return { url: target.toString(), status: response.status, format };

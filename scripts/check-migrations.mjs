@@ -9,9 +9,11 @@
  * Usage:
  *   node scripts/check-migrations.mjs <postgres-url>
  *
- * Defaults to the local Supabase CLI database URL when no argument is given.
+ * Requires HALO_DISPOSABLE_DATABASE=1 and an explicit loopback URL naming
+ * halo_check_<suffix> (argument or HALO_DISPOSABLE_DB_URL). No developer fallback.
  * Exits non-zero on the first failure. Requires `psql` on PATH.
  */
+import { requireDisposableDatabase } from "./disposable-database.mjs";
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -20,10 +22,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsDir = path.join(root, "supabase", "migrations");
 
-const databaseUrl =
-  process.argv[2] ??
-  process.env.SUPABASE_DB_URL ??
-  "postgresql://postgres:postgres@127.0.0.1:55322/postgres";
+const databaseUrl = requireDisposableDatabase(process.argv[2], process.env);
 
 const files = readdirSync(migrationsDir)
   .filter((f) => f.endsWith(".sql"))

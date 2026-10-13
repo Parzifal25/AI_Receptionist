@@ -92,4 +92,22 @@ describe("GET /api/health", () => {
     expect(body.data.readiness).toBeDefined();
     expect(body.data.readiness.errors).toBeInstanceOf(Array);
   });
+
+  it("does not confuse configuration failure with database failure", async () => {
+    vi.mocked(getServerEnv).mockReturnValue({ NODE_ENV: "production", CRON_SECRET: "short" } as ReturnType<typeof getServerEnv>);
+    const res = await GET(makeRequest("?deep=1", { authorization: "Bearer short" }));
+    expect(res.status).toBe(503);
+    expect((await res.json()).data.database.connected).toBe(true);
+  });
+
+  it("still reports database readiness when a provider health probe throws", async () => {
+    vi.mocked(getServerEnv).mockReturnValue({ CRON_SECRET: "probe-secret-value-0123456789abcdef" } as ReturnType<typeof getServerEnv>);
+    vi.mocked(getLLMProvider).mockImplementation(() => { throw new Error("synthetic-secret-provider"); });
+    const res = await GET(makeRequest("?deep=1", { authorization: "Bearer probe-secret-value-0123456789abcdef" }));
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.data.database.connected).toBe(true);
+    expect(body.data.llm.healthy).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("synthetic-secret-provider");
+  });
 });

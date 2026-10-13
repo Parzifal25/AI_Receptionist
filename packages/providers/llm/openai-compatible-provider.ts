@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ChatMessage } from "@halo/core/domain/types";
 import type {
   LLMCapabilities,
@@ -12,31 +13,44 @@ import type {
 import { AppError } from "@halo/core/errors/app-error";
 import { logger } from "@halo/platform/logger";
 import { parseToolArguments, readSseEvents } from "./sse";
-import { providerResponseError, type ProviderErrorBody } from "./provider-error";
+import { providerResponseError } from "./provider-error";
 
-interface OpenAIToolCall {
-  id?: string;
-  type?: string;
-  function?: { name?: string; arguments?: string };
-}
+const errorSchema = z.object({
+  error: z.object({
+    code: z.union([z.string(), z.number()]).optional(),
+    message: z.string().optional(),
+    metadata: z.object({ limit_source: z.string().optional(), reason: z.string().optional() }).optional(),
+  }).optional(),
+});
+const usageSchema = z.object({
+  prompt_tokens: z.number().int().nonnegative().optional(),
+  completion_tokens: z.number().int().nonnegative().optional(),
+  prompt_tokens_details: z.object({ cached_tokens: z.number().int().nonnegative().optional() }).optional(),
+});
+const toolSchema = z.object({
+  id: z.string().optional(), type: z.string().optional(),
+  function: z.object({ name: z.string().optional(), arguments: z.string().optional() }).optional(),
+});
+const completionSchema = errorSchema.extend({
+  choices: z.array(z.object({
+    message: z.object({ content: z.string().nullable().optional(), tool_calls: z.array(toolSchema).optional() }).optional(),
+    finish_reason: z.string().nullable().optional(),
+  })).optional(),
+  usage: usageSchema.nullable().optional(),
+});
+const streamSchema = errorSchema.extend({
+  choices: z.array(z.object({
+    delta: z.object({
+      content: z.string().nullable().optional(),
+      tool_calls: z.array(toolSchema.extend({ index: z.number().int().nonnegative().optional() })).optional(),
+    }).optional(),
+    finish_reason: z.string().nullable().optional(),
+  })).optional(),
+  usage: usageSchema.nullable().optional(),
+});
 
-interface OpenAIChatResponse extends ProviderErrorBody {
-  choices?: Array<{
-    message?: { content?: string | null; tool_calls?: OpenAIToolCall[] };
-    finish_reason?: string | null;
-  }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
-}
-
-interface OpenAIStreamChunk extends ProviderErrorBody {
-  choices?: Array<{
-    delta?: {
-      content?: string | null;
-      tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }>;
-    };
-    finish_reason?: string | null;
-  }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } | null;
+function invalidResponse(status: number): AppError {
+  return AppError.provider("AI service returned invalid response data", { category: "invalid_response", status });
 }
 
 function mapFinishReason(reason: string | null | undefined): LLMFinishReason | undefined {
@@ -151,8 +165,8 @@ export class OpenAICompatibleProvider implements LLMProvider {
       throw AppError.provider("AI service is unreachable", { category });
     }
     if (!response.ok) {
-      const body = await response.json().catch(() => ({})) as ProviderErrorBody;
-      throw providerResponseError(response.status, body, response.headers);
+      const parsed = errorSchema.safeParse(await response.json().catch(() => ({})));
+      throw providerResponseError(response.status, parsed.success ? parsed.data : {}, response.headers);
     }
     return response;
   }
@@ -162,8 +176,19 @@ export class OpenAICompatibleProvider implements LLMProvider {
     messages: Array<ChatMessage | LLMMessage>,
     options: LLMCompletionOptions = {},
   ): Promise<LLMResult> {
-    const response = await this.request(this.body(systemPrompt, messages, options, false), this.signal(options));
-    const data = (await response.json()) as OpenAIChatResponse;
+    const signal = this.signal(options);
+    const response = await this.request(this.body(systemPrompt, messages, options, false), signal);
+    let raw: unknown;
+    try {
+      raw = await response.json();
+    } catch {
+      if (signal.aborted) throw AppError.provider("AI request interrupted", { category: "timeout" });
+      throw invalidResponse(response.status);
+    }
+    if (signal.aborted) throw AppError.provider("AI request interrupted", { category: "timeout" });
+    const parsed = completionSchema.safeParse(raw);
+    if (!parsed.success) throw invalidResponse(response.status);
+    const data = parsed.data;
     if (data.error) throw providerResponseError(Number(data.error.code) || 502, data, response.headers);
     const choice = data.choices?.[0];
     const content = choice?.message?.content?.trim() ?? "";
@@ -174,7 +199,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
         name: call.function!.name!,
         arguments: parseToolArguments(call.function!.arguments),
       }));
-    if (!content && toolCalls.length === 0) throw AppError.provider("AI service returned an empty response");
+    if (!content && toolCalls.length === 0) throw invalidResponse(response.status);
 
     return {
       content,
@@ -206,9 +231,12 @@ export class OpenAICompatibleProvider implements LLMProvider {
     try {
     for await (const event of readSseEvents(response.body)) {
       if (event.data === "[DONE]") { finished = true; break; }
-      let chunk: OpenAIStreamChunk;
+      if (signal.aborted) throw AppError.provider("AI stream interrupted", { category: "timeout" });
+      let chunk: z.infer<typeof streamSchema>;
       try {
-        chunk = JSON.parse(event.data) as OpenAIStreamChunk;
+        const parsed = streamSchema.safeParse(JSON.parse(event.data));
+        if (!parsed.success) throw invalidResponse(response.status);
+        chunk = parsed.data;
       } catch {
         throw AppError.provider("AI service returned invalid stream data", { category: "invalid_response", status: response.status });
       }
@@ -237,6 +265,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
       if (error instanceof AppError) throw error;
       throw AppError.provider("AI stream interrupted", { category: signal.aborted ? "timeout" : "connection", status: response.status });
     }
+    if (signal.aborted) throw AppError.provider("AI stream interrupted", { category: "timeout" });
     if (!finished) throw AppError.provider("AI service returned an incomplete stream", { category: "connection", status: response.status });
 
     for (const [index, entry] of [...pending.entries()].sort(([a], [b]) => a - b)) {

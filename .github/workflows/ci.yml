@@ -68,7 +68,7 @@ jobs:
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
+          POSTGRES_DB: halo_check_ci
         ports:
           - 5432:5432
         options: >-
@@ -82,15 +82,17 @@ jobs:
       # Migrations assume a Supabase-shaped DB (auth/storage schemas). Apply
       # the minimal stubs first so the full migration set runs on vanilla PG.
       - name: Create Supabase schema stubs (auth, storage)
-        run: psql "$SUPABASE_DB_URL" --no-psqlrc --set ON_ERROR_STOP=1 -f infrastructure/ci/supabase-stubs.sql
+        run: psql "$HALO_DISPOSABLE_DB_URL" --no-psqlrc --set ON_ERROR_STOP=1 -f infrastructure/ci/supabase-stubs.sql
         env:
-          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          HALO_DISPOSABLE_DATABASE: "1"
+          HALO_DISPOSABLE_DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/halo_check_ci
           PGPASSWORD: postgres
 
       - name: Apply every migration in order + schema-drift check
         run: npm run check:migrations
         env:
-          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          HALO_DISPOSABLE_DATABASE: "1"
+          HALO_DISPOSABLE_DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/halo_check_ci
           PGPASSWORD: postgres
 
       # Re-applies the same migrations to a fresh DB and verifies tenant
@@ -99,7 +101,8 @@ jobs:
       - name: Real-role RLS verification
         run: npm run check:rls
         env:
-          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          HALO_DISPOSABLE_DATABASE: "1"
+          HALO_DISPOSABLE_DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/halo_check_ci
           PGPASSWORD: postgres
 
   pipecat:

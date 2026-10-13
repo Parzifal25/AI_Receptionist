@@ -52,8 +52,15 @@ export class FallbackLLMRouter implements LLMProvider {
     return safe;
   }
 
-  private async waitForProvider(index: number, deadline: number, options: LLMCompletionOptions): Promise<unknown | null> {
+  private assertActive(deadline: number, options: LLMCompletionOptions): void {
     if (options.abortSignal?.aborted) throw options.abortSignal.reason;
+    if (this.now() >= deadline) {
+      throw AppError.provider("AI route deadline exceeded", { category: "timeout" });
+    }
+  }
+
+  private async waitForProvider(index: number, deadline: number, options: LLMCompletionOptions): Promise<unknown | null> {
+    this.assertActive(deadline, options);
     const cooldown = this.cooldowns.get(this.candidates[index].provider.name);
     const waitMs = cooldown ? Math.max(0, cooldown.until - this.now()) : 0;
     if (!cooldown || waitMs === 0) return null;
@@ -62,7 +69,7 @@ export class FallbackLLMRouter implements LLMProvider {
       return cooldown.error;
     }
     await (this.backoff.sleep ?? ((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms))))(waitMs);
-    if (options.abortSignal?.aborted) throw options.abortSignal.reason;
+    this.assertActive(deadline, options);
     return null;
   }
 
@@ -108,6 +115,7 @@ export class FallbackLLMRouter implements LLMProvider {
       this.emit(options, { type: "started", ...base });
       try {
         const result = await candidate.provider.complete(systemPrompt, messages, this.candidateOptions(options, deadline, index));
+        this.assertActive(deadline, options);
         const route: LLMRoute = { provider: base.provider, model: base.model, attempt: base.attempt, fallbackCount: index };
         this.emit(options, { type: "completed", ...base, latencyMs: Math.max(0, Date.now() - started),
           httpStatus: result.httpStatus,
@@ -147,6 +155,7 @@ export class FallbackLLMRouter implements LLMProvider {
       this.emit(options, { type: "started", ...base });
       try {
         for await (const delta of candidate.provider.stream!(systemPrompt, messages, this.candidateOptions(options, deadline, index))) {
+          this.assertActive(deadline, options);
           if (delta.type === "text" && firstTokenMs === undefined) {
             firstTokenMs = Math.max(0, Date.now() - started);
             this.emit(options, { type: "first_token", ...base, latencyMs: firstTokenMs });
@@ -159,6 +168,7 @@ export class FallbackLLMRouter implements LLMProvider {
           }
           if (live) yield delta;
         }
+        this.assertActive(deadline, options);
         if (!deltas.some((d) => d.type === "done") ||
             !deltas.some((d) => d.type === "text" || d.type === "tool_call")) {
           throw AppError.provider("AI service returned an incomplete stream", { category: "provider_unavailable" });

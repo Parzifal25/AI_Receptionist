@@ -148,3 +148,37 @@ describe("ordered cloud LLM fallback", () => {
     expect(out.usage.timeToFirstTokenMs).toBeTypeOf("number");
   });
 });
+
+describe("cloud route deadline", () => {
+  it("does not start another provider when a failed request consumed the deadline", async () => {
+    let now = 1000;
+    const next: LLMCompletionOptions[] = [];
+    const first = fake("groq", "first", answer("first"), []);
+    first.complete = async () => { now = 1101; throw transient("connection"); };
+    const router = new FallbackLLMRouter([
+      { model: "first", provider: first },
+      { model: "next", provider: fake("openrouter", "next", answer("next"), next) },
+    ], { clock: () => now });
+    await expect(router.complete("synthetic", [], { timeoutMs: 100 })).rejects.toMatchObject({ details: { category: "timeout" } });
+    expect(next).toHaveLength(0);
+  });
+
+  it("rejects a late completion instead of reporting success", async () => {
+    let now = 1000;
+    const first = fake("groq", "first", answer("first"), []);
+    first.complete = async () => { now = 1101; return answer("first"); };
+    const router = new FallbackLLMRouter([{ model: "first", provider: first }], { clock: () => now });
+    await expect(router.complete("synthetic", [], { timeoutMs: 100 })).rejects.toMatchObject({ details: { category: "timeout" } });
+  });
+
+  it("rejects late streaming deltas before releasing them", async () => {
+    let now = 1000;
+    const first = fake("groq", "first", answer("first"), []);
+    first.stream = async function* () { now = 1101; yield { type: "text", text: "late" }; yield { type: "done", finishReason: "stop" }; };
+    const router = new FallbackLLMRouter([{ model: "first", provider: first }], { clock: () => now });
+    const deltas: LLMDelta[] = [];
+    const run = async () => { for await (const delta of router.stream("synthetic", [], { timeoutMs: 100, liveStream: true })) deltas.push(delta); };
+    await expect(run()).rejects.toMatchObject({ details: { category: "timeout" } });
+    expect(deltas).toEqual([]);
+  });
+});

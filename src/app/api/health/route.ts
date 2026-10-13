@@ -47,8 +47,15 @@ export const GET = withErrorHandling("health", async (request: NextRequest) => {
   const rate = await deepProbeLimiter.check(`health:${clientIp(request)}`);
   if (!rate.allowed) return fail(AppError.rateLimited());
 
-  const llm = getLLMProvider();
-  const llmHealthy = await llm.isHealthy();
+  let provider = "unavailable";
+  let llmHealthy = false;
+  try {
+    const llm = getLLMProvider();
+    provider = llm.name;
+    llmHealthy = await llm.isHealthy();
+  } catch {
+    // One failed dependency must not hide the remaining readiness signals.
+  }
   const readiness = await validateProductionReadiness();
 
   const isOk = llmHealthy && readiness.ready;
@@ -57,8 +64,8 @@ export const GET = withErrorHandling("health", async (request: NextRequest) => {
     {
       data: {
         status: isOk ? "ok" : "degraded",
-        llm: { provider: llm.name, healthy: llmHealthy },
-        database: { connected: readiness.ready && !readiness.errors.some(e => e.includes("Database")) },
+        llm: { provider, healthy: llmHealthy },
+        database: readiness.database,
         providers: readiness.providers,
         readiness: {
           ready: readiness.ready,

@@ -18,6 +18,8 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
+const PRIVATE_FIELDS = /^(?:error|message|stack|cause|authorization|cookie|set-cookie|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|service[_-]?role[_-]?key|visitor[_-]?token|token|prompt|systemPrompt|body|html|recipient)$/i;
+
 function activeLevel(): LogLevel {
   const raw = process.env.LOG_LEVEL;
   if (raw === "debug" || raw === "info" || raw === "warn" || raw === "error") return raw;
@@ -32,11 +34,13 @@ function emit(level: LogLevel, message: string, context: LogContext): void {
     msg: message,
     ...context,
   };
-  const line = JSON.stringify(entry, (_key, value) =>
-    value instanceof Error
-      ? { name: value.name, message: value.message, stack: value.stack }
-      : value,
-  );
+  // Upstream exception text can contain prompts, row values or credentials.
+  // Keep static msg + route/code/category/IDs; do not serialize raw exceptions.
+  const line = JSON.stringify(entry, (key, value) => {
+    if (PRIVATE_FIELDS.test(key)) return "[redacted]";
+    if (value instanceof Error) return { name: "Error" };
+    return value;
+  });
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);
   else console.log(line);

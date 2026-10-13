@@ -87,6 +87,17 @@ describe("messaging actions", () => {
 });
 
 describe("call_webhook", () => {
+  it("passes cancellation to fetch and rejects already cancelled work before delivery", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response("ok"));
+    const actions = registry({ fetchImpl });
+    const controller = new AbortController();
+    const context = { ...ctx, signal: controller.signal };
+    await actions.call_webhook!({ url: "https://example.com/hook" }, context);
+    expect(fetchImpl.mock.calls[0][1]?.signal).toBe(controller.signal);
+    controller.abort();
+    await expect(actions.call_webhook!({ url: "https://example.com/hook" }, context)).rejects.toThrow();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
   it("posts the event envelope with correlation headers (json format)", async () => {
     const fetchImpl = vi.fn(async () => new Response("ok", { status: 200 }));
     const actions = registry({ fetchImpl: fetchImpl as unknown as typeof fetch });

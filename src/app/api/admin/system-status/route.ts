@@ -9,7 +9,7 @@ import { validateProductionReadiness } from "@/lib/startup-check";
 export const dynamic = "force-dynamic";
 
 export const GET = withErrorHandling("admin.system-status", async () => {
-  const { role } = await requireBusiness();
+  const { role, businessId } = await requireBusiness();
   if (role !== "admin" && role !== "owner") {
     throw AppError.forbidden("Admin access required");
   }
@@ -23,19 +23,23 @@ export const GET = withErrorHandling("admin.system-status", async () => {
   ]);
 
   const [pendingReminders, failedRuns, calendarConnections] = await Promise.all([
-    adminClient.from("appointment_reminders").select("id", { count: "exact", head: true }).eq("status", "scheduled"),
-    adminClient.from("workflow_runs").select("id", { count: "exact", head: true }).eq("status", "failed"),
-    adminClient.from("calendar_connections").select("id, provider"),
+    adminClient.from("appointment_reminders").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("status", "scheduled"),
+    adminClient.from("workflow_runs").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("status", "failed"),
+    adminClient.from("calendar_connections").select("id, provider").eq("business_id", businessId),
   ]);
+
+  if (pendingReminders.error || failedRuns.error || calendarConnections.error) {
+    return NextResponse.json({ error: { code: "MONITORING_UNAVAILABLE", message: "Operational data is temporarily unavailable" } }, { status: 503 });
+  }
 
   const connectedCalendars = (calendarConnections.data ?? []).length;
   const disconnectedCalendars = 0;
 
   return NextResponse.json({
     data: {
-      status: readiness.ready ? "ok" : "degraded",
+      status: readiness.ready && llmHealthy ? "ok" : "degraded",
       llm: { provider: llm.name, healthy: llmHealthy },
-      database: { connected: readiness.ready && !readiness.errors.some(e => e.includes("Database")) },
+      database: readiness.database,
       providers: readiness.providers,
       queues: {
         pendingReminders: pendingReminders.count ?? 0,

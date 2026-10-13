@@ -1,0 +1,32 @@
+{
+  "checksPassed": 15,
+  "checks": [
+    "PostgREST rejects invalid authentication signature",
+    "origin allowlist before conversation creation",
+    "conversation created with pinned tenant/agent/version in real database",
+    "invalid input and unauthorized visitor token make no LLM request",
+    "two-turn runtime, real knowledge retrieval, transcript/state and continuity; synthetic LLM HTTP",
+    "usage attribution persisted under correct tenant (synthetic token counts)",
+    "signed local JWT authorization and actual PostgREST RLS isolate second tenant; no Auth login claim",
+    "provider 503 yields bounded retry and honest fallback",
+    "database lookup outage fails before inference",
+    "transcript write failure never returns success",
+    "actual HTTP timeout cannot return late LLM success",
+    "cancelled web request performs no model work",
+    "in-flight cancellation cannot persist a late successful response",
+    "conversation usage ceiling stops inference",
+    "disabled booking, workflows, speech, telephony and notifications have no external side effects"
+  ],
+  "real": [
+    "Postgres",
+    "PostgREST",
+    "JWT verification",
+    "RLS",
+    "Supabase adapters"
+  ],
+  "synthetic": [
+    "LLM",
+    "Auth users/JWT issuer"
+  ],
+  "externalRequests": 0
+}

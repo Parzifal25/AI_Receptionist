@@ -149,3 +149,15 @@ checklist below and, in Phase 2, a Supabase-local e2e suite.
 - [ ] Ask for a day with no availability → receptionist admits it honestly, offers alternatives
 - [ ] Manually run `GET /api/cron/reminders` (with `Authorization: Bearer $CRON_SECRET`) when a
       reminder is due → row flips to `sent`, no duplicate send on a second run
+
+## Disposable real chat persistence test
+
+`HALO_DISPOSABLE_DATABASE=1 npm test -- --config scripts/vitest.local-integration.config.ts`
+executes real widget routes, runtime, Supabase adapters, PostgREST/JWT verification
+and Postgres persistence/RLS against an explicitly created disposable fixture.
+It uses a synthetic HTTP LLM and Auth issuer, and blocks external destinations.
+It does not run with the canonical mock suite or load `.env.local`.
+
+Follow the fresh-container setup and exact results in
+[HALO_REAL_INTEGRATION_VERIFICATION.md](HALO_REAL_INTEGRATION_VERIFICATION.md).
+Never point this fixture or the migration/RLS harnesses at a shared/hosted DB.

@@ -25,7 +25,8 @@ function sevenDaysAgoIso(): string {
   return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
-export default async function OverviewPage() {
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   const { businessId } = await requireBusiness();
   const supabase = await createSupabaseServerClient();
 
@@ -49,6 +50,11 @@ export default async function OverviewPage() {
 
   return (
     <div className="space-y-8">
+      {error === "signout_failed" && (
+        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          Sign-out could not be completed. Your session may still be active. Please try again.
+        </p>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Overview</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

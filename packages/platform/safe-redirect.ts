@@ -7,6 +7,9 @@
  */
 export function safeRedirectPath(next: unknown, fallback = "/dashboard"): string {
   if (typeof next !== "string") return fallback;
+  // The URL parser removes TAB/CR/LF before resolving a URL; /<TAB>/host
+  // would otherwise pass the prefix check and become an external redirect.
+  if (/[\u0000-\u0020\u007f]/.test(next)) return fallback;
   if (!next.startsWith("/")) return fallback;
   if (next.startsWith("//") || next.startsWith("/\\")) return fallback;
   return next;

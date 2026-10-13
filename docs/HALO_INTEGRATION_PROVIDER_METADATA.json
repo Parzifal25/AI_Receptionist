@@ -1,0 +1,62 @@
+{
+  "at": "2026-10-13T03:44:03.168Z",
+  "operations": "four GET metadata requests; no inference, no retries, no redirects, no mutations",
+  "records": [
+    {
+      "provider": "groq",
+      "kind": "models",
+      "status": 200,
+      "models": [
+        {
+          "model": "openai/gpt-oss-120b",
+          "available": true,
+          "promptPrice": "0.00000015",
+          "completionPrice": "0.0000006"
+        },
+        {
+          "model": "qwen/qwen3.8-27b",
+          "available": true,
+          "promptPrice": "0.0000008",
+          "completionPrice": "0.000004"
+        }
+      ]
+    },
+    {
+      "provider": "openrouter",
+      "kind": "key",
+      "status": 200,
+      "is_free_tier": true,
+      "limit": null,
+      "limit_remaining": null,
+      "usage": 0.016761234,
+      "usage_daily": 0,
+      "usage_monthly": 0
+    },
+    {
+      "provider": "openrouter",
+      "kind": "credits",
+      "status": 200,
+      "total_credits": 0,
+      "total_usage": 0.183508087
+    },
+    {
+      "provider": "openrouter",
+      "kind": "models",
+      "status": 200,
+      "models": [
+        {
+          "model": "anthropic/claude-sonnet-4.6",
+          "available": true,
+          "promptPrice": "0.000003",
+          "completionPrice": "0.000015"
+        },
+        {
+          "model": "qwen/qwen3.8-27b",
+          "available": true,
+          "promptPrice": "0.00000004",
+          "completionPrice": "0.0000023"
+        }
+      ]
+    }
+  ]
+}

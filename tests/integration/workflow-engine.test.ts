@@ -219,22 +219,41 @@ describe("WorkflowEngine", () => {
     expect(run.nextAttemptAt).toBeNull();
   });
 
-  it("times out a hung step instead of hanging the run", async () => {
-    const workflow = makeWorkflow({
-      steps: [
-        { id: "hung", action: "call_webhook", params: { url: "https://x.example.com" }, timeoutMs: 100 },
-      ],
-    });
-    const { store, engine } = setup(
-      { call_webhook: () => new Promise(() => undefined) }, // never settles
-      workflow,
-    );
+  it("quarantines a timed-out action without step or cron replay and aborts its work", async () => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | undefined;
+      let finish: (() => void) | undefined;
+      const action = vi.fn((_params, context) => {
+        signal = context.signal;
+        return new Promise<void>((resolve) => { finish = resolve; });
+      });
+      const workflow = makeWorkflow({
+        steps: [
+          { id: "hung", action: "call_webhook", params: { url: "https://x.example.com" }, timeoutMs: 100,
+            retry: { maxAttempts: 3, backoffMs: 0 } },
+        ],
+      });
+      const { store, engine } = setup(
+        { call_webhook: action },
+        workflow,
+      );
 
-    await engine.dispatch(makeEvent());
+      const dispatch = engine.dispatch(makeEvent());
+      await vi.advanceTimersByTimeAsync(400);
+      await dispatch;
 
-    const run = store.allRuns()[0];
-    expect(run.status).toBe("failed");
-    expect(run.error).toContain("timed out");
+      const run = store.allRuns()[0];
+      expect(run.status).toBe("dead_letter");
+      expect(run.error).toContain("timed out");
+      expect(run.nextAttemptAt).toBeNull();
+      expect(signal?.aborted).toBe(true);
+      finish?.(); // Late completion cannot turn an uncertain outcome into success.
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60_000);
+      await engine.processDue({ emit: async () => undefined });
+      expect(action).toHaveBeenCalledTimes(1);
+      expect(store.run(run.id).status).toBe("dead_letter");
+    } finally { vi.useRealTimers(); }
   });
 
   it("fails cleanly on an unregistered action", async () => {

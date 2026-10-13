@@ -93,6 +93,15 @@ describe("startup-check", () => {
 
     const report = await validateProductionReadiness();
     expect(report.ready).toBe(false);
-    expect(report.errors.some((e) => e.includes("Connection refused"))).toBe(true);
+    expect(report.errors).toContain("Database connectivity check failed");
+    expect(report.database).toEqual({ checked: true, connected: false });
+    expect(JSON.stringify(report)).not.toContain("Connection refused");
+  });
+
+  it("reports a skipped database as unchecked rather than connected", async () => {
+    vi.mocked(getServerEnv).mockReturnValue(envFragment({ NODE_ENV: "test" }));
+    const report = await validateProductionReadiness({ skipDatabaseCheck: true });
+    expect(report.database).toEqual({ checked: false, connected: false });
+    expect(getAdminClient).not.toHaveBeenCalled();
   });
 });

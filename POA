@@ -1,0 +1,232 @@
+# POA — Production Readiness Plan for Astra
+
+**Purpose:** take the AI Receptionist from a locally validated candidate to a safely operated, narrowly scoped production service, while spending **$0 on product infrastructure, vendors, and paid services**.
+
+**Starting point (2026-10-13):** repository evidence says local Phase Alpha is complete, but Phase Beta staging verification is blocked. There is no positively identified staging target, authorized owner/access, deployment evidence, provider-backed verification, alert drill, or recovery drill. Do not read this as a current live-system audit: no target has been accessed. See `docs/HALO_V1_STATUS.md`, `docs/HALO_PHASE_BETA_READINESS.md`, `docs/HALO_PHASE_BETA_DISCOVERY_REPORT.md`, and `docs/HALO_V1_RELEASE_GAPS.md` for detailed evidence.
+
+## Operating constraints
+
+1. **$0 spend is a hard limit.** Do not create paid accounts/resources, enable billing, start billable provider calls, purchase a domain, or incur usage charges. Use existing authorized resources only if their incremental cost is confirmed to be $0. If a step has uncertain cost, stop that step and record the blocker. Do not assume a free tier remains free or has adequate capacity.
+2. **Keep billable/external effects off by default.** No paid LLM, telephony, speech, email, SMS/WhatsApp, calendar API usage, external webhooks, production cron effects, or outbound calls unless already covered by a verified $0 allowance and explicitly in scope. Keep `HALO_OUTBOUND_ENABLED=false`; keep messaging in `log` mode. Do not make live provider requests as a test.
+3. **No customer or production data in validation.** Use synthetic fixtures in local/disposable environments. Never point destructive check scripts at a shared or production database.
+4. **Preserve the working tree.** The discovery report is untracked/user-owned. Do not revert, overwrite, or reformat it or other unrelated changes.
+5. **Be honest about guarantees.** Zero downtime and zero complaints cannot be promised, especially with no budget for redundant hosting, paging, provider SLAs, or independent recovery capacity. The goal is to reduce risk, define a small controlled launch, and state what cannot be verified. Do not call the system production-ready while mandatory gates are blocked.
+
+## Execution rules
+
+- Astra owns implementation and keeps this file current with status, evidence links, revision, and blockers. Work in small reviewable changes; each change includes a rollback or safe-disable path.
+- Before changing behavior, reproduce the defect or identify the requirement and affected flow. Fix root causes, add regression coverage, and update relevant runbooks. Do not broaden scope into unrelated refactors.
+- Never expose secret values in commits, logs, screenshots, or this plan. Do not silently change customer data, migrations already applied to a real environment, or provider settings.
+- Run the existing relevant checks after code changes. Before any external deployment, migration, provider call, billing change, or production side effect, require the named owner, target identity, scope, cost confirmation, and authorization in writing. Missing inputs mean that gate stays blocked; continue independent local work.
+- Track each claim with evidence and label it **source**, **local test**, **disposable DB**, **staging**, or **production**. A mock is not provider proof; a passing build is not deployment or availability proof.
+
+## Ordered plan and completion gates
+
+### 0. Baseline and scope lock — Astra, local only
+
+- Record the exact starting commit and `git status`; preserve existing changes.
+- Read the four evidence documents named above and map each release gap to a specific task below. Treat external configuration and infrastructure state as unknown unless documented by an owner.
+- Define the smallest launch scope: web chat only unless voice/calendar/messaging are explicitly required. Remove or disable features that cannot be safely operated for $0; do not imply disabled integrations work.
+- Produce a dependency-ordered issue list with owner, expected evidence, and cost classification for every task.
+
+**Gate:** scope, candidate revision, preserved user changes, and open unknowns are recorded. No external action performed.
+
+### 1. Free/local reliability and security remediation — Astra, local only
+
+- Re-run the repository's existing checks on the pinned candidate: application tests, lint, typecheck, architecture/neutral checks, production build, config preflight, migration checks on a newly created disposable database, real-role RLS harness on a disposable database, and the worker suite using its documented supported environment if dependencies are already available. Do not install paid services or use a real target. Report actual results rather than copying historical results.
+- Triage failures and regressions by severity. Fix confirmed P0 data isolation, authorization, identity, unsafe side-effect, secret exposure, or false-success bugs before feature work. Add targeted regression tests.
+- Review public API validation, tenant scoping, webhook signature/replay defenses, rate limiting limitations (currently in-memory/per-instance), cron authentication, service-role query predicates, safe error handling, redaction, and retention behavior. Record residual risks; implement only evidenced defects within scope.
+- Confirm bounded timeouts/retries, idempotency, concurrency limits, and graceful degradation for the selected chat path. Never return a successful booking/transfer/delivery claim unless the external action was confirmed.
+- Make optional billable integrations fail closed when unconfigured. Ensure local demo paths clearly identify mock/log behavior.
+
+**Gate:** relevant local checks pass on the recorded revision; P0 defects are fixed or launch is blocked; no secret or real customer data was used.
+
+### 2. Zero-cost operational design — Astra drafts; owner supplies facts
+
+- Inventory current hosting/database/provider dependencies and their actual incremental cost, quotas, suspension behavior, data retention, and backup/restore features. Use authoritative account/billing screens or existing owner records; do not enable a trial or billing. If cost or quota is unknown, mark **unverified**.
+- Define a tiny launch envelope (maximum tenants, requests, concurrency, data retention, and feature set) within confirmed free quotas. Add application-side caps where missing and clear safe responses at quota boundaries. Do not claim provider spend caps where none exist.
+- Document health/readiness checks, how to disable traffic/features, log inspection, incident contacts, manual recovery, and data export/deletion. Alerts/paging and automated backups count as unavailable until delivery/restore is proven at $0.
+- Explicitly document single points of failure, free-tier suspension/limits, recovery-point/recovery-time unknowns, and support coverage. Choose a no-go if the minimum data recovery/security posture cannot be provided for $0.
+
+**Gate:** each dependency is confirmed $0 incremental or excluded; launch envelope and known operational limits are owner-approved. Unknown billing or data recovery blocks external launch.
+
+### 3. Isolated staging proof — only if an existing $0 target is identified and authorized
+
+- Obtain staging owner, project/region and endpoint identity, exact revision, test window, scoped access, cost confirmation, and written authorization. Verify the target identity before any query. Production/shared/unidentified targets are prohibited.
+- Confirm migration baseline and owner-approved recovery method before migration. Deploy outbound-disabled; verify required configuration by presence/format only without printing secret values.
+- Apply only approved migrations using the supported procedure. Verify ledger/schema, identity constraints, idempotency and recovery plan. Exercise tenant A/B isolation as effective supported roles (not table owner/superuser), widget identity, auth, cron rejection/authorization, health/readiness, and logs/redaction.
+- Test restart/shutdown, timeout/outage, duplicate delivery, and safe disable paths using fakes or local faults. No paid provider call, live customer side effect, or billable load test.
+- Verify every staging action remains within the zero-cost limit. If staging requires spend or is absent, leave this gate blocked; do not substitute local tests.
+
+**Gate:** dated staging evidence for exact revision and target, security and migration checks, and recovery/disable drills. Otherwise staging is **BLOCKED**, not passed.
+
+### 4. Controlled release decision — owner decision; no Astra self-authorization
+
+- Prepare a release record with commit/artifact, included features, migrations, cost evidence, check results, known limitations, rollback/disable instructions, and named responder.
+- Keep voice, outbound campaigns, external messaging, live calendar writes, and customer-facing automation disabled unless each has a confirmed $0 route, consent/policy approval, owner authorization, and adequate support/recovery evidence. The default recommendation under a strict $0 cap is a limited web-chat-only pilot with explicit feature limits, if hosting and data handling are genuinely $0 and acceptable.
+- Do not deploy, migrate a non-disposable database, enable billing, or contact customers without explicit release-owner authorization for that exact action and target.
+- If authorized, release to a small allowlist, watch available logs/health manually, and stop/disable on tenant isolation concerns, data loss, sustained errors, unexpected cost, or unhandled user harm. With no free alert channel, do not promise continuous monitoring.
+
+**Gate:** owner accepts residual risks and cost/operational limits; all mandatory gates for the selected scope pass. Otherwise no-go.
+
+### 5. Post-release follow-through — only after authorized release
+
+- Record observed errors, user reports, latency/availability evidence available at $0, and any unexpected resource usage. Never claim “zero complaints”; review and respond to reports promptly.
+- Reconcile quotas/cost from account evidence, confirm data deletion/retention behavior, and revisit the scope before adding integrations or tenants.
+- Any incident involving cross-tenant access, secret exposure, confirmed data loss, or unexpected billing triggers immediate feature/traffic disablement where possible, owner notification, evidence preservation, and a corrective-action issue before re-enabling.
+
+**Gate:** dated review and resolved or explicitly accepted issues before expanding the pilot.
+
+## Current blockers to track
+
+- No identified, authorized staging target or staging access evidence.
+- No verified $0 hosting/database/provider capacity, quota, or support/recovery posture in this plan's source evidence.
+- No provider-backed or customer/pilot acceptance evidence; no live provider checks are authorized by this plan.
+- No demonstrated deployed alert delivery or restore/recovery drill.
+- Local success is evidence for the tested candidate only; Astra must rerun relevant checks for its resulting revision.
+
+## Astra status log
+
+Append dated entries below. Do not delete prior evidence or turn a blocked/unknown item into a pass without new evidence.
+
+| Date | Revision | Work completed / evidence | Gate status | Blockers / next action |
+|---|---|---|---|---|
+| 2026-10-13 | Starting worktree; exact HEAD to be recorded by Astra | POA created from repository release and Beta evidence; no external systems accessed | Local planning complete; staging/release blocked | Establish pinned candidate and cost/scope inventory |
+
+### 2026-10-13 — Local implementation and verification
+
+**Owner:** Astra (implementation only). **Starting/final Git HEAD:**
+`ddeda1b2a60107e7cfece7a15d22edc510f87e47`, branch `main`, upstream `halo/main`,
+50 commits ahead / 0 behind. No commit, push, branch change or deployment.
+Starting status: no tracked edits or staged files; untracked user-owned `POA` and
+`docs/HALO_PHASE_BETA_DISCOVERY_REPORT.md`. This log appends to POA; the discovery
+report remains byte-for-byte unchanged (SHA-256
+`e4418428d3caaf54425d0f0c15ed1b2a23ac95cb8fdf2f30db985da04e5b7227`). No AGENTS.md
+was found in the repository or inspected parent directories. Baseline snapshots
+and command logs are in `/tmp/halo-poa-evidence` and `/tmp/halo-poa-*.log`; these are
+local ephemeral evidence, not hosted CI artifacts.
+
+**Scope:** local engineering, mocked provider/runtime/voice tests, synthetic
+fixtures and a newly created disposable database. Proposed later scope: allowlisted
+web chat only, after the cost/security/recovery gates. Current external capacity
+is zero tenants/requests; even chat hosting, Auth, database, LLM and recovery are
+unverified. Keep outbound false and messaging log-only. Voice, external calendar,
+workflows/webhooks, real messaging and customer automation remain excluded.
+Sarvam remains the primary speech choice; no live speech or Telugu acceptance is
+claimed. ENG-04/ENG-12 remains pending owner decision; the ten criteria and phase
+boundaries are retained.
+
+#### Executed findings, in dependency order
+
+| ID / severity / workstream | Reproduction and root cause | Implementation, files and regression evidence | Risk reduced / limitations / safe disable / cost |
+|---|---|---|---|
+| POA-DB-01 / P0 release safety / database and CI | A fake `psql` sentinel demonstrated that both harnesses invoked a DB command for an arbitrary hosted URL; RLS also printed the synthetic password. Migration checks defaulted to the shared local Supabase DB; RLS only blocked two ports. No real remote connection was made. | Added `scripts/disposable-database.mjs`; both check scripts require explicit disposable acknowledgement plus loopback/port/database-name validation, reject URI overrides, ignore developer DB env and omit target URLs from messages. Updated `.github/workflows/ci.yml` to dedicated `halo_check_ci` configuration. Fourteen CLI regressions in `tests/unit/disposable-database.test.ts` verify fail-before-psql and no credential echo; real disposable checks prove the allowed path. | Reduces accidental destructive targeting/credential output. Operator still must identify a fresh instance; naming cannot detect a tunnel or dishonest target label. Never bypass the guard; safe disable is not running destructive checks. Source/local/disposable evidence; $0 incremental service spend. |
+| POA-LOG-01 / P1 privacy / log-only messaging | New privacy test failed because the default adapter logged recipient, subject, body and attachment names. | `packages/providers/messaging/log-messaging-provider.ts` now emits channel, `delivery=simulated`, HTML presence and attachment count only. `tests/unit/log-messaging-privacy.test.ts` fails before the change and passes after. | Removes message/contact content from this default log path. Does not prove all application/provider logs are free of sensitive data. Simulation is not delivery; reminder/workflow automation stays excluded. Safe disable: keep automation off; do not restore content logging. Source/local test; $0. |
+| POA-WF-01 / P1 duplicate side effects / reliability | Strengthened timeout regression failed: Promise timeout left work running and scheduled step/run retries even though an external action might already have succeeded. | `packages/workflows/engine.ts` aborts cooperative work and immediately dead-letters uncertain timeout outcomes without automatic retry. `types.ts` carries cancellation; `action-registry.ts` passes it to webhook fetch and rejects cancellation after DNS lookup. `tests/integration/workflow-engine.test.ts` now checks single invocation, aborted signal, no cron replay and no late-success overwrite; `tests/unit/workflow-actions.test.ts` verifies signal propagation and no delivery after cancellation. | Prevents automatic replay after an engine deadline. Cancellation cannot undo accepted remote work; adapters without cancellation may finish late. Other transport errors/retry and crash reconciliation still require destination-specific idempotency evidence before enabling integrations. Safe disable: workflows/ingress/schedules off; reconcile before manual replay. Source/local mocks; $0. |
+| POA-OPS-01 / P2 / release and operations | Existing runbooks did not specify the current strict $0 scope and all required target/cost/recovery inputs. | Updated `docs/DEPLOYMENT.md` with dependency/cost inventory, explicit no-launch envelope, candidate/secret/migration checklist, disposable procedure, health limits, post-deploy and recovery gates. Updated `docs/OPERATIONS.md` with disable, evidence-preservation, manual support, retention and uncertain-workflow reconciliation procedures. | Procedures are prepared, not demonstrated hosted recovery/alerts. Unknown owner/target/quota/backup facts remain blockers. No new service or spend; source evidence. |
+
+#### Fresh verification results
+
+Runtime test commands use mocks/fakes; no live LLM, speech, telephony, messaging,
+calendar, hosted DB or customer request was made. Installed Node 22.22.2, existing
+Python 3.10.12 virtualenv and cached `pgvector/pgvector:pg16` were used. No package,
+model or paid tooling installation; no Ollama execution. Build requires the public
+Google font fetch; no billable API is involved.
+
+| Exact command (from repository root unless stated) | Actual result / evidence |
+|---|---|
+| `npm test` (initial sandbox) | 122 files passed / 6 failed; 1,227 tests passed / 30 failed / 5 skipped, 2 errors. Local socket restrictions prevented network harnesses. Log: `/tmp/halo-poa-tests.log`. |
+| `npm test` (outside sandbox, initial default concurrency) | 127 files passed / 1 failed; 1,255 passed / 2 timeout failures / 5 skipped. Two widget tests exceeded 5 seconds during concurrent baseline work; both passed focused and in final full run. No timeout/assertion was weakened. `/tmp/halo-poa-tests-unrestricted.log`. |
+| `npm test -- tests/unit/log-messaging-privacy.test.ts` (before fix) | 1 expected regression failure proving content disclosure. `/tmp/halo-poa-privacy-before.log`. |
+| `npm test -- tests/unit/disposable-database.test.ts tests/unit/log-messaging-privacy.test.ts tests/integration/widget-messages-security.test.ts` | 3 files / 26 passed / 0 failed / 0 skipped. `/tmp/halo-poa-batch1.log`. |
+| `npm test -- tests/integration/workflow-engine.test.ts` (before fix) | 10 passed / 1 expected timeout-quarantine regression failure. `/tmp/halo-poa-workflow-before.log`. |
+| `npm test -- tests/integration/workflow-engine.test.ts tests/unit/workflow-actions.test.ts` | 2 files / 33 passed / 0 failed / 0 skipped. `/tmp/halo-poa-workflow-after.log`. |
+| `npm test -- --maxWorkers=2` | 130 files passed; 1,273 passed / 0 failed / 5 skipped. `/tmp/halo-poa-tests-final.log`. Existing five real-local-model tests skipped because no models were provisioned; stand-in speech contracts ran. |
+| `npm test -- tests/integration/agent-linkage.test.ts tests/integration/widget-messages-security.test.ts tests/integration/multi-tenant-isolation.test.ts --maxWorkers=2` | 3 files / 30 passed / 0 failed / 0 skipped. `/tmp/halo-poa-security-final.log`. |
+| `npm run lint`; `npm run typecheck` | Both exit 0, no lint warnings/errors or type errors. `/tmp/halo-poa-lint-final.log`, `/tmp/halo-poa-types-final.log`. |
+| `npm run check:architecture`; `npm run check:neutral` | Both exit 0. Runtime/voice/provider/tool/RLS boundaries and neutral-package checks passed. Final logs `/tmp/halo-poa-{architecture,neutral}-final.log`. |
+| `.venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'` | 54 run: 53 passed / 0 failed / 1 skipped (unprovisioned real local models). Existing supported environment available; no installation. Initial sandbox run interrupted when sockets could not progress; outside-sandbox run passed. `/tmp/halo-poa-worker-unrestricted.log`. |
+| `HALO_DISPOSABLE_DATABASE=1 npm run check:migrations -- postgresql://postgres:postgres@127.0.0.1:55440/halo_check_poa` | Exit 0: all 31 migrations and schema assertions; exact receptionist linkage, preserved unmatched history, rejected invalid tuples and selected backfill replay. Initial sandbox socket rejection rerun outside sandbox. `/tmp/halo-poa-migrations.log`. |
+| `HALO_DISPOSABLE_DATABASE=1 npm run check:rls -- postgresql://postgres:postgres@127.0.0.1:55440/halo_check_poa` | Exit 0: 109 assertions passed as authenticated/service roles. Expected SQL rejection messages are successful negative assertions. `/tmp/halo-poa-rls.log`. |
+| `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=ci-anon-key SUPABASE_SERVICE_ROLE_KEY=ci-service-role-key NEXT_PUBLIC_APP_URL=http://localhost:3000 MESSAGING_PROVIDER=log HALO_OUTBOUND_ENABLED=false npm run preflight:ci` | Exit 0 after sandbox tsx IPC rejection and rerun. Explicitly skipped DB; warns CRON secret missing/short; messaging unconfigured. This is configuration evidence, not production readiness. `/tmp/halo-poa-preflight.log`. |
+
+Database target: newly created `halo-poa-disposable-20261013`, image
+`pgvector/pgvector:pg16` with `--pull=never`, loopback 55440, database
+`halo_check_poa`. Supabase stubs initialized with `docker exec -i
+halo-poa-disposable-20261013 psql -U postgres -d halo_check_poa --set
+ON_ERROR_STOP=1 < infrastructure/ci/supabase-stubs.sql`. Only this synthetic
+instance was mutated; the existing Supabase stack on 55322 was not queried or
+changed. Credentials in these commands are disposable fixture values.
+
+#### Remaining gates and owner inputs
+
+| Gate / owner role | State and exact missing evidence |
+|---|---|
+| Isolated staging / release and deployment owner | BLOCKED: named owner, verified project/region/endpoint, approved exact artifact, access scope/window and specific action authorization absent. No guessed target or external discovery call. |
+| Zero-cost capacity / platform and finance owner | BLOCKED: account-backed hosting, DB/Auth, LLM, network/cron, logging and quota/overage/suspension evidence absent. No free-tier assumption. |
+| Recovery and operations / data and operations owner | BLOCKED: approved recovery point, backup/restore and disable drills, RTO/RPO, alert delivery or realistic named manual coverage absent. Runbooks are not proof. |
+| Providers and pilot / integration and Arunodaya owners | BLOCKED: selected authorized $0 integrations, real receipts, commercial facts/policies, consent, destination/staffing and human-reviewed Telugu acceptance absent. Mocks cannot close Beta/Charlie. |
+| Final production / release and security owner | NO-GO: deployed tenant/security/retention evidence, verified operating cost/recovery and explicit go/no-go absent. Existing ten criteria retained. |
+
+No unresolved failure remains in the final application, focused, worker, lint,
+typecheck, migration or RLS checks listed above. Baseline sandbox/resource failures
+are preserved as history. External automation remains excluded pending integration
+idempotency/reconciliation and operator evidence; no general exactly-once guarantee
+is made. Final build and final candidate preservation check are recorded below.
+
+#### Final local gate — 2026-10-13
+
+- Production build command: `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=ci-anon-key SUPABASE_SERVICE_ROLE_KEY=ci-service-role-key NEXT_PUBLIC_APP_URL=http://localhost:3000 MESSAGING_PROVIDER=log HALO_OUTBOUND_ENABLED=false npm run build` — **exit 0**, widget bundle and Next production compile/typecheck/prerender completed. The first sandbox attempt failed fetching the public Google font; the authorized outside-sandbox rerun passed. Log: `/tmp/halo-poa-build.log`.
+- `git diff --check` passed. No staged files. No migration source changed. No commit/push/deploy/hosted mutation. Final HEAD equals the starting HEAD; candidate is explicitly the uncommitted working tree, not an approved release artifact.
+- **Local implementation gate: PASSED for this restricted POA pass. Production: NO-GO.** No unresolved confirmed P0 in the implemented scope or final local test failure is hidden; mandatory external/operational gates above remain blocked. This is not a general audit guarantee or production approval.
+- Status records updated in `docs/HALO_V1_STATUS.md` and `docs/HALO_PHASE_BETA_READINESS.md` without rewriting the ten criteria, phase definitions, or earlier evidence.
+- Final tracked modifications: `.github/workflows/ci.yml`; `docs/DEPLOYMENT.md`; `docs/OPERATIONS.md`; `docs/HALO_V1_STATUS.md`; `docs/HALO_PHASE_BETA_READINESS.md`; `packages/providers/messaging/log-messaging-provider.ts`; `packages/workflows/action-registry.ts`; `packages/workflows/engine.ts`; `packages/workflows/types.ts`; `scripts/check-migrations.mjs`; `scripts/check-rls.mjs`; `tests/integration/workflow-engine.test.ts`; `tests/unit/workflow-actions.test.ts`.
+- Final untracked paths: user-owned `POA` (appended), user-owned `docs/HALO_PHASE_BETA_DISCOVERY_REPORT.md` (unchanged), new `scripts/disposable-database.mjs`, `tests/unit/disposable-database.test.ts`, `tests/unit/log-messaging-privacy.test.ts`. No other initial user work was present or removed.
+- Cleanup: `docker stop halo-poa-disposable-20261013` succeeded after validation; the synthetic container is retained but stopped. The existing Supabase containers were not stopped or changed. Final preservation assertions confirmed the original POA bytes remain an exact prefix and the discovery report hash is unchanged.
+
+### 2026-10-13 — Real integration boundary and local chat verification
+
+See [integration verification](docs/HALO_REAL_INTEGRATION_VERIFICATION.md) for the
+required-scope matrix, exact commands, sanitized provider metadata, defects,
+regressions, cost boundary and remaining gates. Existing entries are preserved.
+Web-chat local slice selected from this POA; no broader pilot scope approval.
+
+Fixed SSE chunk/cleanup handling, malformed cloud response validation, web request
+cancellation propagation and fallback total-deadline enforcement. Fourteen new
+regressions fail before their fixes and pass after. Final application suite:
+131 files, 1,287 passed/5 existing skips; worker 53 passed/1 skip; 31 disposable
+migrations and 109 real-role RLS assertions; lint/types/build/architecture/neutral
+and configuration-only preflight passed. New opt-in route-to-real-PostgREST chat
+journey passed 15 assertions with a synthetic LLM, synthetic JWT issuer and CI
+Auth/storage stubs. No real Auth login or complete provider-backed E2E claim.
+
+Four current authorized read-only metadata GETs returned 200: Groq credential/model
+listing and OpenRouter key/credits/model listing. All configured IDs exist.
+OpenRouter reports free-tier key, zero purchased credits and priced selected
+models; Groq remaining free allowance/overage controls unknown. These metadata
+checks generated no inference tokens. Real inference remains BLOCKED; $0
+incremental provider/service spend, no billing mutation, communications or
+customer data. Existing shared Supabase and developer env untouched. No deployment,
+hosted migration, commit or push. Ten criteria, Charlie, staging recovery/security
+and final production approval stay open; production NO-GO.
+
+
+## Three production-readiness gates — 2026-10-13 execution
+
+**NO-GO: inference BLOCKED; real dashboard Auth BLOCKED; hosted monitoring,
+recovery and rollback BLOCKED.** The owner confirmed no verified target-bound
+quota/Auth/recovery evidence is available and authorized local work only.
+[Execution report](docs/HALO_THREE_GATE_EXECUTION.md) records fresh reproductions,
+fixes, commands, owner dependencies and exact future acceptance procedures;
+[local evidence](docs/HALO_THREE_GATE_LOCAL_EVIDENCE.json) records the disposable restore
+and post-restore application-path results. Local tests do not close external gates.
+
+This execution fixed tenant-admin cross-tenant operational counts, unsafe redirect
+normalization, lost Auth refresh/deletion cookies and cache headers, Auth outage
+and logout failure handling, production cookie scope, misleading readiness/queue
+signals, and raw exception logging. It added a guarded synthetic dump/restore
+exercise: 44 table fingerprints and six identity/tenant checks passed, followed
+by 15 restored application-path assertions. No hosted Auth login, inference,
+alert delivery or artifact rollback was performed. Preserve the existing ten
+criteria and Alpha/Beta/Charlie boundaries. External traffic stays disabled;
+no deployment, hosted mutation, commit, push or paid operation was authorized.

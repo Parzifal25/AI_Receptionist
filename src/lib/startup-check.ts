@@ -6,6 +6,7 @@ export interface ReadinessReport {
   ready: boolean;
   errors: string[];
   warnings: string[];
+  database: { connected: boolean; checked: boolean };
   providers: {
     email: boolean;
     whatsapp: boolean;
@@ -21,15 +22,17 @@ export async function validateProductionReadiness(options: {
 } = {}): Promise<ReadinessReport> {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const database = { connected: false, checked: false };
   
   let env;
   try {
     env = getServerEnv();
-  } catch (err) {
+  } catch {
     return {
       ready: false,
-      errors: [`Environment validation failed: ${err instanceof Error ? err.message : String(err)}`],
+      errors: ["Environment validation failed"],
       warnings: [],
+      database,
       providers: { email: false, whatsapp: false },
     };
   }
@@ -60,14 +63,17 @@ export async function validateProductionReadiness(options: {
   }
 
   if (!options.skipDatabaseCheck) {
+    database.checked = true;
     try {
       const adminClient = getAdminClient();
       const { error } = await adminClient.from("businesses").select("id").limit(1);
       if (error) {
-        errors.push(`Database connectivity check failed: ${error.message}`);
+        errors.push("Database connectivity check failed");
+      } else {
+        database.connected = true;
       }
-    } catch (err) {
-      errors.push(`Database connectivity check failed: ${err instanceof Error ? err.message : String(err)}`);
+    } catch {
+      errors.push("Database connectivity check failed");
     }
   } else {
     warnings.push("Database connectivity check skipped (--skip-db-check)");
@@ -77,6 +83,7 @@ export async function validateProductionReadiness(options: {
     ready: errors.length === 0,
     errors,
     warnings,
+    database,
     providers,
   };
 }

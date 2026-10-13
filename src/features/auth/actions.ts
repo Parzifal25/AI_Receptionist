@@ -28,12 +28,17 @@ export async function signIn(
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
-
-  if (error) {
-    log.warn("sign in failed", { message: error.message });
-    return { error: "Invalid email or password" };
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+    if (error) {
+      log.warn("sign in failed", { status: error.status });
+      return { error: error.status && error.status < 500 && error.status !== 429
+        ? "Invalid email or password" : "Sign-in is temporarily unavailable. Please try again." };
+    }
+  } catch {
+    log.warn("sign in unavailable");
+    return { error: "Sign-in is temporarily unavailable. Please try again." };
   }
 
   redirect(safeRedirectPath(formData.get("next")));
@@ -49,21 +54,28 @@ export async function signUp(
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signUp({
-    ...parsed.data,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-    },
-  });
+  let hasSession = false;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.signUp({
+      ...parsed.data,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      },
+    });
 
-  if (error) {
-    log.warn("sign up failed", { message: error.message });
-    return { error: error.message };
+    if (error) {
+      log.warn("sign up failed", { status: error.status });
+      return { error: "Unable to create an account. Please try again." };
+    }
+    hasSession = !!data.session;
+  } catch {
+    log.warn("sign up unavailable");
+    return { error: "Unable to create an account. Please try again." };
   }
 
   // When email confirmation is disabled, a session exists immediately.
-  if (data.session) redirect("/onboarding");
+  if (hasSession) redirect("/onboarding");
 
   return {
     error: null,
@@ -72,7 +84,14 @@ export async function signUp(
 }
 
 export async function signOut(): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
-  redirect("/login");
+  let failed = false;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.signOut();
+    failed = !!error;
+  } catch {
+    failed = true;
+  }
+  if (failed) log.warn("sign out unavailable");
+  redirect(failed ? "/dashboard?error=signout_failed" : "/login");
 }

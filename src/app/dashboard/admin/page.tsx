@@ -5,6 +5,7 @@ import { getAdminClient } from "@halo/tenancy/supabase/admin";
 import { getLLMProvider } from "@halo/providers/llm/factory";
 import { validateProductionReadiness } from "@/lib/startup-check";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { AppError } from "@halo/core/errors/app-error";
 
 export const metadata: Metadata = { title: "System Admin — AI Receptionist" };
 
@@ -38,6 +39,10 @@ export default async function AdminPage() {
       .limit(10),
     supabase.from("calendar_connections").select("provider").eq("business_id", businessId),
   ]);
+
+  if (workflowCounts.error || reminderCounts.error || webhookLogs.error || calendars.error) {
+    throw AppError.serviceUnavailable("Operational data is temporarily unavailable");
+  }
 
   const workflowData = workflowCounts.data ?? [];
   const reminderData = reminderCounts.data ?? [];
@@ -73,13 +78,13 @@ export default async function AdminPage() {
             <div className="space-y-4">
               <div className="flex justify-between border-b border-slate-200 pb-2 dark:border-slate-800">
                 <span className="text-sm text-slate-600 dark:text-slate-300">Database Status</span>
-                <span className={readiness.errors.some(e => e.includes("Database")) ? "text-red-500 font-medium text-sm" : "text-green-500 font-medium text-sm"}>
-                  {readiness.errors.some(e => e.includes("Database")) ? "Disconnected" : "Connected"}
+                <span className={!readiness.database.connected ? "text-red-500 font-medium text-sm" : "text-green-500 font-medium text-sm"}>
+                  {readiness.database.connected ? "Connected" : "Unavailable"}
                 </span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2 dark:border-slate-800">
-                <span className="text-sm text-slate-600 dark:text-slate-300">System Uptime</span>
-                <span className="text-green-500 font-medium text-sm">Online</span>
+                <span className="text-sm text-slate-600 dark:text-slate-300">Current Readiness</span>
+                <span className="font-medium text-sm">{readiness.ready && llmHealthy ? "Ready" : "Degraded"}</span>
               </div>
               {readiness.errors.length > 0 && (
                 <div className="rounded-md bg-red-50 p-4 dark:bg-red-900/20">

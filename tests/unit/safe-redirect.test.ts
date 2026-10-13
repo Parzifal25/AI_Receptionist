@@ -29,4 +29,9 @@ describe("safeRedirectPath", () => {
   it("respects a custom fallback", () => {
     expect(safeRedirectPath("//evil.com", "/login")).toBe("/login");
   });
+
+  it.each(["/\t/evil.example", "/\n/evil.example", "/\r/evil.example"])("rejects URL-normalized control characters: %j", (path) => {
+    expect(new URL(path, "https://halo.example").origin).toBe("https://evil.example");
+    expect(safeRedirectPath(path)).toBe("/dashboard");
+  });
 });

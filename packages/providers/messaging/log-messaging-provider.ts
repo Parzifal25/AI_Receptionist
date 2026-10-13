@@ -18,11 +18,9 @@ export class LogMessagingProvider implements MessagingProvider {
   async send(message: OutboundMessage): Promise<void> {
     this.log.info("outbound message (log-only delivery)", {
       channel: message.channel,
-      to: message.to,
-      subject: message.subject ?? "",
-      body: message.body,
+      delivery: "simulated",
       hasHtml: Boolean(message.html),
-      attachments: (message.attachments ?? []).map((a) => a.filename),
+      attachmentCount: message.attachments?.length ?? 0,
     });
   }
 }

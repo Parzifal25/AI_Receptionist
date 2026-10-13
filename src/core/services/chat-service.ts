@@ -148,7 +148,7 @@ export class ChatService {
    */
   async respondForAgent(
     ctx: ResolvedAgentRuntimeContext,
-    input: { conversationId: string; userMessage: string; channel?: "chat" | "voice"; turnId?: string },
+    input: { conversationId: string; userMessage: string; channel?: "chat" | "voice"; turnId?: string; signal?: AbortSignal },
   ): Promise<{ reply: string; runtime: RuntimeOutput }> {
     const trusted = {
       businessId: ctx.business.id,
@@ -173,6 +173,7 @@ export class ChatService {
       agent: ctx,
       channel: channelProfileForConversation(input.channel ?? "chat"),
       userMessage: input.userMessage,
+      signal: input.signal,
     });
     return { reply: output.reply, runtime: output };
   }

@@ -230,3 +230,67 @@ Priority labels describe work needed for safe pilot/release evidence, not change
 ## Validation and update rule
 
 Checks represented here: the original ten-row mapping is retained; local checks and their proof boundaries are dated; target-only evidence remains blocked/unverified; whitespace and diff checks passed. Update this register when evidence changes, preserving dated reports and source-of-truth boundaries.
+
+## 2026-10-13 POA implementation checkpoint
+
+Candidate: `main` at `ddeda1b2a60107e7cfece7a15d22edc510f87e47` plus uncommitted
+POA changes. Starting tree had only user-owned untracked POA and Beta discovery
+report; both preserved (POA appended, discovery unchanged). No commit or push.
+
+The local implementation/check gate for this restricted pass **PASSED**: 130
+application files, 1,273 passed / 0 failed / 5 existing real-model skips; focused
+identity/widget/tenant tests 30/30; worker 54 run, 53 passed / 1 existing real-model
+skip; lint/typecheck/architecture/neutrality, production build and configuration-only
+preflight passed. Fresh disposable DB: 31 migrations/schema/identity/backfill checks
+and 109 real-role assertions passed. Initial sandbox and concurrency failures,
+exact commands, regression evidence and limitations are recorded in [POA](../POA).
+
+Implemented: P0 disposable database targeting guard/CI alignment; P1 privacy-safe
+log-only messaging; P1 workflow timeout cancellation and dead-letter quarantine
+without automatic replay; P2 restricted release/incident/cost procedures. No
+historical migration was rewritten. No real provider or hosted database was used.
+
+The ten criterion rows above and historical Alpha/Beta records remain unchanged.
+This new evidence proves local behavior only. Beta staging is still **BLOCKED**;
+Charlie and final production gates remain open. Current approved external traffic
+is zero. Even the proposed web-chat scope needs verified $0 hosting/Auth/DB/LLM,
+authorized target/owner, recovery and operational evidence. Outbound stays false,
+messaging log-only; voice, calendar, workflows/webhooks and real messaging are
+excluded. **Production NO-GO.** ENG-04/ENG-12 is still pending owner decision.
+
+## 2026-10-13 integration implementation checkpoint
+
+[Real integration verification](HALO_REAL_INTEGRATION_VERIFICATION.md) records
+current configuration/authentication versus contract/E2E states. Real local
+PostgREST/Postgres chat persistence and tenant controls passed; configured cloud
+credentials/models passed read-only metadata checks. Real cloud inference and
+Supabase Auth login remain BLOCKED; no complete customer E2E or pilot acceptance.
+Final local suite: 131 files, 1,287 passed/5 skipped, worker 53 passed/1 skipped,
+31 disposable migrations, 109 RLS assertions, 15 disposable chat assertions,
+static checks and build passed. Added regression-backed fixes for cloud wire
+validation/cleanup, request cancellation and overall fallback deadlines.
+
+This updates local evidence only. Section C's ten criteria remain intact; Beta
+staging, Charlie pilot and final production approval remain open. No deployment,
+hosted migration, paid provider operation, commit or push. Production **NO-GO**.
+
+
+## Three production-readiness gates — 2026-10-13 execution
+
+**NO-GO: inference BLOCKED; real dashboard Auth BLOCKED; hosted monitoring,
+recovery and rollback BLOCKED.** The owner confirmed no verified target-bound
+quota/Auth/recovery evidence is available and authorized local work only.
+[Execution report](HALO_THREE_GATE_EXECUTION.md) records fresh reproductions,
+fixes, commands, owner dependencies and exact future acceptance procedures;
+[local evidence](HALO_THREE_GATE_LOCAL_EVIDENCE.json) records the disposable restore
+and post-restore application-path results. Local tests do not close external gates.
+
+This execution fixed tenant-admin cross-tenant operational counts, unsafe redirect
+normalization, lost Auth refresh/deletion cookies and cache headers, Auth outage
+and logout failure handling, production cookie scope, misleading readiness/queue
+signals, and raw exception logging. It added a guarded synthetic dump/restore
+exercise: 44 table fingerprints and six identity/tenant checks passed, followed
+by 15 restored application-path assertions. No hosted Auth login, inference,
+alert delivery or artifact rollback was performed. Preserve the existing ten
+criteria and Alpha/Beta/Charlie boundaries. External traffic stays disabled;
+no deployment, hosted mutation, commit, push or paid operation was authorized.

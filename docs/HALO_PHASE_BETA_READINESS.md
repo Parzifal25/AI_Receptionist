@@ -86,3 +86,61 @@ Charlie still requires controlled Arunodaya pilot authorization and acceptance e
 Final release still requires production-specific security/configuration verification; production database migration and recovery approval/evidence; production monitoring, alerting, rollback and incident-response readiness; all ten authoritative release criteria evidenced on the pinned candidate; and explicit final go/no-go approval. No pilot or production acceptance is claimed here. Role owners are not identified in the repository and are not invented in this record.
 
 The existing ten-row register in [HALO_V1_STATUS.md §C](HALO_V1_STATUS.md#c-ten-criterion-release-checklist-reconciliation) is unchanged. Each row's Alpha local evidence remains valid within its stated boundary; every Beta target check is blocked pending staging access and authorization, while Charlie/final dependencies remain open.
+
+## 2026-10-13 local POA update (staging still blocked)
+
+Fresh local verification and root-cause fixes are recorded in [POA](../POA) and
+[the status checkpoint](HALO_V1_STATUS.md#2026-10-13-poa-implementation-checkpoint).
+On `ddeda1b2a60107e7cfece7a15d22edc510f87e47` plus this pass's uncommitted changes,
+130 application files passed (1,273 passed, 5 existing skips), focused identity
+30/30, Python worker 53 passed/1 existing skip, all 31 migrations/schema checks and
+109 RLS assertions on a fresh disposable database. Lint, types, build, config-only
+preflight and architecture/neutral checks passed. The supported Python 3.10 `.venv`
+was available for this run; the earlier unavailable-environment report remains
+historical. No worker dependencies or models were installed.
+
+Release-safety DB targeting, log privacy and workflow timeout replay fixes are
+locally verified. Updated deployment/operations procedures explicitly require
+zero-cost evidence, target-bound authorization and recovery proof. They do not
+close any staging row. No staging target/owner/cost/recovery evidence was supplied;
+no provider/hosted DB action or deployment occurred. Beta is **BLOCKED**, production
+**NO-GO**, and ENG-04/ENG-12 remains pending owner approval.
+
+## 2026-10-13 real-integration checkpoint (no deployment)
+
+[Current integration verification](HALO_REAL_INTEGRATION_VERIFICATION.md) adds
+real disposable Postgres/PostgREST persistence and public-widget authorization
+proof, plus four successful provider **metadata** GETs. Groq/OpenRouter credentials
+and configured model listings are verified; inference remains **BLOCKED** by
+unproven current $0 capacity (OpenRouter selected models are priced, credits zero).
+Metadata authentication is not an inference contract or customer E2E pass.
+
+Current local gate: 1,287 application tests passed/5 existing skips; worker 53
+passed/1 skip; all 31 migrations and 109 RLS assertions; 15 route-to-database
+assertions with synthetic LLM/Auth issuer; static checks/build/preflight passed.
+SSE cleanup/parsing, payload validation, web cancellation and fallback deadline
+fixes have regressions. Hosted Auth, migration compatibility, quotas, monitoring,
+restore/rollback, Charlie and final owner approval remain open. No staging or
+production mutation, paid operation or deployment occurred. The ten-row register
+is unchanged.
+
+
+## Three production-readiness gates — 2026-10-13 execution
+
+**NO-GO: inference BLOCKED; real dashboard Auth BLOCKED; hosted monitoring,
+recovery and rollback BLOCKED.** The owner confirmed no verified target-bound
+quota/Auth/recovery evidence is available and authorized local work only.
+[Execution report](HALO_THREE_GATE_EXECUTION.md) records fresh reproductions,
+fixes, commands, owner dependencies and exact future acceptance procedures;
+[local evidence](HALO_THREE_GATE_LOCAL_EVIDENCE.json) records the disposable restore
+and post-restore application-path results. Local tests do not close external gates.
+
+This execution fixed tenant-admin cross-tenant operational counts, unsafe redirect
+normalization, lost Auth refresh/deletion cookies and cache headers, Auth outage
+and logout failure handling, production cookie scope, misleading readiness/queue
+signals, and raw exception logging. It added a guarded synthetic dump/restore
+exercise: 44 table fingerprints and six identity/tenant checks passed, followed
+by 15 restored application-path assertions. No hosted Auth login, inference,
+alert delivery or artifact rollback was performed. Preserve the existing ten
+criteria and Alpha/Beta/Charlie boundaries. External traffic stays disabled;
+no deployment, hosted mutation, commit, push or paid operation was authorized.

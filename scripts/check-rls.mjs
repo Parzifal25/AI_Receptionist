@@ -12,13 +12,14 @@
  *
  * DESTRUCTIVE: the target database's public/auth/storage schemas are dropped
  * and rebuilt, so it must be a throwaway (the CI Postgres service, or a
- * local `docker run pgvector/pgvector:pg16`). It refuses to run against the
- * Supabase CLI stack (port 55322, or the CLI default 54322) unless CHECK_RLS_ALLOW_DESTRUCTIVE=1,
- * because that database holds the developer's local data — running it there
- * silently destroys the dev environment.
+ * local `docker run pgvector/pgvector:pg16`). Both harnesses require
+ * HALO_DISPOSABLE_DATABASE=1 and an explicit loopback URL naming
+ * halo_check_<suffix> (argument or HALO_DISPOSABLE_DB_URL). Supabase CLI
+ * ports are always rejected; there is no shared-database override.
  *
  * Requires `psql` on PATH. Exits non-zero on the first failed assertion.
  */
+import { requireDisposableDatabase } from "./disposable-database.mjs";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -28,27 +29,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsDir = path.join(root, "supabase", "migrations");
 const stubsFile = path.join(root, "infrastructure", "ci", "supabase-stubs.sql");
 
-const databaseUrl =
-  process.argv[2] ?? process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:55322/postgres";
-
-// Guard: 55322 is this project's Supabase CLI database (54322 is the CLI
-// default, which another local project may hold) — a developer's working
-// environment, not a throwaway. This script drops its schemas, so refuse by
-// default rather than destroy it.
-if (/:5[45]322\b/.test(databaseUrl) && process.env.CHECK_RLS_ALLOW_DESTRUCTIVE !== "1") {
-  console.error(
-    `check-rls refuses to run against the local Supabase stack (${databaseUrl}).\n` +
-      "This script DROPS the public/auth/storage schemas and rebuilds them, which\n" +
-      "destroys your local data. Point it at a throwaway Postgres instead:\n\n" +
-      "  docker run -d --name halo-rls-check -e POSTGRES_PASSWORD=postgres \\\n" +
-      "    -p 55433:5432 pgvector/pgvector:pg16\n" +
-      "  psql postgresql://postgres:postgres@127.0.0.1:55433/postgres \\\n" +
-      "    --set ON_ERROR_STOP=1 -f infrastructure/ci/supabase-stubs.sql\n" +
-      "  npm run check:rls -- postgresql://postgres:postgres@127.0.0.1:55433/postgres\n\n" +
-      "Set CHECK_RLS_ALLOW_DESTRUCTIVE=1 only if you really mean to wipe that database.",
-  );
-  process.exit(1);
-}
+// These destructive harnesses must never infer a target from developer env.
+const databaseUrl = requireDisposableDatabase(process.argv[2], process.env);
 
 const psql = (sql, capture = false) =>
   execFileSync(
@@ -92,7 +74,7 @@ function expectError(sql, label) {
 // ---------------------------------------------------------------------------
 // 1. Fresh schema: stubs + every migration, in order (same as check:migrations).
 // ---------------------------------------------------------------------------
-console.log(`check-rls — verifying RLS as real roles on ${databaseUrl}`);
+console.log("check-rls — verifying RLS as real roles on the explicitly selected disposable database");
 // Idempotent on a reused database (CI runs check:migrations on the same
 // service first): reset the application schemas, then rebuild from scratch.
 // Extensions live in `public` and are re-created by 0001_init.sql.

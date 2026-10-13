@@ -141,9 +141,10 @@ const foreignVersion: Row = { ...ownVersion, id: "av-foreign", agent_id: "agent-
 const otherAgentVersion: Row = { ...ownVersion, id: "av-other-agent", agent_id: "agent-2", prompt_template: "OTHER AGENT TEMPLATE" };
 const draftVersion: Row = { ...ownVersion, id: "av-draft", published_at: null, prompt_template: "DRAFT TEMPLATE" };
 
-function makeRequest(body: unknown) {
+function makeRequest(body: unknown, signal?: AbortSignal) {
   return new NextRequest("http://localhost/api/v1/widget/messages", {
     method: "POST",
+    signal,
     headers: { "content-type": "application/json", origin: "http://localhost:3000" },
     body: JSON.stringify(body),
   });
@@ -283,4 +284,14 @@ describe("POST /api/v1/widget/messages — Phase 2 security and compatibility", 
     expect(modelMessages[0].map((m) => m.role)).toEqual(["user", "user"]);
     expect(modelMessages[0][0].content).toBe("earlier question");
   });
+});
+
+it("cancels an abandoned web request before model work or persistence", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const res = await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }, controller.signal));
+  expect(res.status).toBe(499);
+  expect(prompts).toHaveLength(0);
+  expect(inserts).toHaveLength(0);
+  expect(upserts).toHaveLength(0);
 });

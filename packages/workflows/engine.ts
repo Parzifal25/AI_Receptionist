@@ -17,10 +17,18 @@ function runBackoffMs(attempt: number): number {
 
 const DEFAULT_STEP_TIMEOUT_MS = 30_000;
 
-function withTimeout<T>(work: Promise<T>, ms: number, stepId: string): Promise<T> {
+class StepTimeoutError extends Error {}
+
+function withTimeout<T>(work: Promise<T>, ms: number, stepId: string, controller: AbortController): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`step "${stepId}" timed out after ${ms}ms`)),
+      () => {
+        const error = new StepTimeoutError(`step "${stepId}" timed out after ${ms}ms; outcome unknown, reconcile before manual replay`);
+        // Reject first so an abort-aware executor cannot turn this into a
+        // generic retryable rejection. Cancellation cannot undo remote work.
+        reject(error);
+        controller.abort(error);
+      },
       ms,
     );
     work.then(
@@ -160,7 +168,7 @@ export class WorkflowEngine {
       const step = workflow.steps[index];
       const outcome = await this.executeStep(run, step, event, attempt);
       if (!outcome.ok) {
-        const exhausted = attempt >= run.maxAttempts;
+        const exhausted = outcome.uncertain || attempt >= run.maxAttempts;
         await this.store.updateRun(run.id, {
           status: exhausted ? "dead_letter" : "failed",
           currentStep: index,
@@ -202,7 +210,7 @@ export class WorkflowEngine {
     step: WorkflowStep,
     event: BusinessEvent,
     runAttempt: number,
-  ): Promise<{ ok: true } | { ok: false; error: string }> {
+  ): Promise<{ ok: true } | { ok: false; error: string; uncertain?: boolean }> {
     const executor = this.actions[step.action];
     if (!executor) {
       const error = `no executor registered for action "${step.action}"`;
@@ -224,14 +232,17 @@ export class WorkflowEngine {
     for (let stepAttempt = 1; stepAttempt <= maxAttempts; stepAttempt++) {
       try {
         const params = interpolateParams(step.params, event);
+        const controller = new AbortController();
         const detail = await withTimeout(
           executor(params, {
             event,
             businessId: run.businessId,
             correlationId: run.correlationId,
+            signal: controller.signal,
           }),
           timeoutMs,
           step.id,
+          controller,
         );
         await this.store.appendLog({
           runId: run.id,
@@ -250,6 +261,7 @@ export class WorkflowEngine {
           status: "failed",
           detail: { error: lastError, stepAttempt },
         });
+        if (error instanceof StepTimeoutError) return { ok: false, error: lastError, uncertain: true };
         if (stepAttempt < maxAttempts && backoffMs > 0) await sleep(backoffMs);
       }
     }

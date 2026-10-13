@@ -8,6 +8,7 @@ import { WidgetRepository } from "@/core/services/widget-repository";
 import { corsHeaders, isOriginAllowed, preflightResponse } from "@/lib/api/cors";
 import { clientIp, fail, withErrorHandling } from "@/lib/api/respond";
 import { widgetMessageLimiter } from "@halo/platform/rate-limit";
+import { isRuntimeCancelled } from "@halo/runtime/cancellation";
 import { emitBusinessEvent } from "@halo/workflows/event-bus";
 
 const bodySchema = z.object({
@@ -123,11 +124,21 @@ export const POST = withErrorHandling("widget.messages", async (request: NextReq
   }
 
   const chat = new ChatService(undefined, undefined, undefined, repository, new BookingOrchestrator());
-  const { reply, runtime } = await chat.respondForAgent(agentContext, {
-    conversationId: conversation.id,
-    userMessage: body.message,
-    channel: conversation.channel,
-  });
+  let result;
+  try {
+    result = await chat.respondForAgent(agentContext, {
+      conversationId: conversation.id,
+      userMessage: body.message,
+      channel: conversation.channel,
+      signal: request.signal,
+    });
+  } catch (error) {
+    if (isRuntimeCancelled(error)) {
+      return NextResponse.json({ error: { code: "REQUEST_CANCELLED", message: "Request cancelled" } }, { status: 499, headers });
+    }
+    throw error;
+  }
+  const { reply, runtime } = result;
 
   // Phase 2: per-turn usage/latency telemetry rides on the existing usage
   // event (tenant-safe numbers only — no transcript, no prompt).

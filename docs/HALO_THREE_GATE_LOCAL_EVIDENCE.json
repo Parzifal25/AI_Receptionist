@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-13",
+  "head": "ddeda1b2a60107e7cfece7a15d22edc510f87e47",
+  "externalGateStatuses": {
+    "inference": "BLOCKED",
+    "auth": "BLOCKED",
+    "operations": "BLOCKED"
+  },
+  "disposableRestore": {
+    "evidence": "disposable PostgreSQL restore; no real Auth, provider, hosting or application artifact rollback",
+    "at": "2026-10-13T06:56:55.173Z",
+    "backupAt": "2026-10-13T06:56:30.163Z",
+    "tables": 44,
+    "backupBytes": 284760,
+    "backupSha256": "d133d229b79fd7cc7f4060f517e4e2669151cec28d9dcaae413fdc2b242a130e",
+    "dataFingerprint": "14cdf429675fe9a174cefa7d093865cfe23ada86259a03ffaae849f43986483a",
+    "identityAndTenantAssertions": 6,
+    "recoveryDurationMs": 25807,
+    "dataLoss": "zero fixture rows at snapshot; source quiescent; not a hosted RPO",
+    "sourceUntouched": true,
+    "target": "halo_check_restore_gates",
+    "status": "PASS"
+  },
+  "postRestoreApplicationPath": {
+    "checksPassed": 15,
+    "checks": [
+      "PostgREST rejects invalid authentication signature",
+      "origin allowlist before conversation creation",
+      "conversation created with pinned tenant/agent/version in real database",
+      "invalid input and unauthorized visitor token make no LLM request",
+      "two-turn runtime, real knowledge retrieval, transcript/state and continuity; synthetic LLM HTTP",
+      "usage attribution persisted under correct tenant (synthetic token counts)",
+      "signed local JWT authorization and actual PostgREST RLS isolate second tenant; no Auth login claim",
+      "provider 503 yields bounded retry and honest fallback",
+      "database lookup outage fails before inference",
+      "transcript write failure never returns success",
+      "actual HTTP timeout cannot return late LLM success",
+      "cancelled web request performs no model work",
+      "in-flight cancellation cannot persist a late successful response",
+      "conversation usage ceiling stops inference",
+      "disabled booking, workflows, speech, telephony and notifications have no external side effects"
+    ],
+    "real": [
+      "Postgres",
+      "PostgREST",
+      "JWT verification",
+      "RLS",
+      "Supabase adapters"
+    ],
+    "synthetic": [
+      "LLM",
+      "Auth users/JWT issuer"
+    ],
+    "externalRequests": 0
+  },
+  "realInferenceRequests": 0,
+  "realAuthLogins": 0,
+  "hostedOperations": 0,
+  "incrementalServiceSpendUsd": 0,
+  "verification": {
+    "fullSuite": {
+      "files": 139,
+      "passed": 1333,
+      "skipped": 5,
+      "failed": 0
+    },
+    "newRegressionCases": 46,
+    "worker": {
+      "run": 54,
+      "passed": 53,
+      "skipped": 1
+    },
+    "migrations": 31,
+    "rlsAssertions": 109,
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "architecture": "PASS",
+    "neutrality": "PASS",
+    "build": "PASS",
+    "preflight": "PASS (DB skipped; missing cron secret warning)",
+    "diffCheck": "PASS"
+  },
+  "git": {
+    "branch": "main",
+    "upstream": "halo/main",
+    "initialModified": 21,
+    "initialUntracked": 13,
+    "finalModified": 39,
+    "finalUntracked": 25,
+    "staged": 0,
+    "preservedInitialFiles": 34,
+    "byteIdenticalInitialFiles": 27
+  }
+}

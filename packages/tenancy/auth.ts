@@ -3,6 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
+import { AppError } from "@halo/core/errors/app-error";
 
 /**
  * Auth/tenancy helpers for dashboard server components and server actions.
@@ -22,8 +23,9 @@ export const requireUser = cache(async function requireUser(): Promise<User> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (error || !user) redirect("/login");
   return user;
 });
 
@@ -42,7 +44,7 @@ export const requireBusiness = cache(async function requireBusiness(): Promise<B
   const user = await requireUser();
   const supabase = await createSupabaseServerClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("business_members")
     .select("business_id, role")
     .eq("user_id", user.id)
@@ -50,6 +52,7 @@ export const requireBusiness = cache(async function requireBusiness(): Promise<B
     .limit(1)
     .maybeSingle();
 
+  if (error) throw AppError.serviceUnavailable("Account access is temporarily unavailable");
   if (!data) redirect("/onboarding");
 
   return {
