@@ -1,3 +1,4 @@
+import { readyAgentConfig } from "../mocks/layer1-agent-config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { AppointmentManageService } from "@halo/lifecycle/manage-service";
@@ -86,7 +87,7 @@ const version = (tenant: typeof tenantA): Row => ({
   agent_id: tenant.agentId,
   business_id: tenant.businessId,
   version: 1,
-  config: {},
+  config: readyAgentConfig(),
   prompt_template: `Prompt for ${tenant.businessId}`,
   prompt_version: "test",
   model: {},

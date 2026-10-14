@@ -1,3 +1,4 @@
+import { telemetryId } from "./telemetry";
 /**
  * Structured JSON logger. Zero-dependency by design: emits one JSON object
  * per line so any log aggregator (Datadog, Axiom, CloudWatch, Vercel logs)
@@ -18,7 +19,7 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
-const PRIVATE_FIELDS = /^(?:error|message|stack|cause|authorization|cookie|set-cookie|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|service[_-]?role[_-]?key|visitor[_-]?token|token|prompt|systemPrompt|body|html|recipient)$/i;
+const PRIVATE_FIELDS = /^(?:audio|rawAudio|transcript|transcripts|text|phone|phoneNumber|visitorPhone|callerPhone|fromNumber|toNumber|name|visitorName|customerName|email|visitorEmail|credentials|calendarCredentials|payload|error|message|stack|cause|authorization|cookie|set-cookie|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|service[_-]?role[_-]?key|visitor[_-]?token|token|prompt|systemPrompt|body|html|recipient)$/i;
 
 function activeLevel(): LogLevel {
   const raw = process.env.LOG_LEVEL;
@@ -33,17 +34,20 @@ function emit(level: LogLevel, message: string, context: LogContext): void {
     time: new Date().toISOString(),
     msg: message,
     ...context,
+    ...(telemetryId() ? { correlationId: telemetryId() } : {}),
   };
   // Upstream exception text can contain prompts, row values or credentials.
   // Keep static msg + route/code/category/IDs; do not serialize raw exceptions.
-  const line = JSON.stringify(entry, (key, value) => {
-    if (PRIVATE_FIELDS.test(key)) return "[redacted]";
-    if (value instanceof Error) return { name: "Error" };
-    return value;
-  });
-  if (level === "error") console.error(line);
-  else if (level === "warn") console.warn(line);
-  else console.log(line);
+  try {
+    const line = JSON.stringify(entry, (key, value) => {
+      if (PRIVATE_FIELDS.test(key)) return "[redacted]";
+      if (value instanceof Error) return { name: "Error" };
+      return value;
+    });
+    if (level === "error") console.error(line);
+    else if (level === "warn") console.warn(line);
+    else console.log(line);
+  } catch { /* Logging must never break business operations. */ }
 }
 
 export interface Logger {

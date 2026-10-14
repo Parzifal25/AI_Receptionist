@@ -1,6 +1,6 @@
+import { readyAgentConfig } from "../mocks/layer1-agent-config";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
-import { defaultAgentConfig } from "@halo/core/domain/agents";
 import { FakeSttProvider } from "@halo/providers/voice-fakes/fake-stt-provider";
 import { FakeTelephonyProvider, signFakeWebhook } from "@halo/providers/voice-fakes/fake-telephony-provider";
 import { FakeTtsProvider } from "@halo/providers/voice-fakes/fake-tts-provider";
@@ -34,7 +34,7 @@ const PROMPTS = {
 };
 
 function voiceAgentConfig() {
-  const config = defaultAgentConfig();
+  const config = readyAgentConfig();
   config.language.primary = "te-IN";
   config.voice.prompts = PROMPTS;
   return config;

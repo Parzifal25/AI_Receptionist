@@ -51,6 +51,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
   private call<T>(url: string, init: RequestInit): Promise<T> {
     return withRetry(async () => authedJsonFetch<T>(url, await this.token(), init), {
       isRetryable: isTransientHttpError,
+      telemetryProvider: "google",
     });
   }
 }

@@ -1,3 +1,4 @@
+import { makeAgent } from "../mocks/runtime-fakes";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatService } from "@/core/services/chat-service";
 import { BookingOrchestrator } from "@halo/scheduling/booking-orchestrator";
@@ -148,7 +149,7 @@ function buildConversation() {
   /** One visitor turn, with the extraction the model would return for it. */
   async function say(userMessage: string, extraction: Extraction = {}) {
     extractions.push(extraction);
-    await chat.respond({ business, receptionist, conversationId: "c1", userMessage });
+    await respondForTest(chat, { business, receptionist, conversationId: "c1", userMessage });
     return replyPrompts[replyPrompts.length - 1];
   }
 
@@ -418,3 +419,10 @@ describe("booking conversations, end to end", () => {
     expect(prompt).not.toContain("## Booking status");
   });
 });
+
+// Explicit synthetic pinned context; legacy mutable fallback is no longer usable.
+function respondForTest(service: ChatService, params: Parameters<ChatService["respond"]>[0]) {
+  const agent = makeAgent({ business: params.business, receptionist: params.receptionist });
+  agent.config.tools.grantedToolIds = params.receptionist.leadCaptureEnabled ? ["save_contact_details"] : [];
+  return service.respondForAgent(agent, params);
+}

@@ -108,6 +108,9 @@ export class AgentResolver {
         agentId,
       });
     }
+    if (agent.businessId !== businessId || agent.id !== agentId) {
+      throw AppError.forbidden("Agent does not belong to this tenant");
+    }
     if (agent.status === "archived") {
       throw AppError.conflict("Agent is archived", { reason: "agent_archived", agentId });
     }

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { z } from "zod";
+import { UnspeakableTextError } from "./local-tts-text";
 
 /**
  * HALO Phase B — local, credential-free speech (shared engine).
@@ -68,47 +69,8 @@ export function loadLocalSpeechManifest(modelDir: string): LocalSpeechManifest {
   return manifest;
 }
 
-const TELUGU = /^[ఀ-౿]/, LATIN = /^[A-Za-z]/;
-/** Thrown when no installed voice can speak a run of text. */
-export class UnspeakableTextError extends Error {}
-
-/**
- * Splits a line into (language, text) runs by script: Telugu letters select
- * the Telugu voice and Latin letters the English one, because the Telugu
- * voice mispronounces English words written in Latin letters. Digits and
- * punctuation stay with the run they are in; `base` (the language HALO named
- * for the line) speaks anything script-neutral.
- */
-export function splitScriptRuns(text: string, base: string | null, available: readonly string[]): { language: string; text: string }[] {
-  const runs: { language: string | null; text: string }[] = [];
-  for (const piece of text.match(/[ఀ-౿]+|[A-Za-z]+|[^A-Za-zఀ-౿]+/g) ?? []) {
-    const script = TELUGU.test(piece) ? "te" : LATIN.test(piece) ? "en" : null;
-    const last = runs[runs.length - 1];
-    if (last && (script === null || last.language === null || last.language === script)) { last.language ??= script; last.text += piece; }
-    else runs.push({ language: script, text: piece });
-  }
-  return runs.filter(run => run.text.trim()).map(run => {
-    const language = run.language ?? base;
-    if (!language || !available.includes(language)) throw new UnspeakableTextError("no local voice can speak this text");
-    return { language, text: run.text.trim() };
-  });
-}
-
-/**
- * Breaks a long sentence at clause punctuation. The voice model synthesizes a
- * whole piece before any of it can be played, so a long sentence delays the
- * first audio by its full synthesis time. Short pieces are merged forward so
- * short lines stay whole and keep their prosody.
- */
-export function splitClauses(text: string, splitAbove = 60, minimum = 25): string[] {
-  if (text.length <= splitAbove) return [text];
-  const pieces: string[] = [];
-  for (const part of text.split(/(?<=[,;:\u2014\u2013])\s+/)) {
-    if (pieces.length && pieces[pieces.length - 1].length < minimum) pieces[pieces.length - 1] += ` ${part}`;
-    else if (part.trim()) pieces.push(part);
-  }
-  return pieces;
-}
+// The text helpers moved to local-tts-text.ts with the rest of the TTS text pipeline.
+export { splitClauses, splitScriptRuns, UnspeakableTextError } from "./local-tts-text";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the addon ships no type declarations */
 class SherpaSpeechEngine implements LocalSpeechEngine {

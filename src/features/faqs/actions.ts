@@ -27,7 +27,8 @@ export async function createFaq(_prev: ActionState, formData: FormData): Promise
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("faqs")
-    .insert({ business_id: businessId, ...parsed.data });
+    // Draft content must not inherit the schema's legacy published default.
+    .insert({ business_id: businessId, ...parsed.data, is_published: false });
 
   if (error) {
     log.error("faq insert failed", { error: error.message });
@@ -52,7 +53,8 @@ export async function updateFaq(_prev: ActionState, formData: FormData): Promise
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("faqs")
-    .update(parsed.data)
+    // Editing an answer invalidates its prior publication.
+    .update({ ...parsed.data, is_published: false })
     .eq("id", idResult.data)
     .eq("business_id", businessId);
 

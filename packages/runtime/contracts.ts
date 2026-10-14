@@ -235,6 +235,10 @@ export interface RuntimeTimings {
   modelMs: number;
   actionsMs: number;
   validationMs: number;
+  /** Awaited transcript + state writes after validation (on the reply's critical path). */
+  persistenceMs?: number;
+  /** Awaited `afterTurn` hooks; also before the reply is returned. Not part of `totalMs`. */
+  hooksMs?: number;
   totalMs: number;
 }
 

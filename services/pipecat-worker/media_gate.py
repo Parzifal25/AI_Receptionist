@@ -34,8 +34,12 @@ an OUTPUT frame and bypasses the normal speech-request completion path.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
-from typing import Any, Optional
+import os
+import sys
+import time
+from typing import Any, Callable, Optional
 
 from halo_client import HaloControlClient, SessionIdentity, SpeakRequest, VoiceConfig
 from pipecat.frames.frames import (
@@ -71,6 +75,12 @@ CHUNK_DRAIN_TIMEOUT_S = 30.0
 
 # How often cumulative media usage is reported.
 USAGE_INTERVAL_S = 10.0
+
+
+def _stdout_timing(record: dict) -> None:
+    """One JSON line per mark, the worker's half of HALO_TELEMETRY=stdout."""
+    sys.stdout.write(json.dumps({"timing": record}, separators=(",", ":")) + "\n")
+    sys.stdout.flush()
 
 
 class MediaGate(FrameProcessor):
@@ -120,6 +130,15 @@ class MediaGate(FrameProcessor):
         self._usage_task: Optional[asyncio.Task] = None
         self._max_duration_task: Optional[asyncio.Task] = None
 
+        # --- latency marks (observation only) --------------------------------
+        # Opt-in with the same switch as HALO's telemetry. Marks carry a
+        # monotonic clock, ids HALO generated and counts — never text, audio
+        # or numbers the caller said. They change nothing about the call.
+        self._timing_sink: Optional[Callable[[dict], None]] = (
+            _stdout_timing if os.environ.get("HALO_TELEMETRY") == "stdout" else None
+        )
+        self._session_id = ""
+
     # ------------------------------------------------------------------
     # Wiring
     # ------------------------------------------------------------------
@@ -135,6 +154,20 @@ class MediaGate(FrameProcessor):
     def set_completion_callback(self, callback) -> None:
         """Called with no arguments when the session ends (hangup or failure)."""
         self._completion_callback = callback
+
+    def set_timing_sink(self, sink: Optional[Callable[[dict], None]]) -> None:
+        """Replace where latency marks go (None turns them off)."""
+        self._timing_sink = sink
+
+    def mark(self, name: str, **fields: Any) -> None:
+        sink = self._timing_sink
+        if sink is None:
+            return
+        try:
+            sink({"schema": 1, "mark": name, "monoMs": round(time.monotonic() * 1000.0, 3),
+                  "session": self._session_id, **fields})
+        except Exception:  # noqa: BLE001 - a mark must never affect the call
+            pass
 
     def add_interrupt_listener(self, listener) -> None:
         """Register a zero-argument callback fired the instant a playback is cut."""
@@ -181,6 +214,8 @@ class MediaGate(FrameProcessor):
         # correlation. Media knobs are the worker's to apply.
         self._default_language = voice.language
         self._tts_language = voice.language
+        self._session_id = identity.session_id
+        self.mark("ready")
         self._usage_task = asyncio.create_task(self._usage_loop())
         self._max_duration_task = asyncio.create_task(
             self._max_duration_watchdog(max(voice.max_call_duration_ms / 1000.0, 1.0))
@@ -190,6 +225,8 @@ class MediaGate(FrameProcessor):
         if self._closed:
             return
         self._tts_characters += sum(len(chunk) for chunk in request.chunks)
+        self.mark("speak_received", playbackId=request.playback_id, chunks=len(request.chunks),
+                  chars=sum(len(chunk) for chunk in request.chunks))
         await self._speak_queue.put(request)
         if self._speak_loop_task is None or self._speak_loop_task.done():
             self._speak_loop_task = asyncio.create_task(self._speak_loop())
@@ -216,10 +253,12 @@ class MediaGate(FrameProcessor):
 
         if isinstance(frame, VADUserStartedSpeakingFrame):
             self._speaking = True
+            self.mark("vad_start")
             await self._client.speech_started()
             await self._maybe_barge_in()
         elif isinstance(frame, VADUserStoppedSpeakingFrame):
             self._speaking = False
+            self.mark("vad_stop")
             await self._client.speech_stopped()
             await self._commit_utterance()
         elif isinstance(frame, TranscriptionFrame):
@@ -313,6 +352,7 @@ class MediaGate(FrameProcessor):
             playback.context_id = None
             playback.chunk_audio_ms = 0.0
             playback.chunk_event = asyncio.Event()
+            self.mark("chunk_queued", playbackId=request.playback_id, chunk=index, chars=len(chunk))
             await self._task.queue_frame(TTSSpeakFrame(text=chunk, append_to_context=False))
 
             synthesis_completed = False
@@ -339,10 +379,13 @@ class MediaGate(FrameProcessor):
             if self._closed or request.playback_id in self._interrupted_ids:
                 break
 
+            self.mark("chunk_synthesized", playbackId=request.playback_id, chunk=index,
+                      audioMs=round(playback.chunk_audio_ms, 1))
             if self._playout_waiter is not None:
                 confirmed = await self._playout_waiter(request.playback_id, index)
                 if not confirmed or self._closed or request.playback_id in self._interrupted_ids:
                     break
+                self.mark("chunk_playout_confirmed", playbackId=request.playback_id, chunk=index)
             # Production transport waits for a carrier mark after all audio.
             # Synthesis completion alone is not evidence of delivery.
             await self._client.playback_chunk_played(request.playback_id, index)
@@ -357,6 +400,7 @@ class MediaGate(FrameProcessor):
                 request.playback_id, "completed", audio_ms=playback.played_ms
             )
             playback.settled = True
+            self.mark("playback_completed", playbackId=request.playback_id, audioMs=round(playback.played_ms, 1))
         self._interrupted_ids.discard(request.playback_id)
 
     async def _apply_language(self, language: Optional[str]) -> None:
@@ -394,6 +438,7 @@ class MediaGate(FrameProcessor):
         caller's perspective.
         """
         self._interrupted_ids.add(playback.request.playback_id)
+        self.mark("interrupt_start", playbackId=playback.request.playback_id, chunk=playback.chunk_index)
         # Out-of-band first: the media writer drops audio it has already
         # buffered, so nothing queued before the cut reaches the caller.
         for listener in self._interrupt_listeners:
@@ -417,6 +462,7 @@ class MediaGate(FrameProcessor):
         # The transport's handle_interruptions also clears its own buffer.
         if self._task is not None:
             await self._task.queue_frame(InterruptionFrame())
+        self.mark("interrupt_done", playbackId=playback.request.playback_id, heardMs=round(playback.played_ms, 1))
 
     # ------------------------------------------------------------------
     # TTS attribution
@@ -436,6 +482,7 @@ class MediaGate(FrameProcessor):
             return
         playback.context_id = frame.context_id
         playback.awaiting_context = False
+        self.mark("chunk_tts_started", playbackId=playback.request.playback_id, chunk=playback.chunk_index)
 
     async def _on_tts_audio(self, frame: TTSAudioRawFrame) -> None:
         playback = self._active
@@ -443,6 +490,8 @@ class MediaGate(FrameProcessor):
             return
         ms = _audio_ms(frame.audio, frame.sample_rate)
         playback.played_ms += ms
+        if playback.chunk_audio_ms == 0.0:
+            self.mark("chunk_first_audio", playbackId=playback.request.playback_id, chunk=playback.chunk_index)
         playback.chunk_audio_ms += ms
         self._outbound_audio_ms += ms
         if not playback.first_audio:
@@ -482,6 +531,7 @@ class MediaGate(FrameProcessor):
             language=_lang_str(frame.language),
         )
         self._pending_finals.append(final)
+        self.mark("stt_final", chars=len(final.text))
         if not self._speaking:
             # The final arrived after VAD already endpointed (vendor finals
             # can lag the VAD event): this final IS the utterance end.
@@ -489,6 +539,8 @@ class MediaGate(FrameProcessor):
 
     async def _commit_utterance(self) -> None:
         finals, self._pending_finals = self._pending_finals, []
+        if finals:
+            self.mark("transcript_committed", finals=len(finals))
         for final in finals:
             # confidence stays None: the Sarvam realtime endpoint emits no
             # per-utterance transcript confidence, and a fabricated number

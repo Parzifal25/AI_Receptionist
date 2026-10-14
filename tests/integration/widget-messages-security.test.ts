@@ -1,3 +1,4 @@
+import { readyAgentConfig } from "../mocks/layer1-agent-config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -135,7 +136,7 @@ const conversationRow = (overrides: Row = {}): Row => ({
 });
 
 const ownVersion: Row = {
-  id: "av-1", agent_id: "agent-1", business_id: "b1", version: 1, config: {}, prompt_template: "You are Riley, the receptionist for Acme. TENANT A TEMPLATE", prompt_version: "x", model: {}, published_at: "2026-01-01T00:00:00Z", created_by: null, created_at: "2026-01-01T00:00:00Z",
+  id: "av-1", agent_id: "agent-1", business_id: "b1", version: 1, config: readyAgentConfig(), prompt_template: "You are Riley, the receptionist for Acme. TENANT A TEMPLATE", prompt_version: "x", model: {}, published_at: "2026-01-01T00:00:00Z", created_by: null, created_at: "2026-01-01T00:00:00Z",
 };
 const foreignVersion: Row = { ...ownVersion, id: "av-foreign", agent_id: "agent-foreign", business_id: "b2", prompt_template: "TENANT B SECRET TEMPLATE" };
 const otherAgentVersion: Row = { ...ownVersion, id: "av-other-agent", agent_id: "agent-2", prompt_template: "OTHER AGENT TEMPLATE" };

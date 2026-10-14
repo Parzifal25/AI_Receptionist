@@ -148,6 +148,12 @@ export const ARUNODHAYA_PROMPT_TEMPLATE = `You are the automated assistant for A
  * `parseAgentConfig`; everything not set here takes platform defaults.
  */
 export const ARUNODHAYA_AGENT_CONFIG = {
+  activationBlockers: [
+    "Company facts and service area pending business approval",
+    "Qualification questions and outcome rules pending business approval",
+    "Disclosure, callback and escalation policy pending business approval",
+    "Permitted actions and knowledge scope pending business approval",
+  ],
   identity: {
     name: "అరుణోదయ సోలార్ అసిస్టెంట్",
     persona: "Calm, plain-spoken, unhurried. Helpful without pushing.",

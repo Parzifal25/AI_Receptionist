@@ -1,7 +1,7 @@
+import { readyAgentConfig } from "../mocks/layer1-agent-config";
 import { createHmac, randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
-import { defaultAgentConfig } from "@halo/core/domain/agents";
 import { FakeSttProvider } from "@halo/providers/voice-fakes/fake-stt-provider";
 import { FakeTelephonyProvider } from "@halo/providers/voice-fakes/fake-telephony-provider";
 import { FakeTtsProvider } from "@halo/providers/voice-fakes/fake-tts-provider";
@@ -74,7 +74,7 @@ beforeEach(async () => {
     timings: { contextReadyMs: 35, firstTokenMs: 180, modelMs: 420, validationMs: 8 },
   });
   const version = makeVersion(BUSINESS_A.id, "agent-a", "av-a-3");
-  version.config = defaultAgentConfig();
+  version.config = readyAgentConfig();
   version.config.language.primary = "te-IN";
   version.config.voice.prompts = PROMPTS;
   store.addRoute("fake", TENANT_A_DID, {

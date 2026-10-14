@@ -17,7 +17,7 @@ export const GENERIC_TENANTS = [
 ].map(tenant => ({ ...tenant, config: parseAgentConfig({
   identity: { name: `${tenant.name} Assistant` }, objective: tenant.objective,
   instructions: { customInstructions: tenant.objective },
-  knowledge: { collectionIds: [`${tenant.id}-knowledge`] },
+  knowledge: { collectionIds: [] },
   language: { primary: tenant.language }, voice: { ttsVoice: tenant.voice, speakingRate: tenant.id === "support" ? 0.9 : 1.1 },
   tools: { grantedToolIds: tenant.tools, policy: tenant.policy }, workflows: { allowedTriggers: tenant.workflows },
 })! }));

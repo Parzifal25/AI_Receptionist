@@ -1,3 +1,4 @@
+import { observe, withTelemetryContext } from "@halo/platform/telemetry";
 import "server-only";
 import type { Business } from "@halo/core/domain/types";
 import type {
@@ -136,6 +137,30 @@ export class BookingService {
     notes?: string;
     now?: Date;
   }): Promise<BookingResult> {
+    return withTelemetryContext(async () => {
+      const started = performance.now();
+      try {
+        const result = await this.bookObserved(params);
+        observe("booking.outcome", { component: "booking", operation: "booking", outcome: result.ok ? "ok" : "rejected" }, performance.now() - started);
+        return result;
+      } catch (error) {
+        observe("booking.outcome", { component: "booking", operation: "booking", outcome: "error" }, performance.now() - started);
+        throw error;
+      }
+    });
+  }
+
+  private async bookObserved(params: {
+    business: Business;
+    conversationId: string | null;
+    slot: TimeSlot;
+    serviceName: string;
+    visitorName: string;
+    visitorPhone: string;
+    visitorEmail: string;
+    notes?: string;
+    now?: Date;
+  }): Promise<BookingResult> {
     const { business, slot, now = new Date() } = params;
     const settings = await this.repository.getSettings(business.id);
 
@@ -218,6 +243,25 @@ export class BookingService {
     slot: TimeSlot;
     now?: Date;
   }): Promise<BookingResult> {
+    return withTelemetryContext(async () => {
+      const started = performance.now();
+      try {
+        const result = await this.rescheduleObserved(params);
+        observe("booking.outcome", { component: "booking", operation: "booking", outcome: result.ok ? "ok" : "rejected" }, performance.now() - started);
+        return result;
+      } catch (error) {
+        observe("booking.outcome", { component: "booking", operation: "booking", outcome: "error" }, performance.now() - started);
+        throw error;
+      }
+    });
+  }
+
+  private async rescheduleObserved(params: {
+    business: Business;
+    appointment: Appointment;
+    slot: TimeSlot;
+    now?: Date;
+  }): Promise<BookingResult> {
     const { business, appointment, slot, now = new Date() } = params;
     if (!isLive(appointment.status)) {
       return { ok: false, reason: "invalid", message: "This appointment can no longer be changed" };
@@ -276,6 +320,24 @@ export class BookingService {
 
   /** Cancels a live appointment and releases its slot. */
   async cancel(params: {
+    business: Business;
+    appointment: Appointment;
+    reason?: string;
+  }): Promise<{ ok: boolean }> {
+    return withTelemetryContext(async () => {
+      const started = performance.now();
+      try {
+        const result = await this.cancelObserved(params);
+        observe("booking.outcome", { component: "booking", operation: "booking", outcome: result.ok ? "ok" : "rejected" }, performance.now() - started);
+        return result;
+      } catch (error) {
+        observe("booking.outcome", { component: "booking", operation: "booking", outcome: "error" }, performance.now() - started);
+        throw error;
+      }
+    });
+  }
+
+  private async cancelObserved(params: {
     business: Business;
     appointment: Appointment;
     reason?: string;

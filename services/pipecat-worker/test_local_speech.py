@@ -46,6 +46,7 @@ from pipecat.tests.utils import SleepFrame, run_test  # noqa: E402
 
 import worker  # noqa: E402
 from halo_client import VoiceConfig  # noqa: E402
+from local_tts_text import PAUSE_MS  # noqa: E402
 from local_speech import (  # noqa: E402
     LocalSpeechConfigError,
     LocalSpeechError,
@@ -208,8 +209,9 @@ class LocalTtsContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(chunks)
         for chunk in chunks:
             self.assertEqual((chunk.sample_rate, chunk.num_channels, len(chunk.audio) % 2), (RATE, 1, 0))
-        # 0.5 s from the voice, resampled 22.05 kHz → 8 kHz.
-        self.assertAlmostEqual(sum(len(c.audio) for c in chunks) / (2 * RATE), 0.5, delta=0.02)
+        # 0.5 s from the voice plus the pause after an unpunctuated line, resampled 22.05 kHz → 8 kHz.
+        expected = 0.5 + PAUSE_MS["clause"] / 1000
+        self.assertAlmostEqual(sum(len(c.audio) for c in chunks) / (2 * RATE), expected, delta=0.02)
         self.assertEqual(engine.spoken, [("te", "నమస్కారం")])
 
     async def test_language_switch_and_mixed_script_select_voices(self):
@@ -224,7 +226,8 @@ class LocalTtsContractTests(unittest.IsolatedAsyncioTestCase):
                 SleepFrame(0.4),
             ],
         )
-        self.assertEqual(engine.spoken, [("te", "10"), ("en", "10"), ("en", "Solar"), ("te", "కి")])
+        # The number is said in the line's language, so it reaches that language's voice as words.
+        self.assertEqual(engine.spoken, [("te", "పది"), ("en", "ten"), ("en", "Solar"), ("te", "కి")])
 
     async def test_unspeakable_text_is_a_non_recoverable_error(self):
         engine = StandInEngine()

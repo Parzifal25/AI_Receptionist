@@ -39,4 +39,20 @@ describe("getServerEnv", () => {
     Object.assign(process.env, REQUIRED, { LLM_PROVIDER: "skynet" });
     expect(() => getServerEnv()).toThrow(/LLM_PROVIDER/);
   });
+
+  it("accepts unset or blank calendar keys but rejects malformed configured keys", () => {
+    Object.assign(process.env, REQUIRED, {
+      CALENDAR_CREDENTIALS_ENCRYPTION_KEY: "",
+      CALENDAR_CREDENTIALS_ENCRYPTION_KEY_PREVIOUS: "",
+    });
+    expect(getServerEnv().CALENDAR_CREDENTIALS_ENCRYPTION_KEY).toBe("");
+
+    resetEnvCacheForTests();
+    process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY = "too-short";
+    expect(() => getServerEnv()).toThrow(/CALENDAR_CREDENTIALS_ENCRYPTION_KEY/);
+    resetEnvCacheForTests();
+    process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY = "a".repeat(64);
+    process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY_PREVIOUS = "invalid";
+    expect(() => getServerEnv()).toThrow(/CALENDAR_CREDENTIALS_ENCRYPTION_KEY_PREVIOUS/);
+  });
 });

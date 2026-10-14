@@ -12,10 +12,13 @@ interfaces the Sarvam services implement, so nothing outside `_build_stt` /
 *   Runtime: sherpa-onnx (in-process ONNX Runtime; no service, no network).
 *   STT: an offline CTC model. It is NOT a streaming recognizer: one final
     per VAD-endpointed utterance, no interim results, no confidence.
-*   TTS: Piper VITS voices, one per language. Each HALO chunk is synthesized
-    a script run at a time: Telugu-script text goes to the Telugu voice and
-    Latin-script text to the English voice, because the Telugu voice
-    mispronounces English words written in Latin letters.
+*   TTS: Piper VITS voices, one per language. Each HALO chunk is written out
+    for speech and cut into segments by local_tts_text.py (numbers, dates,
+    times and prices as words; one segment per sentence, clause or script
+    run): Telugu-script text goes to the Telugu voice and Latin-script text
+    to the English voice, because the Telugu voice mispronounces English
+    words written in Latin letters. Each segment's own edge silence is
+    trimmed and an explicit pause inserted after it.
 *   Models are loaded once per process and shared by every call. Inference
     runs on worker threads so the event loop keeps pacing audio.
 
@@ -30,7 +33,6 @@ import io
 import json
 import logging
 import os
-import re
 import threading
 import time
 import wave
@@ -44,6 +46,10 @@ from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.settings import STTSettings, TTSSettings
 from pipecat.services.stt_service import SegmentedSTTService
 from pipecat.services.tts_service import TTSService
+
+from local_tts_text import DEFAULT_SPEED, UnspeakableText, pause_samples, split_clauses, trim_and_fade  # noqa: F401 - split_clauses re-exported
+from local_tts_text import plan_speech as _plan_speech
+from local_tts_text import split_script_runs as _split_script_runs
 
 log = logging.getLogger("halo.worker.local_speech")
 
@@ -59,14 +65,6 @@ STT_TIMEOUT_S = 20.0
 # slow synthesis ends as this service's recoverable error, not a silent stall.
 TTS_TIMEOUT_S = 12.0
 
-_TELUGU = re.compile(r"[ఀ-౿]")
-_LATIN = re.compile(r"[A-Za-z]")
-# A run longer than this is synthesized clause by clause (see split_clauses).
-CLAUSE_SPLIT_CHARS = 60
-CLAUSE_MIN_CHARS = 25
-_CLAUSE_BREAK = re.compile(r"(?<=[,;:\u2014\u2013])\s+")
-# Maximal same-script pieces, so `appointmentకి` splits inside the word.
-_SCRIPT_PIECES = re.compile(r"[ఀ-౿]+|[A-Za-z]+|[^A-Za-zఀ-౿]+")
 
 
 class LocalSpeechConfigError(RuntimeError):
@@ -250,49 +248,19 @@ def base_language(language: Any, available: list[str]) -> Optional[str]:
 
 
 def split_script_runs(text: str, base: Optional[str], available: list[str]) -> list[tuple[str, str]]:
-    """Split a line into (language, text) runs by script.
-
-    Telugu letters select the Telugu voice and Latin letters the English one;
-    digits and punctuation stay with the run they are in. `base` (the
-    language HALO named for the line) speaks anything script-neutral. Raises
-    when a run has no voice: speaking Telugu script through an English voice
-    produces letter names, not speech.
-    """
-    runs: list[tuple[Optional[str], str]] = []
-    for token in _SCRIPT_PIECES.findall(text):
-        script = "te" if _TELUGU.match(token) else "en" if _LATIN.match(token) else None
-        if runs and (script is None or runs[-1][0] is None or runs[-1][0] == script):
-            previous_language, previous_text = runs[-1]
-            runs[-1] = (previous_language or script, previous_text + token)
-        else:
-            runs.append((script, token))
-    resolved: list[tuple[str, str]] = []
-    for language, run in runs:
-        language = language or base
-        if language is None or language not in available:
-            raise LocalSpeechError("unsupported_language", "no local voice can speak this text", False)
-        if run.strip():
-            resolved.append((language, run.strip()))
-    return resolved
+    """local_tts_text.split_script_runs, failing as a non-recoverable LocalSpeechError."""
+    try:
+        return _split_script_runs(text, base, available)
+    except UnspeakableText as exc:
+        raise LocalSpeechError("unsupported_language", str(exc), False) from exc
 
 
-def split_clauses(text: str) -> list[str]:
-    """Break a long sentence at clause punctuation.
-
-    The voice model synthesizes a whole piece before any of it can be played,
-    so a long sentence delays the first audio by its full synthesis time.
-    Pieces shorter than CLAUSE_MIN_CHARS are merged forward, so short lines
-    stay whole and keep their prosody.
-    """
-    if len(text) <= CLAUSE_SPLIT_CHARS:
-        return [text]
-    pieces: list[str] = []
-    for part in _CLAUSE_BREAK.split(text):
-        if pieces and len(pieces[-1]) < CLAUSE_MIN_CHARS:
-            pieces[-1] = f"{pieces[-1]} {part}"
-        elif part.strip():
-            pieces.append(part)
-    return pieces
+def plan_speech(text: str, base: Optional[str], available: list[str]) -> list[tuple[str, str, str]]:
+    """local_tts_text.plan_speech, failing as a non-recoverable LocalSpeechError."""
+    try:
+        return _plan_speech(text, base, available)
+    except UnspeakableText as exc:
+        raise LocalSpeechError("unsupported_language", str(exc), False) from exc
 
 
 def _error_frame(error: str, code: str, message: str, cause: BaseException) -> ErrorFrame:
@@ -448,7 +416,8 @@ class LocalTTSService(TTSService):
             **kwargs,
         )
         self._engine = engine
-        self._speed = min(2.0, max(0.5, float(speaking_rate))) if speaking_rate else 1.0
+        # None: each voice speaks at its DEFAULT_SPEED (1.0 unless tuned).
+        self._speed = min(2.0, max(0.5, float(speaking_rate))) if speaking_rate else None
         self._timeout_s = timeout_s
 
     def language_to_service_language(self, language) -> Optional[str]:
@@ -468,25 +437,27 @@ class LocalTTSService(TTSService):
         audio_ms = 0.0
         try:
             languages = list(self._engine.languages)
-            runs = split_script_runs(text, base_language(self._settings.language, languages), languages)
+            segments = plan_speech(text, base_language(self._settings.language, languages), languages)
             resampler = create_file_resampler()
-            pieces = [(language, clause) for language, run in runs for clause in split_clauses(run)]
-            for language, run in pieces:
+            for language, segment, pause in segments:
+                speed = self._speed if self._speed is not None else DEFAULT_SPEED.get(language, 1.0)
                 samples, rate = await asyncio.wait_for(
-                    asyncio.to_thread(self._engine.synthesize, language, run, self._speed, stop.is_set),
+                    asyncio.to_thread(self._engine.synthesize, language, segment, speed, stop.is_set),
                     max(0.1, self._timeout_s - (time.perf_counter() - started)),
                 )
                 if not len(samples):
                     continue
+                # The voice's own edge silence goes; the pause for how the segment ends replaces it.
+                samples = np.concatenate([trim_and_fade(samples, rate), pause_samples(pause, rate)])
                 pcm = await resampler.resample(_float_to_pcm16(samples), rate, self.sample_rate)
                 if first_audio_ms is None:
                     first_audio_ms = (time.perf_counter() - started) * 1000
                 audio_ms += len(pcm) / (2 * self.sample_rate) * 1000
                 yield TTSAudioRawFrame(audio=pcm, sample_rate=self.sample_rate, num_channels=1, context_id=context_id)
             log.info(
-                "local_tts synthesized chars=%d runs=%d first_audio_ms=%d total_ms=%d audio_ms=%d",
+                "local_tts synthesized chars=%d segments=%d first_audio_ms=%d total_ms=%d audio_ms=%d",
                 len(text),
-                len(runs),
+                len(segments),
                 first_audio_ms or 0,
                 (time.perf_counter() - started) * 1000,
                 audio_ms,

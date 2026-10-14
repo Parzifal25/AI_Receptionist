@@ -1,3 +1,4 @@
+import { observe, telemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import { NextResponse } from "next/server";
 import { unstable_rethrow } from "next/navigation";
 import { ZodError } from "zod";
@@ -29,14 +30,14 @@ export function fail(error: AppError, headers?: HeadersInit): NextResponse {
 
 /**
  * Wraps a route handler with error mapping and request logging. Unknown
- * errors are logged with full detail but returned to clients as an opaque
+ * errors are logged with redacted context but returned to clients as an opaque
  * 500 — internals never leak.
  */
 export function withErrorHandling<Args extends unknown[]>(
   routeName: string,
   handler: (...args: Args) => Promise<NextResponse>,
 ): (...args: Args) => Promise<NextResponse> {
-  return async (...args: Args) => {
+  const mapped = async (...args: Args) => {
     const log = logger.child({ route: routeName });
     try {
       return await handler(...args);
@@ -63,6 +64,19 @@ export function withErrorHandling<Args extends unknown[]>(
       return fail(AppError.internal());
     }
   };
+  return (...args: Args) => withTelemetryContext(async () => {
+    const started = performance.now();
+    let status = 500;
+    try {
+      const response = await mapped(...args);
+      status = response.status;
+      response.headers.set("x-request-id", telemetryId()!);
+      return response;
+    } finally {
+      observe("http.request", { component: "api", route: routeName.split(".")[0], operation: "request", status,
+        outcome: status >= 500 ? "error" : status >= 400 ? "rejected" : "ok" }, performance.now() - started);
+    }
+  });
 }
 
 /** Extracts the caller IP for rate limiting, honoring proxy headers. */

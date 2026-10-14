@@ -1,3 +1,4 @@
+import { readyAgentConfig } from "../mocks/layer1-agent-config";
 import { describe, expect, it } from "vitest";
 import { ChatService, type ResolvedAgentRuntimeContext } from "@/core/services/chat-service";
 import { AgentVersioningService } from "@halo/agents/agent-versioning";
@@ -125,7 +126,7 @@ async function seedAndResolve() {
     [receptionistAgent, RECEPTIONIST_TEMPLATE],
     [salesAgent, SALES_TEMPLATE],
   ] as const) {
-    await versioning.createDraftVersion({
+    await versioning.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: "b1",
       promptTemplate: template,
@@ -286,7 +287,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
       slug: "custom-1",
       displayName: "Custom",
     });
-    await versioning.createDraftVersion({
+    await versioning.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: "b1",
       promptTemplate: "Custom agent behaviour.",
@@ -342,7 +343,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
     );
 
     const templateV2 = "You are Riley v2 with completely different behaviour.";
-    await versioning.createDraftVersion({
+    await versioning.createDraftVersion({ config: readyAgentConfig(),
       agentId: receptionistAgent.id,
       businessId: "b1",
       promptTemplate: templateV2,

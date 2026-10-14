@@ -54,6 +54,9 @@ const serverEnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   MICROSOFT_CLIENT_ID: z.string().optional(),
   MICROSOFT_CLIENT_SECRET: z.string().optional(),
+  // 32-byte AES key as 64 hex characters; store in deployment secret manager.
+  CALENDAR_CREDENTIALS_ENCRYPTION_KEY: z.union([z.string().regex(/^[0-9a-fA-F]{64}$/), z.literal("")]).optional(),
+  CALENDAR_CREDENTIALS_ENCRYPTION_KEY_PREVIOUS: z.union([z.string().regex(/^[0-9a-fA-F]{64}$/), z.literal("")]).optional(),
 
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),

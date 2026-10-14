@@ -31,7 +31,7 @@ export type FieldType = (typeof FIELD_TYPES)[number];
 
 const slotKey = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, "field ids are lower_snake, max 40 chars");
 /** Per-language text: { "te-IN": "…", "en-IN": "…" }. */
-const localized = z.record(z.string().min(2).max(16), z.string().min(1).max(400));
+const localized = z.record(z.string().min(2).max(16), z.string().trim().min(1).max(400));
 
 export const qualificationOptionSchema = z.object({
   value: z.string().min(1).max(40),
@@ -99,6 +99,14 @@ export function parseQualificationSchema(raw: unknown): ParseResult {
     if (field.type === "enum" && (!field.options || field.options.length === 0)) {
       errors.push(`enum field "${field.id}" needs options`);
     }
+    const values = new Set<string>();
+    for (const option of field.options ?? []) {
+      if (values.has(option.value)) errors.push(`field "${field.id}" has duplicate option "${option.value}"`);
+      values.add(option.value);
+      if (!option.keywords[schema.language]?.some((keyword) => keyword.trim())) {
+        errors.push(`field "${field.id}" option "${option.value}" needs keywords in "${schema.language}"`);
+      }
+    }
     if (field.type !== "enum" && field.options) errors.push(`field "${field.id}" is not an enum but has options`);
     if (field.confirm && !field.confirmPrompts?.[schema.language]) {
       errors.push(`field "${field.id}" needs a confirmation prompt in "${schema.language}"`);
@@ -106,11 +114,25 @@ export function parseQualificationSchema(raw: unknown): ParseResult {
     if (field.disqualifyWhen && field.type !== "enum" && field.type !== "boolean") {
       errors.push(`field "${field.id}" can only disqualify on enum or boolean values`);
     }
+    if (field.type === "enum" && field.disqualifyWhen?.equals.some((value) => !values.has(value))) {
+      errors.push(`field "${field.id}" disqualifies on an unknown option`);
+    }
   }
-  for (const field of schema.fields) {
+  for (const [index, field] of schema.fields.entries()) {
     if (field.skipWhen && !ids.has(field.skipWhen.field)) {
       errors.push(`field "${field.id}" skips on unknown field "${field.skipWhen.field}"`);
     }
+    if (field.skipWhen && ids.has(field.skipWhen.field)) {
+      const dependency = schema.fields.findIndex((candidate) => candidate.id === field.skipWhen!.field);
+      if (dependency >= index) errors.push(`field "${field.id}" must skip on an earlier field`);
+      const source = schema.fields[dependency];
+      if (source.type === "enum" && field.skipWhen.equals.some((value) => !source.options?.some((option) => option.value === value))) {
+        errors.push(`field "${field.id}" skips on an unknown option`);
+      }
+    }
+  }
+  for (const [unit, range] of Object.entries(schema.billRanges ?? {})) {
+    if (range.min < 0 || range.min >= range.max) errors.push(`billRanges.${unit} needs 0 <= min < max`);
   }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, schema };
 }

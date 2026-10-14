@@ -1,0 +1,195 @@
+{
+ "about": "Synthetic regression lines for the 2026-10-14 normalization additions (booking codes, month-first numeric dates, price ranges, +91/area-code phone digits, abbreviations, code-switching). No customer data. Same schema as local-tts-benchmark-phrases.json; `ref` is the current pipeline's own rendering, so it checks synthesis, not whether the rendering is good Telugu. Used for latency and synthesis-failure measurement, not for listening acceptance.",
+ "phrases": [
+  {
+   "id": "k01-code-te",
+   "category": "booking-code",
+   "lang": "te",
+   "text": "మీ బుకింగ్ కోడ్ AR-2041. దయచేసి గుర్తుంచుకోండి.",
+   "ref": "మీ బుకింగ్ కోడ్ ay ar two zero four one దయచేసి గుర్తుంచుకోండి",
+   "critical": [
+    "ay|ఏ",
+    "ar|ఆర్",
+    "two|టూ",
+    "zero|జీరో",
+    "four|ఫోర్",
+    "one|వన్"
+   ]
+  },
+  {
+   "id": "k02-code-en",
+   "category": "booking-code",
+   "lang": "en",
+   "text": "Your booking code is AR-2041.",
+   "ref": "Your booking code is ay ar two zero four one",
+   "critical": [
+    "a",
+    "r",
+    "two",
+    "zero",
+    "four",
+    "one"
+   ]
+  },
+  {
+   "id": "k03-code-switch",
+   "category": "booking-code",
+   "lang": "te",
+   "text": "మీ booking AR-2041 confirm అయింది.",
+   "ref": "మీ booking ay ar two zero four one confirm అయింది",
+   "critical": [
+    "ay|ఏ",
+    "ar|ఆర్",
+    "two|టూ",
+    "zero|జీరో",
+    "four|ఫోర్",
+    "one|వన్"
+   ]
+  },
+  {
+   "id": "k04-confirm-en",
+   "category": "booking",
+   "lang": "en",
+   "text": "Your booking AR-2041 on 24/03/2026 at 10:30 AM is confirmed.",
+   "ref": "Your booking ay ar two zero four one on twenty fourth March two thousand twenty six at ten thirty ay em is confirmed",
+   "critical": [
+    "two",
+    "zero",
+    "four",
+    "one",
+    "march",
+    "ten",
+    "thirty",
+    "confirmed"
+   ]
+  },
+  {
+   "id": "k05-date-month-first-te",
+   "category": "date",
+   "lang": "te",
+   "text": "మీ అపాయింట్‌మెంట్ 03/24/2026 న ఉంది.",
+   "ref": "మీ అపాయింట్‌మెంట్ రెండు వేల ఇరవై ఆరు మార్చి ఇరవై నాలుగో తేదీన ఉంది",
+   "critical": [
+    "మార్చి",
+    "ఇరవై",
+    "నాలుగో|నాలుగవ"
+   ]
+  },
+  {
+   "id": "k06-date-month-first-en",
+   "category": "date",
+   "lang": "en",
+   "text": "Your visit is on 03/24/2026.",
+   "ref": "Your visit is on March twenty fourth two thousand twenty six",
+   "critical": [
+    "march",
+    "twenty",
+    "fourth"
+   ]
+  },
+  {
+   "id": "k07-price-range-te",
+   "category": "price",
+   "lang": "te",
+   "text": "సోలార్ సిస్టమ్ ధర ₹2-3 lakh వరకు ఉంటుంది.",
+   "ref": "సోలార్ సిస్టమ్ ధర రెండు నుంచి మూడు లక్షల రూపాయల వరకు ఉంటుంది",
+   "critical": [
+    "రెండు",
+    "మూడు",
+    "లక్షల"
+   ]
+  },
+  {
+   "id": "k08-price-range-en",
+   "category": "price",
+   "lang": "en",
+   "text": "The fee is ₹500 - ₹1,000 including GST.",
+   "ref": "The fee is five hundred to one thousand rupees including jee es tee",
+   "critical": [
+    "five",
+    "hundred",
+    "one",
+    "thousand",
+    "rupees"
+   ]
+  },
+  {
+   "id": "k09-phone-plus91-en",
+   "category": "phone",
+   "lang": "en",
+   "text": "We will call +919848012345.",
+   "ref": "We will call plus nine one nine eight four eight zero one two three four five",
+   "critical": [
+    "nine",
+    "one",
+    "nine",
+    "eight",
+    "four",
+    "eight",
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five"
+   ]
+  },
+  {
+   "id": "k10-phone-area-te",
+   "category": "phone",
+   "lang": "te",
+   "text": "మా ఆఫీస్ నంబర్ (040) 2345 6789.",
+   "ref": "మా ఆఫీస్ నంబర్ సున్నా నాలుగు సున్నా రెండు మూడు నాలుగు ఐదు ఆరు ఏడు ఎనిమిది తొమ్మిది",
+   "critical": [
+    "సున్నా",
+    "నాలుగు",
+    "సున్నా",
+    "రెండు",
+    "మూడు",
+    "నాలుగు",
+    "ఐదు",
+    "ఆరు",
+    "ఏడు",
+    "ఎనిమిది",
+    "తొమ్మిది"
+   ]
+  },
+  {
+   "id": "k11-abbreviations-en",
+   "category": "abbreviation",
+   "lang": "en",
+   "text": "Ref. No. AR-2041, Opp. Metro Station, Ameerpet Rd.",
+   "ref": "reference number ay ar two zero four one opposite Metro Station Ameerpet Road",
+   "critical": [
+    "reference",
+    "number",
+    "opposite",
+    "road"
+   ]
+  },
+  {
+   "id": "k12-cancel-switch",
+   "category": "cancellation",
+   "lang": "te",
+   "text": "మీ booking cancel చేశాను, refund 3-5 days లో వస్తుంది.",
+   "ref": "మీ booking cancel చేశాను refund three to five days లో వస్తుంది",
+   "critical": [
+    "cancel|క్యాన్సిల్",
+    "three|త్రీ",
+    "five|ఫైవ్"
+   ]
+  },
+  {
+   "id": "k13-time-switch",
+   "category": "code-switch",
+   "lang": "te",
+   "text": "మీ site visit Saturday 5 PM కి confirm అయింది.",
+   "ref": "మీ site visit Saturday సాయంత్రం ఐదు గంటలకు confirm అయింది",
+   "critical": [
+    "saturday|శాటర్డే",
+    "సాయంత్రం",
+    "ఐదు"
+   ]
+  }
+ ]
+}

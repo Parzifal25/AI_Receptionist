@@ -163,7 +163,7 @@ export function buildConversationContext(params: BuildContextParams): Conversati
 
   const fixedChars =
     agent.promptTemplate.length +
-    (agent.config.instructions.customInstructions || agent.receptionist.customInstructions).length +
+    agent.config.instructions.customInstructions.length +
     params.systemSections.reduce((n, s) => n + s.length, 0) +
     tools.reduce((n, t) => n + t.name.length + t.description.length, 0) +
     (customer ? customer.facts.reduce((n, f) => n + f.length, 0) : 0);
@@ -211,7 +211,7 @@ export function buildConversationContext(params: BuildContextParams): Conversati
     measureComponent("prompt_template", agent.promptTemplate),
     measureComponent(
       "custom_instructions",
-      agent.config.instructions.customInstructions || agent.receptionist.customInstructions,
+      agent.config.instructions.customInstructions,
     ),
     measureComponent("system_actions", params.systemSections.join("\n")),
     measureComponent("tools", tools.map((t) => `${t.name}${t.description}`).join("\n")),
@@ -248,14 +248,14 @@ export function buildConversationContext(params: BuildContextParams): Conversati
       id: params.trusted.agentId,
       versionId: params.trusted.agentVersionId,
       version: agent.agentVersion,
-      name: agent.config.identity.name || agent.receptionist.name,
+      name: agent.config.identity.name,
       objective: agent.config.objective,
-      language: agent.config.language.primary || agent.receptionist.language || "en",
+      language: agent.config.language.primary,
       promptTemplate: agent.promptTemplate,
       customInstructions:
-        agent.config.instructions.customInstructions || agent.receptionist.customInstructions,
+        agent.config.instructions.customInstructions,
       model: agent.model ?? {},
-      leadCaptureEnabled: agent.receptionist.leadCaptureEnabled,
+      leadCaptureEnabled: agent.config.tools.grantedToolIds.includes("save_contact_details"),
     },
     channel: params.channel,
     state: params.state,

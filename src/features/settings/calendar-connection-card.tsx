@@ -6,7 +6,7 @@ import type { CalendarConnectError } from "@/app/api/oauth/google-calendar/share
 
 const ERROR_MESSAGES: Record<CalendarConnectError, string> = {
   not_configured:
-    "Google Calendar isn't configured on this deployment yet — follow the setup steps below.",
+    "Google Calendar or credential encryption isn't configured on this deployment yet — follow the setup steps below.",
   forbidden: "Only workspace admins can connect a calendar.",
   denied: "Google access was declined — nothing was connected.",
   invalid_state: "That connection attempt expired or didn't match — please try again.",
@@ -17,7 +17,7 @@ interface Props {
   connected: boolean;
   connectedAt: string | null;
   readOnly: boolean;
-  /** Whether GOOGLE_CLIENT_ID/SECRET are set on this deployment. */
+  /** Whether Google OAuth credentials and calendar credential encryption are configured. */
   configured: boolean;
   /** Exact callback URL to register in Google Cloud Console. */
   redirectUri: string;
@@ -70,9 +70,9 @@ function SetupWizard({ redirectUri }: { redirectUri: string }) {
       title: "Set the environment variables",
       body: (
         <>
-          Add the client credentials to this deployment and redeploy:
+          Add the client credentials and a generated 32-byte encryption key to the server secret manager, then redeploy:
           <code className="mt-1 block overflow-x-auto rounded bg-slate-100 px-2 py-1.5 font-mono text-xs text-slate-800 dark:bg-slate-800 dark:text-slate-200">
-            GOOGLE_CLIENT_ID=…{"\n"}GOOGLE_CLIENT_SECRET=…
+            GOOGLE_CLIENT_ID=…{"\n"}GOOGLE_CLIENT_SECRET=…{"\n"}CALENDAR_CREDENTIALS_ENCRYPTION_KEY=&lt;64 hex characters&gt;
           </code>
         </>
       ),
@@ -86,7 +86,7 @@ function SetupWizard({ redirectUri }: { redirectUri: string }) {
           One-time setup required
         </p>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-          This deployment doesn&apos;t have Google OAuth credentials yet. Complete these steps
+          This deployment doesn&apos;t have all Google Calendar security settings yet. Complete these steps
           once, then this card becomes a Connect button. Bookings keep working on the built-in
           calendar in the meantime.
         </p>

@@ -13,7 +13,7 @@ describe("generic multi-industry golden conversations (scripted model)", () => {
       }]);
       const { runtime, sink } = makeRuntime({ llm, knowledge: { name: "tenant-fixture", resolve: async params => {
         expect(params.businessId).toBe(tenant.id);
-        expect(params.collectionIds).toEqual([`${tenant.id}-knowledge`]);
+        expect(params.collectionIds).toEqual([]); // Unsupported bindings deny activation.
         return { snippets: [{ refId: `${tenant.id}-fact`, title: "tenant handbook", content: tenant.knowledge, source: "faq", score: 1 }],
           sources: ["tenant handbook"], charsUsed: tenant.knowledge.length, truncated: false, query: params.userMessage };
       } } });

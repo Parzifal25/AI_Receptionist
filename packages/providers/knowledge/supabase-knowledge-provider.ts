@@ -57,9 +57,8 @@ export function fuseByReciprocalRank(
 }
 
 /**
- * Knowledge retrieval backed by Postgres. Uses vector similarity when an
- * EmbeddingProvider is supplied, full-text search otherwise. Both paths are
- * tenant-scoped inside SECURITY DEFINER SQL functions.
+ * Postgres retrieval. Published FAQs are checked again against tenant rows.
+ * Document retrieval is withheld until approval storage exists (D14).
  */
 export class SupabaseKnowledgeProvider implements KnowledgeProvider {
   readonly name = "supabase";
@@ -71,28 +70,14 @@ export class SupabaseKnowledgeProvider implements KnowledgeProvider {
   ) {}
 
   async search(businessId: string, query: string, limit = DEFAULT_LIMIT): Promise<KnowledgeSnippet[]> {
+    if (!businessId?.trim()) throw AppError.forbidden("Knowledge retrieval requires tenant context");
     const normalized = normalizeQuery(query);
     if (!normalized) return [];
 
-    // Keyword search covers both chunks and FAQs; vector search covers chunks
-    // semantically. Without embeddings, keyword alone is the whole story.
-    if (!this.embeddings) {
-      return this.keywordSearch(businessId, normalized, limit);
-    }
-
-    // Hybrid: run both and fuse. Vector-only would drop FAQs entirely (they
-    // aren't embedded), and keyword-only misses paraphrases — fusion keeps
-    // exact FAQ hits and semantic chunk hits in one ranked list. Vector
-    // failures degrade to keyword-only rather than failing the turn.
-    const [keyword, vector] = await Promise.all([
-      this.keywordSearch(businessId, normalized, limit),
-      this.vectorSearch(businessId, normalized, limit).catch((error) => {
-        this.log.warn("vector search failed, using keyword only", { error });
-        return [] as KnowledgeSnippet[];
-      }),
-    ]);
-
-    return fuseByReciprocalRank([keyword, vector], limit);
+    // Documents have no approval lifecycle in the current schema. Do not
+    // infer approval from indexing readiness. Only published FAQs can be
+    // authorized until the owner approves the additive D14 migration.
+    return this.keywordSearch(businessId, normalized, limit);
   }
 
   private async keywordSearch(businessId: string, query: string, limit: number): Promise<KnowledgeSnippet[]> {
@@ -105,40 +90,27 @@ export class SupabaseKnowledgeProvider implements KnowledgeProvider {
       this.log.error("keyword search failed", { error: error.message });
       throw AppError.provider("Knowledge search failed");
     }
-    return (data ?? []).map(
-      (row: { source: string; ref_id: string; title: string; content: string; rank: number }) => ({
-        source: row.source as "chunk" | "faq",
-        refId: row.ref_id,
-        title: row.title,
-        content: row.content,
-        score: row.rank,
-      }),
-    );
-  }
-
-  private async vectorSearch(businessId: string, query: string, limit: number): Promise<KnowledgeSnippet[]> {
-    const [embedding] = await this.embeddings!.embed([query]);
-    const { data, error } = await this.db.rpc("match_knowledge_chunks", {
-      target_business_id: businessId,
-      query_embedding: embedding,
-      match_limit: limit,
+    const candidates = (data ?? []).filter((row: { source: string }) => row.source === "faq") as Array<{ ref_id: string; rank: number }>;
+    if (!candidates.length) return [];
+    const { data: faqs, error: approvalError } = await this.db.from("faqs")
+      .select("id, business_id, is_published, question, answer, category")
+      .eq("business_id", businessId).eq("is_published", true)
+      .in("id", candidates.map((row) => row.ref_id));
+    if (approvalError) throw AppError.provider("Knowledge publication could not be verified");
+    const approved = new Map((faqs ?? []).filter((faq) => faq.business_id === businessId && faq.is_published === true).map((faq) => [faq.id, faq]));
+    return candidates.flatMap((row) => {
+      const faq = approved.get(row.ref_id);
+      if (!faq || !faq.question?.trim() || !faq.answer?.trim()) return [];
+      return [{ source: "faq" as const, refId: faq.id, title: faq.category || "FAQ", content: `Q: ${faq.question}\nA: ${faq.answer}`, score: row.rank }];
     });
-    if (error) {
-      this.log.error("vector search failed", { error: error.message });
-      throw AppError.provider("Knowledge search failed");
-    }
-    return (data ?? []).map(
-      (row: { ref_id: string; title: string; content: string; similarity: number }) => ({
-        source: "chunk" as const,
-        refId: row.ref_id,
-        title: row.title,
-        content: row.content,
-        score: row.similarity,
-      }),
-    );
   }
 
   async indexDocument(businessId: string, documentId: string, chunks: string[]): Promise<void> {
+    if (!businessId?.trim()) throw AppError.forbidden("Document indexing requires tenant context");
+    const { data: document, error: ownershipError } = await this.db.from("knowledge_documents")
+      .select("id, business_id").eq("id", documentId).eq("business_id", businessId).maybeSingle();
+    if (ownershipError) throw AppError.provider("Document ownership could not be verified");
+    if (!document || document.id !== documentId || document.business_id !== businessId) throw AppError.forbidden("Document does not belong to this tenant");
     // Re-index is idempotent: clear old chunks first.
     await this.removeDocument(businessId, documentId);
     if (chunks.length === 0) return;

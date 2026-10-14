@@ -57,11 +57,15 @@ describe("site-visit booking step", () => {
     expect(outcome.actions).toHaveLength(0);
   });
 
-  it("books the ordinal the caller picked, in Telugu, and permits the booking claim", async () => {
+  it("reads the selected date and time back, then books only after explicit confirmation", async () => {
     const { port, booked } = makePort();
     const provider = makeProvider(port);
     await provider.prepare(input("సైట్ విజిట్ కావాలి"));
-    const outcome = (await provider.prepare(input("రెండోది సరే")))!;
+    const selection = (await provider.prepare(input("రెండోది")))!;
+    expect(selection.sections[0]).toContain(SLOTS[1].label);
+    expect(selection.sections[0]).toContain("NOTHING is booked yet");
+    expect(booked).toHaveLength(0);
+    const outcome = (await provider.prepare(input("అవును")))!;
     expect(booked).toHaveLength(1);
     expect((booked[0] as { slot: VisitSlot }).slot.startsAt).toBe(SLOTS[1].startsAt);
     expect(outcome.actions[0]).toMatchObject({ name: "appointment.book", status: "succeeded", claimsPermitted: ["appointment.book"] });
@@ -75,8 +79,23 @@ describe("site-visit booking step", () => {
       const provider = makeProvider(port);
       await provider.prepare(input("times cheppandi"));
       await provider.prepare(input(utterance));
+      expect(booked, `${utterance} must not book before confirmation`).toHaveLength(0);
+      await provider.prepare(input("yes"));
       expect((booked[0] as { slot: VisitSlot }).slot.startsAt, utterance).toBe(SLOTS[index].startsAt);
     }
+  });
+
+  it("does not book on rejection or an ambiguous answer", async () => {
+    const { port, booked } = makePort();
+    const provider = makeProvider(port);
+    await provider.prepare(input("visit"));
+    const readback = (await provider.prepare(input("first")))!;
+    expect(readback.sections[0]).toContain("Do not book until the caller clearly confirms");
+    await provider.prepare(input("maybe"));
+    expect(booked).toHaveLength(0);
+    const rejected = (await provider.prepare(input("no")))!;
+    expect(rejected.sections[0]).toContain("NOTHING is booked");
+    expect(booked).toHaveLength(0);
   });
 
   it("uses one idempotency key per conversation and slot", async () => {
@@ -84,6 +103,7 @@ describe("site-visit booking step", () => {
     const provider = makeProvider(port);
     await provider.prepare(input("times"));
     await provider.prepare(input("first"));
+    await provider.prepare(input("yes, that's right"));
     // A repeated yes after booking never books again.
     const after = (await provider.prepare(input("అవును అవును")))!;
     expect(booked).toHaveLength(1);
@@ -94,13 +114,16 @@ describe("site-visit booking step", () => {
 
   it("never claims a booking when the slot was taken, and offers the alternatives", async () => {
     const alternatives = [SLOTS[2]];
-    const { port } = makePort({}, { ok: false, reason: "slot_taken", alternatives });
+    const { port, booked } = makePort({}, { ok: false, reason: "slot_taken", alternatives });
     const provider = makeProvider(port);
     await provider.prepare(input("times"));
     const outcome = (await provider.prepare(input("first")))!;
-    expect(outcome.actions[0]).toMatchObject({ status: "failed", claimsPermitted: [] });
-    expect(outcome.sections[0]).toContain("NOTHING is booked");
-    expect(outcome.sections[0]).toContain("Saturday morning 10 o'clock");
+    expect(booked).toHaveLength(0);
+    const bookedOutcome = (await provider.prepare(input("yes")))!;
+    expect(outcome.actions).toHaveLength(0);
+    expect(bookedOutcome.actions[0]).toMatchObject({ status: "failed", claimsPermitted: [] });
+    expect(bookedOutcome.sections[0]).toContain("NOTHING is booked");
+    expect(bookedOutcome.sections[0]).toContain("Saturday morning 10 o'clock");
     expect(provider.current().phase).toBe("offered");
   });
 
@@ -108,7 +131,8 @@ describe("site-visit booking step", () => {
     const { port } = makePort({}, { ok: false, reason: "invalid", message: "booking is disabled" });
     const provider = makeProvider(port);
     await provider.prepare(input("times"));
-    const outcome = (await provider.prepare(input("first")))!;
+    await provider.prepare(input("first"));
+    const outcome = (await provider.prepare(input("yes")))!;
     expect(outcome.actions[0]).toMatchObject({ status: "failed", needsHuman: true });
     expect(outcome.sections[0]).toContain("do not say it is");
   });

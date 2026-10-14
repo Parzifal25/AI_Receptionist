@@ -1,3 +1,4 @@
+import { observe } from "@halo/platform/telemetry";
 import { createHash } from "node:crypto";
 import { isExplicitConfirmation, type ConfirmationDetector } from "@halo/language/confirmation";
 import type { LLMToolCall } from "@halo/ports/llm-provider";
@@ -234,8 +235,10 @@ export async function executeIntent(params: {
   execution: ToolExecutionContext;
 }): Promise<ToolResult> {
   const { intent } = params;
+  const started = performance.now();
   try {
     const outcome = await params.executor(intent.arguments, params.execution);
+    observe("tool.outcome", { component: "runtime", outcome: outcome.ok ? "ok" : "error" }, performance.now() - started);
     return {
       intentId: intent.id,
       name: intent.name,
@@ -248,6 +251,7 @@ export async function executeIntent(params: {
       ...(outcome.error ? { error: outcome.error } : {}),
     };
   } catch (error) {
+    observe("tool.outcome", { component: "runtime", outcome: "error" }, performance.now() - started);
     return {
       intentId: intent.id,
       name: intent.name,

@@ -13,20 +13,29 @@ vi.mock("@/lib/startup-check", () => ({ validateProductionReadiness: vi.fn() }))
 const isHealthy = vi.fn();
 const from = vi.fn();
 let queryError: boolean;
+let missingCount: boolean;
 describe("tenant administrator monitoring authorization", () => {
   beforeEach(() => {
-    vi.resetAllMocks(); queryError = false;
+    vi.resetAllMocks(); queryError = false; missingCount = false;
     vi.mocked(requireBusiness).mockResolvedValue({ userId: "user-a", businessId: "tenant-a", role: "owner" });
     vi.mocked(getAdminClient).mockReturnValue({ from } as unknown as ReturnType<typeof getAdminClient>);
-    from.mockImplementation(() => {
+    from.mockImplementation((table: string) => {
       const filters: Record<string, string> = {};
+      let overdue = false;
       const builder = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn((column: string, value: string) => { filters[column] = value; return builder; }),
+        gte: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(),
+        lte: vi.fn(() => { overdue = true; return builder; }),
         then: (resolve: (value: unknown) => void) => resolve(queryError
           ? { error: { message: "synthetic-secret-database" }, count: null, data: null }
-          : { error: null, count: filters.business_id === "tenant-a" ? 1 : 999,
-            data: filters.business_id === "tenant-a" ? [{ provider: "own" }] : [{ provider: "own" }, { provider: "foreign" }] }),
+          : { error: null, count: missingCount && table === "workflow_runs" ? null : filters.business_id === "tenant-a" ? (table === "workflow_runs" && filters.status === "dead_letter" ? 2 : 1) : 999,
+            data: filters.business_id === "tenant-a"
+              ? table === "calendar_connections" ? [{ provider: "own" }]
+                : table === "appointment_reminders" && overdue ? [{ send_at: new Date(Date.now() - 60_000).toISOString() }]
+                : table === "usage_events" ? [{ created_at: new Date(Date.now() - 10_000).toISOString(), metadata: { latencyMs: 100 } }, { created_at: new Date().toISOString(), metadata: { latencyMs: 300 } }]
+                    : []
+              : [{ provider: "own" }, { provider: "foreign" }] }),
       };
       return builder;
     });
@@ -36,8 +45,17 @@ describe("tenant administrator monitoring authorization", () => {
   });
   it("scopes every service-role operational query to the authenticated tenant", async () => {
     const body = await (await GET()).json();
-    expect(body.data.queues).toEqual({ pendingReminders: 1, failedWorkflowRuns: 1 });
+    expect(body.data.queues.pendingReminders).toBe(1);
+    expect(body.data.queues.overdueReminders).toBe(1);
+    expect(body.data.queues.oldestOverdueReminderAgeMs).toBeGreaterThanOrEqual(60_000);
+    expect(body.data.queues.failedWorkflowRuns).toBe(1);
+    expect(body.data.queues.deadLetterWorkflowRuns).toBe(2);
+    expect(body.data.providerTelemetry.successfulTurnLatencyMs24h).toMatchObject({ samples: 2, p50: 100, p95: 300 });
+    expect(body.data.providerTelemetry.failureRate).toBeNull();
+    expect(body.data.providerTelemetry.freshness).toBe("observed");
     expect(body.data.calendars.active).toBe(1);
+    expect(body.data.status).toBe("degraded");
+    expect(from).toHaveBeenCalledTimes(8);
   });
   it("rejects ordinary members before reading data or probing providers", async () => {
     vi.mocked(requireBusiness).mockResolvedValue({ userId: "user-a", businessId: "tenant-a", role: "member" });
@@ -60,5 +78,17 @@ describe("tenant administrator monitoring authorization", () => {
     const response = await GET();
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain("synthetic-secret-database");
+  });
+  it("does not interpret missing exact counts as an empty queue", async () => {
+    missingCount = true;
+    expect((await GET()).status).toBe(503);
+  });
+  it("reports missing required configuration as degraded without exposing validation details", async () => {
+    vi.mocked(validateProductionReadiness).mockResolvedValue({ ready: false, database: { checked: true, connected: true }, errors: ["synthetic private config name"], warnings: [], providers: { email: false, whatsapp: false } });
+    const response = await GET();
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.status).toBe("degraded");
+    expect(JSON.stringify(body)).not.toContain("synthetic private config name");
   });
 });

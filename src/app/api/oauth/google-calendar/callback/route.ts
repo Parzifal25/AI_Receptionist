@@ -6,6 +6,7 @@ import { getAdminClient } from "@halo/tenancy/supabase/admin";
 import { timingSafeEqualStr } from "@halo/platform/crypto";
 import { OAUTH_TOKEN_URLS } from "@halo/providers/calendar/token-source";
 import { logger } from "@halo/platform/logger";
+import { encryptCalendarCredential } from "@halo/platform/calendar-credentials";
 import {
   NONCE_COOKIE,
   googleRedirectUri,
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return done({ error: "invalid_state" });
   }
 
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY) {
     return done({ error: "not_configured" });
   }
 
@@ -105,8 +106,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     staff_id: null,
     provider: "google",
     calendar_ref: "primary",
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
+    access_token: encryptCalendarCredential(tokens.access_token),
+    refresh_token: encryptCalendarCredential(tokens.refresh_token),
     expires_at: new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString(),
   });
   if (error) {

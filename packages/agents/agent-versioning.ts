@@ -1,4 +1,4 @@
-import { type Agent, type AgentConfig, type AgentVersion, AGENT_TYPES } from "@halo/core/domain/agents";
+import { type Agent, type AgentConfig, type AgentVersion, AGENT_TYPES, agentActivationErrors } from "@halo/core/domain/agents";
 import { AppError } from "@halo/core/errors/app-error";
 import type { AgentRepository } from "./agent-repository";
 
@@ -14,6 +14,14 @@ import type { AgentRepository } from "./agent-repository";
  */
 export class AgentVersioningService {
   constructor(private readonly repository: AgentRepository) {}
+
+  private assertReady(agent: Agent, version: AgentVersion): void {
+    if (version.businessId !== agent.businessId || version.agentId !== agent.id) {
+      throw AppError.forbidden("Version does not belong to this tenant and agent");
+    }
+    const errors = agentActivationErrors(version.config, version.promptTemplate, agent.defaultChannel === "phone");
+    if (errors.length) throw AppError.validation("Agent configuration cannot activate", { reason: "invalid_agent_configuration", fields: errors });
+  }
 
   /** Creates a new agent (status draft, no live version). */
   async createAgent(input: {
@@ -60,9 +68,10 @@ export class AgentVersioningService {
         versionId: agent.liveVersionId,
       });
     }
-    if (version.businessId !== agent.businessId || version.agentId !== agent.id || !version.publishedAt) {
+    if (version.id !== agent.liveVersionId || version.businessId !== agent.businessId || version.agentId !== agent.id || !version.publishedAt) {
       throw AppError.conflict("Live version must be published and owned by this agent");
     }
+    this.assertReady(agent, version);
     return version;
   }
 
@@ -82,6 +91,7 @@ export class AgentVersioningService {
   }): Promise<AgentVersion> {
     const agent = await this.repository.getAgent(input.agentId, input.businessId);
     if (!agent) throw AppError.notFound("Agent not found");
+    if (agent.businessId !== input.businessId || agent.id !== input.agentId) throw AppError.forbidden("Agent does not belong to this tenant");
     if (agent.status === "archived") {
       throw AppError.conflict("Archived agents cannot receive new versions");
     }
@@ -101,6 +111,7 @@ export class AgentVersioningService {
   async publishVersion(agentId: string, businessId: string, version: number): Promise<AgentVersion> {
     const agent = await this.repository.getAgent(agentId, businessId);
     if (!agent) throw AppError.notFound("Agent not found");
+    if (agent.businessId !== businessId || agent.id !== agentId) throw AppError.forbidden("Agent does not belong to this tenant");
     if (agent.status === "archived") {
       throw AppError.conflict("Archived agents cannot be published");
     }
@@ -108,6 +119,8 @@ export class AgentVersioningService {
     const versions = await this.repository.listVersions(agentId, businessId);
     const target = versions.find((v) => v.version === version);
     if (!target) throw AppError.notFound(`Version ${version} not found`);
+
+    this.assertReady(agent, target);
 
     const publishedAt = target.publishedAt ?? new Date().toISOString();
     if (target.publishedAt === null) {
@@ -122,6 +135,8 @@ export class AgentVersioningService {
   async rollbackTo(agentId: string, businessId: string, version: number): Promise<Agent> {
     const agent = await this.repository.getAgent(agentId, businessId);
     if (!agent) throw AppError.notFound("Agent not found");
+    if (agent.businessId !== businessId || agent.id !== agentId) throw AppError.forbidden("Agent does not belong to this tenant");
+    if (agent.status === "archived") throw AppError.conflict("Archived agents cannot be activated");
 
     const versions = await this.repository.listVersions(agentId, businessId);
     const target = versions.find((v) => v.version === version);
@@ -129,6 +144,8 @@ export class AgentVersioningService {
     if (target.publishedAt === null) {
       throw AppError.conflict("Cannot roll back to an unpublished draft");
     }
+
+    this.assertReady(agent, target);
 
     await this.repository.setLiveVersion(agentId, businessId, target.id);
     return { ...agent, liveVersionId: target.id };
@@ -138,6 +155,7 @@ export class AgentVersioningService {
   async getLiveVersion(agentId: string, businessId: string): Promise<AgentVersion | null> {
     const agent = await this.repository.getAgent(agentId, businessId);
     if (!agent || !agent.liveVersionId) return null;
-    return this.repository.getVersion(agent.liveVersionId, businessId);
+    if (agent.businessId !== businessId || agent.id !== agentId) throw AppError.forbidden("Agent does not belong to this tenant");
+    return this.resolveLiveVersion(agent);
   }
 }

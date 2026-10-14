@@ -1,3 +1,4 @@
+import { observe } from "@halo/platform/telemetry";
 import type { StreamingSttProvider, SttStream } from "@halo/ports/streaming-stt-provider";
 
 export const WEB_AUDIO_FORMAT = { encoding: "pcm16le", sampleRate: 16000, channels: 1 } as const;
@@ -9,6 +10,8 @@ export async function transcribeAudio(provider: StreamingSttProvider, audio: Uin
   const languages = provider.capabilities().languages;
   const selectedLanguage = languages.includes(language) || !languages.length ? language : languages.find(value => value.split("-")[0] === language.split("-")[0]);
   if (!selectedLanguage) throw new Error("stt_unsupported_language");
+  const started = performance.now();
+  let outcome = "ok";
   let stream: SttStream | undefined;
   let settled = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -41,7 +44,11 @@ export async function transcribeAudio(provider: StreamingSttProvider, audio: Uin
         } catch { finish(undefined, "stt_provider"); }
       }, 20);
     });
+  } catch (error) {
+    outcome = signal.aborted ? "cancelled" : error instanceof Error && error.message === "stt_timeout" ? "timeout" : "error";
+    throw error;
   } finally {
+    observe("voice.stt", { component: "voice", engine: "web", phase: "upload", operation: "stt", provider: provider.name, outcome }, performance.now() - started);
     clearTimeout(timer); clearInterval(pacing);
     signal.removeEventListener("abort", abort);
     await stream?.close();

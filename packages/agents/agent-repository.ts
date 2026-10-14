@@ -8,6 +8,7 @@ import {
   type AgentType,
   type AgentVersion,
   parseAgentConfig,
+  agentActivationErrors,
 } from "@halo/core/domain/agents";
 import { AppError } from "@halo/core/errors/app-error";
 import { getAdminClient } from "@halo/tenancy/supabase/admin";
@@ -105,6 +106,10 @@ export function toAgentVersion(row: AgentVersionRow): AgentVersion {
     // Malformed = skip loudly (the workflowDefinitionSchema precedent): the
     // row must not be served as if it were valid configuration.
     throw AppError.internal("agent_versions.config failed validation");
+  }
+  if (row.published_at) {
+    const errors = agentActivationErrors(row.config, row.prompt_template);
+    if (errors.length) throw AppError.validation("Published agent configuration is unavailable", { reason: "invalid_agent_configuration", fields: errors });
   }
   const model = (row.model ?? {}) as Record<string, unknown>;
   return {

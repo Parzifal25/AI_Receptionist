@@ -47,15 +47,16 @@ export interface VisitBookingPort {
 }
 
 export interface BookingStepState {
-  phase: "idle" | "offered" | "booked" | "failed";
+  phase: "idle" | "offered" | "confirming" | "booked" | "failed";
   offered: VisitSlot[];
+  selected: VisitSlot | null;
   appointmentId: string | null;
   bookedLabel: string | null;
   attempts: number;
 }
 
 export function emptyBookingState(): BookingStepState {
-  return { phase: "idle", offered: [], appointmentId: null, bookedLabel: null, attempts: 0 };
+  return { phase: "idle", offered: [], selected: null, appointmentId: null, bookedLabel: null, attempts: 0 };
 }
 
 export interface BookingStepDeps {
@@ -103,6 +104,35 @@ export class VisitBookingStepProvider implements SystemActionProvider {
     const maxAttempts = this.deps.maxAttempts ?? 3;
     if (this.state.attempts >= maxAttempts) return null;
 
+    if (this.state.phase === "confirming" && this.state.selected) {
+      const answer = normalizeForMatching(input.userMessage)
+        .replace(/[’']/g, "")
+        .replace(/\p{P}/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (/^(?:(?:yes|yeah|yep)(?:\s+(?:that|is|thats|correct|right))*|(?:correct|right|అవును|అవునండి|సరే|కరెక్ట్)(?:\s+(?:అవును|అవునండి|సరే))*)$/.test(answer)) {
+        return this.book(this.state.selected, input);
+      }
+      if (/^(no|nope|కాదు|వద్దు|తప్పు)$/.test(answer)) {
+        const rejectedLabel = this.state.selected.label;
+        const offered = this.state.offered;
+        this.state = { ...this.state, phase: "offered", selected: null, attempts: this.state.attempts + 1 };
+        return {
+          sections: [
+            `Appointment (system): the caller did not confirm "${rejectedLabel}". NOTHING is booked. Ask them to choose from the offered times again: ` +
+              `${offered.map((s, i) => `${i + 1}) ${s.label}`).join(", ")}.`,
+          ],
+          actions: [],
+        };
+      }
+      return {
+        sections: [
+          `Appointment (system): the caller has not confirmed the selected time. Read back "${this.state.selected.label}" and ask for a clear yes or no. NOTHING is booked yet.`,
+        ],
+        actions: [],
+      };
+    }
+
     // 1. Nothing offered yet: ask the engine for real slots.
     if (this.state.phase === "idle" || this.state.offered.length === 0) {
       return this.offer(input, null);
@@ -123,7 +153,18 @@ export class VisitBookingStepProvider implements SystemActionProvider {
       };
     }
 
-    // 3. Act first: book it, then let the reply narrate what happened.
+    // Confirm the exact calendar date/time before creating a consequential booking.
+    this.state = { ...this.state, phase: "confirming", selected: choice };
+    return {
+      sections: [
+        `Appointment (system): read back exactly "${choice.label}" and ask whether that date and time are correct. Do not book until the caller clearly confirms. NOTHING is booked yet.`,
+      ],
+      actions: [],
+    };
+  }
+
+  private async book(choice: VisitSlot, input: SystemActionInput): Promise<SystemActionOutcome> {
+    // Act only after the caller confirmed the exact offered date/time.
     const contact = this.deps.contact();
     const result = await this.deps.booking.book({
       slot: choice,
@@ -137,7 +178,7 @@ export class VisitBookingStepProvider implements SystemActionProvider {
     });
 
     if (result.ok) {
-      this.state = { ...this.state, phase: "booked", appointmentId: result.appointmentId, bookedLabel: result.label };
+      this.state = { ...this.state, phase: "booked", selected: null, appointmentId: result.appointmentId, bookedLabel: result.label };
       this.deps.onBooked?.(result.appointmentId);
       const action: ActionRecord = {
         source: "system",
@@ -158,7 +199,7 @@ export class VisitBookingStepProvider implements SystemActionProvider {
 
     this.state.attempts += 1;
     if (result.reason === "slot_taken") {
-      this.state = { ...this.state, phase: "offered", offered: result.alternatives };
+      this.state = { ...this.state, phase: "offered", offered: result.alternatives, selected: null };
       return {
         sections: [
           `Appointment (system): that time was just taken, so NOTHING is booked. Say so plainly and offer exactly these ` +
@@ -170,7 +211,7 @@ export class VisitBookingStepProvider implements SystemActionProvider {
       };
     }
 
-    this.state = { ...this.state, phase: "failed" };
+    this.state = { ...this.state, phase: "failed", selected: null };
     return {
       sections: [
         `Appointment (system): the booking could not be completed (${result.message}). NOTHING is booked — do not say it is. ` +

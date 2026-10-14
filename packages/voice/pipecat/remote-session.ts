@@ -1,3 +1,5 @@
+import { observeVoiceEvent } from "../telemetry";
+import { observe, newTelemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import type {
   CallEndReason,
   CallEventType,
@@ -6,7 +8,7 @@ import type {
 } from "@halo/core/domain/voice";
 import type { VoiceMediaSession } from "../media-session";
 import { chunkForSpeech } from "../sentence-chunker";
-import { isTurnCancelled, type VoiceDirective, type VoiceTurnHandler, type VoiceTurnResult } from "../turn-handler";
+import { isTurnCancelled, turnTimingDetail, type VoiceDirective, type VoiceTurnHandler, type VoiceTurnResult } from "../turn-handler";
 import type {
   VoiceSessionConfig,
   VoiceSessionEvent,
@@ -425,7 +427,7 @@ export class RemoteVoiceSession implements VoiceMediaSession {
       let failure: unknown = null;
       try {
         result = await Promise.race([
-          this.deps.turns.handleTurn({ utterance, language, sttConfidence: confidence, turnIndex, signal: controller.signal }),
+          withTelemetryContext(() => this.deps.turns.handleTurn({ utterance, language, sttConfidence: confidence, turnIndex, signal: controller.signal }), this.telemetrySessionId),
           abandoned,
         ]);
       } catch (error) {
@@ -467,12 +469,28 @@ export class RemoteVoiceSession implements VoiceMediaSession {
 
     if (result && current) {
       this.consecutiveFailures = 0;
+      // Same marks as the in-process engine, from the same origin
+      // (end-of-speech as HALO learned it), so the engines' rows compare.
+      const timings = result.timings;
+      if (timings) {
+        this.emit("context_ready", startedAt - params.speechEndedAt + timings.contextReadyMs, {
+          turnIndex,
+          contextMs: timings.contextReadyMs,
+        });
+        if (timings.firstTokenMs !== null) {
+          this.emit("llm_first_token", startedAt - params.speechEndedAt + timings.firstTokenMs, {
+            turnIndex,
+            sinceTurnStartMs: timings.firstTokenMs,
+          });
+        }
+      }
       this.emit("agent_turn", this.now() - startedAt, {
         turnIndex,
         replyChars: result.reply.length,
         directive: result.directive.kind,
         degraded: result.degraded,
         modelCalls: result.usage.modelCalls,
+        ...(timings ? turnTimingDetail(timings) : {}),
       });
       this.lastDirective = result.directive.kind;
       this.trackConfidence(params.confidence);
@@ -812,11 +830,15 @@ export class RemoteVoiceSession implements VoiceMediaSession {
   private setState(next: VoiceSessionState): void {
     if (this.state === "ended" || this.state === next) return;
     this.state = next;
+    observe("voice.state", { component: "voice", state: next }, undefined, this.telemetrySessionId);
     this.deps.hooks.onStateChange?.(next);
     this.emit("state_changed", null, { state: next });
   }
 
+  private readonly telemetrySessionId = newTelemetryId();
+
   private emit(type: CallEventType, latencyMs: number | null, detail: VoiceSessionEvent["detail"]): void {
+    observeVoiceEvent(this.telemetrySessionId, type, latencyMs, detail, "pipecat");
     this.deps.hooks.onEvent({ type, at: new Date(this.now()).toISOString(), latencyMs, detail });
   }
 

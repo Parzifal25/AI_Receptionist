@@ -98,6 +98,27 @@ describe("startup-check", () => {
     expect(JSON.stringify(report)).not.toContain("Connection refused");
   });
 
+  it("reports a database that never answers as disconnected instead of hanging", async () => {
+    vi.mocked(getServerEnv).mockReturnValue(envFragment({ NODE_ENV: "development", MESSAGING_PROVIDER: "log" }));
+    vi.mocked(getAdminClient).mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnValue(new Promise(() => {})),
+    } as unknown as ReturnType<typeof getAdminClient>);
+
+    vi.useFakeTimers();
+    try {
+      const pending = validateProductionReadiness();
+      await vi.advanceTimersByTimeAsync(5_000);
+      const report = await pending;
+      expect(report.ready).toBe(false);
+      expect(report.errors).toContain("Database connectivity check failed");
+      expect(report.database).toEqual({ checked: true, connected: false });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reports a skipped database as unchecked rather than connected", async () => {
     vi.mocked(getServerEnv).mockReturnValue(envFragment({ NODE_ENV: "test" }));
     const report = await validateProductionReadiness({ skipDatabaseCheck: true });

@@ -351,6 +351,24 @@ describe("AgentRuntime — trust and degradation", () => {
     expect(seen).toEqual(["hi!", "2"]);
   });
 
+  it("times the awaited persistence and hooks that stand between a validated reply and its return", async () => {
+    const conversations = new FakeConversationStore();
+    const append = conversations.appendMessages.bind(conversations);
+    conversations.appendMessages = async (...args) => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return append(...args);
+    };
+    const hooks: TurnHook[] = [
+      { name: "slow", async afterTurn() { await new Promise((resolve) => setTimeout(resolve, 20)); } },
+    ];
+    const { runtime } = makeRuntime({ llm: new ScriptedLLM([reply("hi!")]), conversations, hooks });
+    const output = await runtime.run(makeInput());
+    expect(output.timings.persistenceMs).toBeGreaterThanOrEqual(25);
+    expect(output.timings.hooksMs).toBeGreaterThanOrEqual(15);
+    // Persistence is inside totalMs; hooks run after it is taken.
+    expect(output.timings.totalMs).toBeGreaterThanOrEqual(output.timings.persistenceMs!);
+  });
+
   it("history from another tenant's conversation never reaches the model", async () => {
     const conversations = new FakeConversationStore();
     conversations.seed("conv-1", "biz-b", [{ role: "user", content: "TENANT B SECRET" }, { role: "assistant", content: "ok" }]);

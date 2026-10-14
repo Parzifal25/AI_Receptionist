@@ -1,0 +1,1533 @@
+{
+ "about": "Shared by tests/unit/voice/local-tts-text.test.ts and services/pipecat-worker/test_local_tts_text.py: the TypeScript and Python local-TTS text pipelines must agree exactly. Telugu renderings are engineering choices awaiting native-speaker review (docs/LOCAL_SPEECH_BENCHMARK.md, Phase B.5).",
+ "available": [
+  "en",
+  "te"
+ ],
+ "cases": [
+  {
+   "text": "మీ ఫోన్ నంబర్ 9876543210, సరైనదేనా?",
+   "base": "te",
+   "normalized": "మీ ఫోన్ నంబర్ తొమ్మిది ఎనిమిది ఏడు ఆరు ఐదు, నాలుగు మూడు రెండు ఒకటి సున్నా, సరైనదేనా?",
+   "segments": [
+    [
+     "te",
+     "మీ ఫోన్ నంబర్ తొమ్మిది ఎనిమిది ఏడు ఆరు ఐదు, నాలుగు మూడు రెండు ఒకటి సున్నా, సరైనదేనా?",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మేము +91 98480 12345 కి కాల్ చేస్తాము.",
+   "base": "te",
+   "normalized": "మేము ప్లస్ తొమ్మిది ఒకటి, తొమ్మిది ఎనిమిది నాలుగు ఎనిమిది సున్నా, ఒకటి రెండు మూడు నాలుగు ఐదు కి కాల్ చేస్తాము.",
+   "segments": [
+    [
+     "te",
+     "మేము ప్లస్ తొమ్మిది ఒకటి, తొమ్మిది ఎనిమిది నాలుగు ఎనిమిది సున్నా, ఒకటి రెండు మూడు నాలుగు ఐదు కి కాల్ చేస్తాము.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Please confirm your number, 98480 12345.",
+   "base": "en",
+   "normalized": "Please confirm your number, nine eight four eight zero, one two three four five.",
+   "segments": [
+    [
+     "en",
+     "Please confirm your number,",
+     "clause"
+    ],
+    [
+     "en",
+     "nine eight four eight zero, one two three four five.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "call 040-2345-6789",
+   "base": "en",
+   "normalized": "call zero four zero, two three four five, six seven eight nine",
+   "segments": [
+    [
+     "en",
+     "call zero four zero, two three four five, six seven eight nine",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Call 1800 425 1234 today.",
+   "base": "en",
+   "normalized": "Call one eight zero zero, four two five, one two three four today.",
+   "segments": [
+    [
+     "en",
+     "Call one eight zero zero, four two five, one two three four today.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "05",
+   "base": "en",
+   "normalized": "zero five",
+   "segments": [
+    [
+     "en",
+     "zero five",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "మీ అపాయింట్‌మెంట్ 24/03/2026 న ఉంది.",
+   "base": "te",
+   "normalized": "మీ అపాయింట్‌మెంట్ రెండు వేల ఇరవై ఆరు మార్చి ఇరవై నాలుగో తేదీన ఉంది.",
+   "segments": [
+    [
+     "te",
+     "మీ అపాయింట్‌మెంట్ రెండు వేల ఇరవై ఆరు మార్చి ఇరవై నాలుగో తేదీన ఉంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మార్చి 24న సైట్ విజిట్ ఉంది.",
+   "base": "te",
+   "normalized": "మార్చి ఇరవై నాలుగున సైట్ విజిట్ ఉంది.",
+   "segments": [
+    [
+     "te",
+     "మార్చి ఇరవై నాలుగున సైట్ విజిట్ ఉంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ బుకింగ్ March 24 న ఉంది.",
+   "base": "te",
+   "normalized": "మీ బుకింగ్ మార్చి ఇరవై నాలుగో తేదీన ఉంది.",
+   "segments": [
+    [
+     "te",
+     "మీ బుకింగ్ మార్చి ఇరవై నాలుగో తేదీన ఉంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Your booking is on 24th March.",
+   "base": "en",
+   "normalized": "Your booking is on twenty fourth March.",
+   "segments": [
+    [
+     "en",
+     "Your booking is on twenty fourth March.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "On Mar. 24, 2026 we visit.",
+   "base": "en",
+   "normalized": "On March twenty fourth, two thousand twenty six we visit.",
+   "segments": [
+    [
+     "en",
+     "On March twenty fourth, two thousand twenty six we visit.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Visit 2026-03-24",
+   "base": "en",
+   "normalized": "Visit twenty fourth March, two thousand twenty six",
+   "segments": [
+    [
+     "en",
+     "Visit twenty fourth March, two thousand twenty six",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "ఉదయం 10:30 కి రావచ్చా?",
+   "base": "te",
+   "normalized": "ఉదయం పది గంటల ముప్పై నిమిషాలకు రావచ్చా?",
+   "segments": [
+    [
+     "te",
+     "ఉదయం పది గంటల ముప్పై నిమిషాలకు రావచ్చా?",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "సాయంత్రం 5 PM తర్వాత ఫోన్ చేయండి.",
+   "base": "te",
+   "normalized": "సాయంత్రం ఐదు గంటల తర్వాత ఫోన్ చేయండి.",
+   "segments": [
+    [
+     "te",
+     "సాయంత్రం ఐదు గంటల తర్వాత ఫోన్ చేయండి.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మా ఆఫీస్ 9 AM - 6 PM వరకు తెరిచి ఉంటుంది.",
+   "base": "te",
+   "normalized": "మా ఆఫీస్ ఉదయం తొమ్మిది గంటల నుంచి సాయంత్రం ఆరు గంటల వరకు తెరిచి ఉంటుంది.",
+   "segments": [
+    [
+     "te",
+     "మా ఆఫీస్ ఉదయం తొమ్మిది గంటల నుంచి సాయంత్రం ఆరు గంటల వరకు తెరిచి ఉంటుంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "ఉదయం 9 AM - 11 AM",
+   "base": "te",
+   "normalized": "ఉదయం తొమ్మిది గంటల నుంచి పదకొండు గంటలు",
+   "segments": [
+    [
+     "te",
+     "ఉదయం తొమ్మిది గంటల నుంచి పదకొండు గంటలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Your site visit is at 10:30 AM on Saturday.",
+   "base": "en",
+   "normalized": "Your site visit is at ten thirty ay em on Saturday.",
+   "segments": [
+    [
+     "en",
+     "Your site visit is at ten thirty ay em on Saturday.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "17:30",
+   "base": "en",
+   "normalized": "five thirty pee em",
+   "segments": [
+    [
+     "en",
+     "five thirty pee em",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "17:30",
+   "base": "te",
+   "normalized": "సాయంత్రం ఐదు గంటల ముప్పై నిమిషాలు",
+   "segments": [
+    [
+     "te",
+     "సాయంత్రం ఐదు గంటల ముప్పై నిమిషాలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "10:05 AM",
+   "base": "en",
+   "normalized": "ten oh five ay em",
+   "segments": [
+    [
+     "en",
+     "ten oh five ay em",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "10:00",
+   "base": "en",
+   "normalized": "ten o'clock",
+   "segments": [
+    [
+     "en",
+     "ten o'clock",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "12 PM",
+   "base": "te",
+   "normalized": "మధ్యాహ్నం పన్నెండు గంటలు",
+   "segments": [
+    [
+     "te",
+     "మధ్యాహ్నం పన్నెండు గంటలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "9 PM",
+   "base": "te",
+   "normalized": "రాత్రి తొమ్మిది గంటలు",
+   "segments": [
+    [
+     "te",
+     "రాత్రి తొమ్మిది గంటలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "1:00 PM కి",
+   "base": "te",
+   "normalized": "మధ్యాహ్నం ఒంటి గంటకి",
+   "segments": [
+    [
+     "te",
+     "మధ్యాహ్నం ఒంటి గంటకి",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "9-11 AM",
+   "base": "en",
+   "normalized": "nine to eleven ay em",
+   "segments": [
+    [
+     "en",
+     "nine to eleven ay em",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "మొత్తం ధర ₹1,45,000 అవుతుంది.",
+   "base": "te",
+   "normalized": "మొత్తం ధర ఒక లక్ష నలభై ఐదు వేల రూపాయలు అవుతుంది.",
+   "segments": [
+    [
+     "te",
+     "మొత్తం ధర ఒక లక్ష నలభై ఐదు వేల రూపాయలు అవుతుంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "The 3 kW system costs Rs. 1,85,000 including GST.",
+   "base": "en",
+   "normalized": "The three kilowatt system costs one lakh eighty five thousand rupees including jee es tee.",
+   "segments": [
+    [
+     "en",
+     "The three kilowatt system costs one lakh eighty five thousand rupees including jee es tee.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "The subsidy is up to ₹2.5 lakh.",
+   "base": "en",
+   "normalized": "The subsidy is up to two point five lakh rupees.",
+   "segments": [
+    [
+     "en",
+     "The subsidy is up to two point five lakh rupees.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "₹1,500.50",
+   "base": "en",
+   "normalized": "one thousand five hundred rupees and fifty paise",
+   "segments": [
+    [
+     "en",
+     "one thousand five hundred rupees and fifty paise",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Rs 500/-",
+   "base": "en",
+   "normalized": "five hundred rupees",
+   "segments": [
+    [
+     "en",
+     "five hundred rupees",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "₹1",
+   "base": "te",
+   "normalized": "ఒక రూపాయి",
+   "segments": [
+    [
+     "te",
+     "ఒక రూపాయి",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "45,000 రూపాయలు",
+   "base": "te",
+   "normalized": "నలభై ఐదు వేల రూపాయలు",
+   "segments": [
+    [
+     "te",
+     "నలభై ఐదు వేల రూపాయలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "ప్రభుత్వ సబ్సిడీ 40% వరకు ఉంటుంది.",
+   "base": "te",
+   "normalized": "ప్రభుత్వ సబ్సిడీ నలభై శాతం వరకు ఉంటుంది.",
+   "segments": [
+    [
+     "te",
+     "ప్రభుత్వ సబ్సిడీ నలభై శాతం వరకు ఉంటుంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "2.5 లక్షలు",
+   "base": "te",
+   "normalized": "రెండు పాయింట్ ఐదు లక్షలు",
+   "segments": [
+    [
+     "te",
+     "రెండు పాయింట్ ఐదు లక్షలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "3.5 kW",
+   "base": "en",
+   "normalized": "three point five kilowatt",
+   "segments": [
+    [
+     "en",
+     "three point five kilowatt",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "10కి రండి",
+   "base": "te",
+   "normalized": "పదికి రండి",
+   "segments": [
+    [
+     "te",
+     "పదికి రండి",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "2026లో",
+   "base": "te",
+   "normalized": "రెండు వేల ఇరవై ఆరులో",
+   "segments": [
+    [
+     "te",
+     "రెండు వేల ఇరవై ఆరులో",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "3వ తేదీ",
+   "base": "te",
+   "normalized": "మూడవ తేదీ",
+   "segments": [
+    [
+     "te",
+     "మూడవ తేదీ",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "1 రోజు ముందు",
+   "base": "te",
+   "normalized": "ఒక రోజు ముందు",
+   "segments": [
+    [
+     "te",
+     "ఒక రోజు ముందు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "21 రోజులు",
+   "base": "te",
+   "normalized": "ఇరవై ఒక రోజులు",
+   "segments": [
+    [
+     "te",
+     "ఇరవై ఒక రోజులు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "2000 మంది",
+   "base": "te",
+   "normalized": "రెండు వేల మంది",
+   "segments": [
+    [
+     "te",
+     "రెండు వేల మంది",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "౧౦ గంటలకు రండి.",
+   "base": "te",
+   "normalized": "పది గంటలకు రండి.",
+   "segments": [
+    [
+     "te",
+     "పది గంటలకు రండి.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "OK, 2-3 రోజుల్లో పంపిస్తాము.",
+   "base": "te",
+   "normalized": "okay, రెండు నుంచి మూడు రోజుల్లో పంపిస్తాము.",
+   "segments": [
+    [
+     "en",
+     "okay,",
+     "clause"
+    ],
+    [
+     "te",
+     "రెండు నుంచి మూడు రోజుల్లో పంపిస్తాము.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Dr. Ravi Kumar గారు మీకు call చేస్తారు.",
+   "base": "te",
+   "normalized": "Doctor Ravi Kumar గారు మీకు call చేస్తారు.",
+   "segments": [
+    [
+     "en",
+     "Doctor Ravi Kumar",
+     "switch"
+    ],
+    [
+     "te",
+     "గారు మీకు",
+     "switch"
+    ],
+    [
+     "en",
+     "call",
+     "switch"
+    ],
+    [
+     "te",
+     "చేస్తారు.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Dr. Rao will call at 10:30 AM, Rs. 45,000 is the price.",
+   "base": "en",
+   "normalized": "Doctor Rao will call at ten thirty ay em, forty five thousand rupees is the price.",
+   "segments": [
+    [
+     "en",
+     "Doctor Rao will call at ten thirty ay em,",
+     "clause"
+    ],
+    [
+     "en",
+     "forty five thousand rupees is the price.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Approx. 20% off, e.g. on 5 panels etc.",
+   "base": "en",
+   "normalized": "approximately twenty percent off, for example, on five panels et cetera.",
+   "segments": [
+    [
+     "en",
+     "approximately twenty percent off,",
+     "clause"
+    ],
+    [
+     "en",
+     "for example, on five panels et cetera.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ appointmentకి 2 రోజుల ముందు SMS పంపిస్తాము.",
+   "base": "te",
+   "normalized": "మీ appointmentకి రెండు రోజుల ముందు es em es పంపిస్తాము.",
+   "segments": [
+    [
+     "te",
+     "మీ",
+     "switch"
+    ],
+    [
+     "en",
+     "appointment",
+     "switch"
+    ],
+    [
+     "te",
+     "కి రెండు రోజుల ముందు",
+     "switch"
+    ],
+    [
+     "en",
+     "es em es",
+     "switch"
+    ],
+    [
+     "te",
+     "పంపిస్తాము.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "**Note:** call us",
+   "base": "en",
+   "normalized": "Note: call us",
+   "segments": [
+    [
+     "en",
+     "Note: call us",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "నమస్కారం. మీకు ఏ సమాచారం కావాలి?",
+   "base": "te",
+   "normalized": "నమస్కారం. మీకు ఏ సమాచారం కావాలి?",
+   "segments": [
+    [
+     "te",
+     "నమస్కారం.",
+     "sentence"
+    ],
+    [
+     "te",
+     "మీకు ఏ సమాచారం కావాలి?",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ office timings ఏంటి, Sunday open ఉంటుందా?",
+   "base": "te",
+   "normalized": "మీ office timings ఏంటి, Sunday open ఉంటుందా?",
+   "segments": [
+    [
+     "te",
+     "మీ",
+     "switch"
+    ],
+    [
+     "en",
+     "office timings",
+     "switch"
+    ],
+    [
+     "te",
+     "ఏంటి,",
+     "clause"
+    ],
+    [
+     "en",
+     "Sunday open",
+     "switch"
+    ],
+    [
+     "te",
+     "ఉంటుందా?",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "నమస్కారం, అరుణోదయ సోలార్‌కి ఫోన్ చేసినందుకు ధన్యవాదాలు, మీ ఇంటికి 3 kW సిస్టమ్ సరిపోతుంది, దాని ధర సుమారు ₹1,80,000, మీకు EMI ఆప్షన్ కూడా ఉంది.",
+   "base": "te",
+   "normalized": "నమస్కారం, అరుణోదయ సోలార్‌కి ఫోన్ చేసినందుకు ధన్యవాదాలు, మీ ఇంటికి three kilowatt సిస్టమ్ సరిపోతుంది, దాని ధర సుమారు ఒక లక్ష ఎనభై వేల రూపాయలు, మీకు ee em eye ఆప్షన్ కూడా ఉంది.",
+   "segments": [
+    [
+     "te",
+     "నమస్కారం, అరుణోదయ సోలార్‌కి ఫోన్ చేసినందుకు ధన్యవాదాలు,",
+     "clause"
+    ],
+    [
+     "te",
+     "మీ ఇంటికి",
+     "switch"
+    ],
+    [
+     "en",
+     "three kilowatt",
+     "switch"
+    ],
+    [
+     "te",
+     "సిస్టమ్ సరిపోతుంది,",
+     "clause"
+    ],
+    [
+     "te",
+     "దాని ధర సుమారు ఒక లక్ష ఎనభై వేల రూపాయలు,",
+     "clause"
+    ],
+    [
+     "te",
+     "మీకు",
+     "switch"
+    ],
+    [
+     "en",
+     "ee em eye",
+     "switch"
+    ],
+    [
+     "te",
+     "ఆప్షన్ కూడా ఉంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "శనివారం, 14/11/2026, సాయంత్రం 5:00 PM కి మీ సైట్ విజిట్ బుక్ అయింది.",
+   "base": "te",
+   "normalized": "శనివారం, రెండు వేల ఇరవై ఆరు నవంబర్ పద్నాలుగో తేదీ, సాయంత్రం ఐదు గంటలకు మీ సైట్ విజిట్ బుక్ అయింది.",
+   "segments": [
+    [
+     "te",
+     "శనివారం, రెండు వేల ఇరవై ఆరు నవంబర్ పద్నాలుగో తేదీ,",
+     "clause"
+    ],
+    [
+     "te",
+     "సాయంత్రం ఐదు గంటలకు మీ సైట్ విజిట్ బుక్ అయింది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీకు ఏ సమాచారం కావాలి?",
+   "base": "te",
+   "normalized": "మీకు ఏ సమాచారం కావాలి?",
+   "segments": [
+    [
+     "te",
+     "మీకు ఏ సమాచారం కావాలి?",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "నీకు ఏ సమాచారం కావాలి?",
+   "base": "te",
+   "normalized": "నీకు ఏ సమాచారం కావాలి?",
+   "segments": [
+    [
+     "te",
+     "నీకు ఏ సమాచారం కావాలి?",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "10 గంటలకు",
+   "base": "en",
+   "normalized": "పది గంటలకు",
+   "segments": [
+    [
+     "te",
+     "పది గంటలకు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Your booking code is AR-2041.",
+   "base": "en",
+   "normalized": "Your booking code is ay ar, two zero four one.",
+   "segments": [
+    [
+     "en",
+     "Your booking code is ay ar, two zero four one.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ బుకింగ్ కోడ్ AR-2041.",
+   "base": "te",
+   "normalized": "మీ బుకింగ్ కోడ్ ay ar, two zero four one.",
+   "segments": [
+    [
+     "te",
+     "మీ బుకింగ్ కోడ్",
+     "switch"
+    ],
+    [
+     "en",
+     "ay ar, two zero four one.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ booking ID AR-2041కి link పంపాము.",
+   "base": "te",
+   "normalized": "మీ booking eye dee ay ar, two zero four oneకి link పంపాము.",
+   "segments": [
+    [
+     "te",
+     "మీ",
+     "switch"
+    ],
+    [
+     "en",
+     "booking eye dee ay ar, two zero four one",
+     "switch"
+    ],
+    [
+     "te",
+     "కి",
+     "switch"
+    ],
+    [
+     "en",
+     "link",
+     "switch"
+    ],
+    [
+     "te",
+     "పంపాము.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Booking AR2041 confirmed.",
+   "base": "en",
+   "normalized": "Booking ay ar two zero four one confirmed.",
+   "segments": [
+    [
+     "en",
+     "Booking ay ar two zero four one confirmed.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Reference HALO-7Q2X9 is cancelled.",
+   "base": "en",
+   "normalized": "Reference aitch ay el oh, seven cue two ex nine is cancelled.",
+   "segments": [
+    [
+     "en",
+     "Reference aitch ay el oh, seven cue two ex nine is cancelled.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Ref. No. AR-2041",
+   "base": "en",
+   "normalized": "reference number ay ar, two zero four one",
+   "segments": [
+    [
+     "en",
+     "reference number ay ar, two zero four one",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Block A1, 2BHK flat",
+   "base": "en",
+   "normalized": "Block ay one, two bee aitch kay flat",
+   "segments": [
+    [
+     "en",
+     "Block ay one, two bee aitch kay flat",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "10AM-6PM",
+   "base": "en",
+   "normalized": "ten ay em to six pee em",
+   "segments": [
+    [
+     "en",
+     "ten ay em to six pee em",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Your visit is on 03/24/2026.",
+   "base": "en",
+   "normalized": "Your visit is on March twenty fourth, two thousand twenty six.",
+   "segments": [
+    [
+     "en",
+     "Your visit is on March twenty fourth, two thousand twenty six.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ అపాయింట్‌మెంట్ 03/24/2026 న ఉంది.",
+   "base": "te",
+   "normalized": "మీ అపాయింట్‌మెంట్ రెండు వేల ఇరవై ఆరు మార్చి ఇరవై నాలుగో తేదీన ఉంది.",
+   "segments": [
+    [
+     "te",
+     "మీ అపాయింట్‌మెంట్ రెండు వేల ఇరవై ఆరు మార్చి ఇరవై నాలుగో తేదీన ఉంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "12/31/2026",
+   "base": "en",
+   "normalized": "December thirty first, two thousand twenty six",
+   "segments": [
+    [
+     "en",
+     "December thirty first, two thousand twenty six",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "03/04/2026",
+   "base": "en",
+   "normalized": "third April, two thousand twenty six",
+   "segments": [
+    [
+     "en",
+     "third April, two thousand twenty six",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "31/02/2026",
+   "base": "en",
+   "normalized": "three one, zero two, two zero two six",
+   "segments": [
+    [
+     "en",
+     "three one, zero two, two zero two six",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "29/02/2028",
+   "base": "en",
+   "normalized": "twenty ninth February, two thousand twenty eight",
+   "segments": [
+    [
+     "en",
+     "twenty ninth February, two thousand twenty eight",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "29/02/2027",
+   "base": "te",
+   "normalized": "రెండు తొమ్మిది, సున్నా రెండు, రెండు సున్నా రెండు ఏడు",
+   "segments": [
+    [
+     "te",
+     "రెండు తొమ్మిది, సున్నా రెండు, రెండు సున్నా రెండు ఏడు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "2026/03/24",
+   "base": "en",
+   "normalized": "twenty fourth March, two thousand twenty six",
+   "segments": [
+    [
+     "en",
+     "twenty fourth March, two thousand twenty six",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "₹500 - ₹1,000",
+   "base": "en",
+   "normalized": "five hundred to one thousand rupees",
+   "segments": [
+    [
+     "en",
+     "five hundred to one thousand rupees",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "₹500-1,000",
+   "base": "te",
+   "normalized": "ఐదు వందల నుంచి వెయ్యి రూపాయలు",
+   "segments": [
+    [
+     "te",
+     "ఐదు వందల నుంచి వెయ్యి రూపాయలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "₹2-3 lakh",
+   "base": "te",
+   "normalized": "రెండు నుంచి మూడు లక్షల రూపాయలు",
+   "segments": [
+    [
+     "te",
+     "రెండు నుంచి మూడు లక్షల రూపాయలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "45,000/- రూపాయలు",
+   "base": "te",
+   "normalized": "నలభై ఐదు వేల రూపాయలు",
+   "segments": [
+    [
+     "te",
+     "నలభై ఐదు వేల రూపాయలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "₹2.5L",
+   "base": "en",
+   "normalized": "two point five lakh rupees",
+   "segments": [
+    [
+     "en",
+     "two point five lakh rupees",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "$100",
+   "base": "en",
+   "normalized": "one hundred dollars",
+   "segments": [
+    [
+     "en",
+     "one hundred dollars",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "ఫీజు ₹499 మాత్రమే.",
+   "base": "te",
+   "normalized": "ఫీజు నాలుగు వందల తొంభై తొమ్మిది రూపాయలు మాత్రమే.",
+   "segments": [
+    [
+     "te",
+     "ఫీజు నాలుగు వందల తొంభై తొమ్మిది రూపాయలు మాత్రమే.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "+919848012345",
+   "base": "en",
+   "normalized": "plus nine one, nine eight four eight zero, one two three four five",
+   "segments": [
+    [
+     "en",
+     "plus nine one, nine eight four eight zero, one two three four five",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "09848012345",
+   "base": "te",
+   "normalized": "సున్నా, తొమ్మిది ఎనిమిది నాలుగు ఎనిమిది సున్నా, ఒకటి రెండు మూడు నాలుగు ఐదు",
+   "segments": [
+    [
+     "te",
+     "సున్నా, తొమ్మిది ఎనిమిది నాలుగు ఎనిమిది సున్నా, ఒకటి రెండు మూడు నాలుగు ఐదు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Call me at (040) 2345 6789",
+   "base": "en",
+   "normalized": "Call me at zero four zero, two three four five, six seven eight nine",
+   "segments": [
+    [
+     "en",
+     "Call me at zero four zero, two three four five, six seven eight nine",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "+91 9848012345",
+   "base": "en",
+   "normalized": "plus nine one, nine eight four eight zero, one two three four five",
+   "segments": [
+    [
+     "en",
+     "plus nine one, nine eight four eight zero, one two three four five",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Mob. 98480 12345",
+   "base": "en",
+   "normalized": "mobile nine eight four eight zero, one two three four five",
+   "segments": [
+    [
+     "en",
+     "mobile nine eight four eight zero, one two three four five",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Ph: 9848012345",
+   "base": "en",
+   "normalized": "phone: nine eight four eight zero, one two three four five",
+   "segments": [
+    [
+     "en",
+     "phone: nine eight four eight zero, one two three four five",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Sr. No. 5",
+   "base": "en",
+   "normalized": "serial number five",
+   "segments": [
+    [
+     "en",
+     "serial number five",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Opp. Metro Station, Ameerpet",
+   "base": "en",
+   "normalized": "opposite Metro Station, Ameerpet",
+   "segments": [
+    [
+     "en",
+     "opposite Metro Station, Ameerpet",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Come to Jubilee Hills Rd. Please call first.",
+   "base": "en",
+   "normalized": "Come to Jubilee Hills Road. Please call first.",
+   "segments": [
+    [
+     "en",
+     "Come to Jubilee Hills Road.",
+     "sentence"
+    ],
+    [
+     "en",
+     "Please call first.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ booking AR-2041 confirm అయింది.",
+   "base": "te",
+   "normalized": "మీ booking ay ar, two zero four one confirm అయింది.",
+   "segments": [
+    [
+     "te",
+     "మీ",
+     "switch"
+    ],
+    [
+     "en",
+     "booking ay ar, two zero four one confirm",
+     "switch"
+    ],
+    [
+     "te",
+     "అయింది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ site visit Saturday 5 PM కి confirm అయింది.",
+   "base": "te",
+   "normalized": "మీ site visit Saturday సాయంత్రం ఐదు గంటలకు confirm అయింది.",
+   "segments": [
+    [
+     "te",
+     "మీ",
+     "switch"
+    ],
+    [
+     "en",
+     "site visit Saturday",
+     "switch"
+    ],
+    [
+     "te",
+     "సాయంత్రం ఐదు గంటలకు",
+     "switch"
+    ],
+    [
+     "en",
+     "confirm",
+     "switch"
+    ],
+    [
+     "te",
+     "అయింది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ booking cancel చేశాను, refund 3-5 days లో వస్తుంది.",
+   "base": "te",
+   "normalized": "మీ booking cancel చేశాను, refund three to five days లో వస్తుంది.",
+   "segments": [
+    [
+     "te",
+     "మీ",
+     "switch"
+    ],
+    [
+     "en",
+     "booking cancel",
+     "switch"
+    ],
+    [
+     "te",
+     "చేశాను,",
+     "clause"
+    ],
+    [
+     "en",
+     "refund three to five days",
+     "switch"
+    ],
+    [
+     "te",
+     "లో వస్తుంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ appointment 24/03/2026 న 10:30 AM కి ఉంది.",
+   "base": "te",
+   "normalized": "మీ appointment రెండు వేల ఇరవై ఆరు మార్చి ఇరవై నాలుగో తేదీన ఉదయం పది గంటల ముప్పై నిమిషాలకు ఉంది.",
+   "segments": [
+    [
+     "te",
+     "మీ",
+     "switch"
+    ],
+    [
+     "en",
+     "appointment",
+     "switch"
+    ],
+    [
+     "te",
+     "రెండు వేల ఇరవై ఆరు మార్చి ఇరవై నాలుగో తేదీన ఉదయం పది గంటల ముప్పై నిమిషాలకు ఉంది.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "మీ total ₹45,000, GST extra.",
+   "base": "te",
+   "normalized": "మీ total forty five thousand rupees, jee es tee extra.",
+   "segments": [
+    [
+     "te",
+     "మీ",
+     "switch"
+    ],
+    [
+     "en",
+     "total forty five thousand rupees, jee es tee extra.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Your booking AR-2041 on 24/03/2026 at 10:30 AM is confirmed.",
+   "base": "en",
+   "normalized": "Your booking ay ar, two zero four one on twenty fourth March, two thousand twenty six at ten thirty ay em is confirmed.",
+   "segments": [
+    [
+     "en",
+     "Your booking ay ar, two zero four one on twenty fourth March, two thousand twenty six at ten thirty ay em is confirmed.",
+     "sentence"
+    ]
+   ]
+  },
+  {
+   "text": "Hills Rd, 5th floor",
+   "base": "en",
+   "normalized": "Hills Road, fifth floor",
+   "segments": [
+    [
+     "en",
+     "Hills Road, fifth floor",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "₹2-3 lakh",
+   "base": "en",
+   "normalized": "two to three lakh rupees",
+   "segments": [
+    [
+     "en",
+     "two to three lakh rupees",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "₹1.50-₹2.50",
+   "base": "te",
+   "normalized": "ఒక రూపాయి యాభై పైసల నుంచి రెండు రూపాయలు యాభై పైసలు",
+   "segments": [
+    [
+     "te",
+     "ఒక రూపాయి యాభై పైసల నుంచి రెండు రూపాయలు యాభై పైసలు",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "Rs. 500 to 600",
+   "base": "en",
+   "normalized": "five hundred to six hundred rupees",
+   "segments": [
+    [
+     "en",
+     "five hundred to six hundred rupees",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "₹50 lakh-1 crore",
+   "base": "en",
+   "normalized": "fifty lakh to one crore rupees",
+   "segments": [
+    [
+     "en",
+     "fifty lakh to one crore rupees",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "051,000",
+   "base": "en",
+   "normalized": "zero five one zero zero zero",
+   "segments": [
+    [
+     "en",
+     "zero five one zero zero zero",
+     "clause"
+    ]
+   ]
+  },
+  {
+   "text": "ఖాతా 051,000",
+   "base": "te",
+   "normalized": "ఖాతా సున్నా ఐదు ఒకటి సున్నా సున్నా సున్నా",
+   "segments": [
+    [
+     "te",
+     "ఖాతా సున్నా ఐదు ఒకటి సున్నా సున్నా సున్నా",
+     "clause"
+    ]
+   ]
+  }
+ ],
+ "errors": [
+  {
+   "text": "12345",
+   "base": null,
+   "available": [
+    "en",
+    "te"
+   ]
+  },
+  {
+   "text": "నమస్కారం",
+   "base": "en",
+   "available": [
+    "en"
+   ]
+  }
+ ],
+ "cardinals": {
+  "te": {
+   "0": "సున్నా",
+   "7": "ఏడు",
+   "11": "పదకొండు",
+   "19": "పంతొమ్మిది",
+   "20": "ఇరవై",
+   "21": "ఇరవై ఒకటి",
+   "45": "నలభై ఐదు",
+   "99": "తొంభై తొమ్మిది",
+   "100": "వంద",
+   "101": "నూట ఒకటి",
+   "120": "నూట ఇరవై",
+   "200": "రెండు వందలు",
+   "250": "రెండు వందల యాభై",
+   "999": "తొమ్మిది వందల తొంభై తొమ్మిది",
+   "1000": "వెయ్యి",
+   "1500": "వెయ్యి ఐదు వందలు",
+   "2000": "రెండు వేలు",
+   "21000": "ఇరవై ఒక వేలు",
+   "45000": "నలభై ఐదు వేలు",
+   "100000": "ఒక లక్ష",
+   "145000": "ఒక లక్ష నలభై ఐదు వేలు",
+   "200000": "రెండు లక్షలు",
+   "221000": "రెండు లక్షల ఇరవై ఒక వేలు",
+   "1850000": "పద్దెనిమిది లక్షల యాభై వేలు",
+   "10000000": "ఒక కోటి",
+   "15000000": "ఒక కోటి యాభై లక్షలు"
+  },
+  "en": {
+   "0": "zero",
+   "7": "seven",
+   "11": "eleven",
+   "19": "nineteen",
+   "20": "twenty",
+   "21": "twenty one",
+   "45": "forty five",
+   "99": "ninety nine",
+   "100": "one hundred",
+   "101": "one hundred one",
+   "120": "one hundred twenty",
+   "200": "two hundred",
+   "250": "two hundred fifty",
+   "999": "nine hundred ninety nine",
+   "1000": "one thousand",
+   "1500": "one thousand five hundred",
+   "2000": "two thousand",
+   "21000": "twenty one thousand",
+   "45000": "forty five thousand",
+   "100000": "one lakh",
+   "145000": "one lakh forty five thousand",
+   "200000": "two lakh",
+   "221000": "two lakh twenty one thousand",
+   "1850000": "eighteen lakh fifty thousand",
+   "10000000": "one crore",
+   "15000000": "one crore fifty lakh"
+  }
+ },
+ "ordinals": {
+  "te": {
+   "1": "ఒకటో",
+   "2": "రెండో",
+   "3": "మూడో",
+   "5": "ఐదో",
+   "8": "ఎనిమిదో",
+   "9": "తొమ్మిదో",
+   "10": "పదో",
+   "12": "పన్నెండో",
+   "14": "పద్నాలుగో",
+   "20": "ఇరవయ్యో",
+   "21": "ఇరవై ఒకటో",
+   "24": "ఇరవై నాలుగో",
+   "30": "ముప్పయ్యో",
+   "31": "ముప్పై ఒకటో"
+  },
+  "en": {
+   "1": "first",
+   "2": "second",
+   "3": "third",
+   "5": "fifth",
+   "8": "eighth",
+   "9": "ninth",
+   "10": "tenth",
+   "12": "twelfth",
+   "14": "fourteenth",
+   "20": "twentieth",
+   "21": "twenty first",
+   "24": "twenty fourth",
+   "30": "thirtieth",
+   "31": "thirty first"
+  }
+ }
+}

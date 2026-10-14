@@ -20,6 +20,7 @@ import type { CalendarConnection } from "@halo/providers/calendar/factory";
 import { AppError } from "@halo/core/errors/app-error";
 import { getAdminClient } from "@halo/tenancy/supabase/admin";
 import { logger } from "@halo/platform/logger";
+import { decryptCalendarCredential, encryptCalendarCredential } from "@halo/platform/calendar-credentials";
 
 const log = logger.child({ service: "scheduling-repository" });
 
@@ -579,6 +580,19 @@ export class SchedulingRepository {
     if (!data) return null;
 
     const connectionId = data.id;
+    let accessToken: string;
+    let refreshToken: string;
+    let basicUsername: string;
+    let basicPassword: string;
+    try {
+      accessToken = decryptCalendarCredential(data.access_token);
+      refreshToken = decryptCalendarCredential(data.refresh_token);
+      basicUsername = decryptCalendarCredential(data.basic_username);
+      basicPassword = decryptCalendarCredential(data.basic_password);
+    } catch (cause) {
+      log.error("calendar credentials could not be decrypted", { connectionId, cause });
+      throw AppError.internal();
+    }
     return {
       provider: data.provider,
       calendarRef: data.calendar_ref,
@@ -586,23 +600,27 @@ export class SchedulingRepository {
         data.provider === "caldav"
           ? undefined
           : {
-              accessToken: data.access_token,
-              refreshToken: data.refresh_token,
+              accessToken,
+              refreshToken,
               expiresAt: data.expires_at ?? "",
             },
       basicAuth:
         data.provider === "caldav"
-          ? { username: data.basic_username, password: data.basic_password }
+          ? { username: basicUsername, password: basicPassword }
           : undefined,
       onTokenRotate: async (tokens) => {
-        await this.db
+        const { error } = await this.db
           .from("calendar_connections")
           .update({
-            access_token: tokens.accessToken,
-            refresh_token: tokens.refreshToken,
+            access_token: encryptCalendarCredential(tokens.accessToken),
+            refresh_token: encryptCalendarCredential(tokens.refreshToken),
             expires_at: tokens.expiresAt,
           })
           .eq("id", connectionId);
+        if (error) {
+          log.error("calendar credential rotation persistence failed", { connectionId, error: error.message });
+          throw AppError.internal();
+        }
       },
     };
   }

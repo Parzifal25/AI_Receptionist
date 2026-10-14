@@ -36,7 +36,8 @@ function versionFor(): AgentVersion {
     agentId: "agent-arunodhaya",
     businessId: BUSINESS_A.id,
     version: 1,
-    config,
+    // Offline synthetic harness only; the real pilot keeps its blockers.
+    config: { ...config, activationBlockers: [] },
     promptTemplate: config.instructions.promptTemplate,
     promptVersion: "2026-09-21.1",
     model: {},

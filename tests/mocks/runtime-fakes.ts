@@ -1,6 +1,7 @@
 import type { ChatMessage } from "@halo/core/domain/types";
 import { DEFAULT_BRANDING, type Business, type Receptionist } from "@halo/core/domain/types";
 import { defaultAgentConfig, type AgentConfig } from "@halo/core/domain/agents";
+import { readyAgentConfig } from "./layer1-agent-config";
 import type {
   LLMCapabilities,
   LLMCompletionOptions,
@@ -57,7 +58,7 @@ export const RECEPTIONIST_A: Receptionist = {
 };
 
 export function makeAgent(overrides: Partial<ResolvedAgentRuntimeContext> & { config?: Partial<AgentConfig> } = {}): ResolvedAgentRuntimeContext {
-  const config = { ...defaultAgentConfig(), ...(overrides.config ?? {}) } as AgentConfig;
+  const config = { ...defaultAgentConfig(), ...readyAgentConfig(), ...(overrides.config ?? {}) } as AgentConfig;
   return {
     business: BUSINESS_A,
     agentId: "agent-a",

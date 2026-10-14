@@ -13,6 +13,9 @@ export interface ReadinessReport {
   };
 }
 
+/** A database that accepts the connection but never answers must read as down, not hang the probe. */
+const DATABASE_PROBE_TIMEOUT_MS = 5_000;
+
 export async function validateProductionReadiness(options: {
   /**
    * Downgrade the database connectivity probe to a warning (CI has no
@@ -64,9 +67,15 @@ export async function validateProductionReadiness(options: {
 
   if (!options.skipDatabaseCheck) {
     database.checked = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const adminClient = getAdminClient();
-      const { error } = await adminClient.from("businesses").select("id").limit(1);
+      const { error } = await Promise.race([
+        adminClient.from("businesses").select("id").limit(1),
+        new Promise<{ error: true }>((resolve) => {
+          timer = setTimeout(() => resolve({ error: true }), DATABASE_PROBE_TIMEOUT_MS);
+        }),
+      ]);
       if (error) {
         errors.push("Database connectivity check failed");
       } else {
@@ -74,6 +83,8 @@ export async function validateProductionReadiness(options: {
       }
     } catch {
       errors.push("Database connectivity check failed");
+    } finally {
+      clearTimeout(timer);
     }
   } else {
     warnings.push("Database connectivity check skipped (--skip-db-check)");

@@ -61,7 +61,7 @@ export function computeDisposition(input: DispositionInput): DispositionResult {
     // The call never became a conversation: no outcome is the honest answer.
     return { ...base, disposition: "no_outcome", reason: "the call ended before any exchange" };
   }
-  if (snapshot.status === "complete") {
+  if (snapshot.status === "complete" && snapshot.unresolved.length === 0) {
     return { ...base, disposition: "qualified", reason: null };
   }
   if (Object.keys(snapshot.fields).length === 0) {

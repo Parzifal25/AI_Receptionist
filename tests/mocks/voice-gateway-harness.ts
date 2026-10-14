@@ -1,5 +1,6 @@
+import { readyAgentConfig } from "./layer1-agent-config";
 import { vi } from "vitest";
-import { defaultAgentConfig, type AgentVersion } from "@halo/core/domain/agents";
+import { type AgentVersion } from "@halo/core/domain/agents";
 import { FakeSttProvider } from "@halo/providers/voice-fakes/fake-stt-provider";
 import { FakeTtsProvider } from "@halo/providers/voice-fakes/fake-tts-provider";
 import { FakeTelephonyProvider } from "@halo/providers/voice-fakes/fake-telephony-provider";
@@ -17,7 +18,7 @@ export function makeVersion(businessId: string, agentId: string, id: string): Ag
     agentId,
     businessId,
     version: 3,
-    config: defaultAgentConfig(),
+    config: readyAgentConfig(),
     promptTemplate: "You are a voice agent.",
     promptVersion: "2026-09-16.1",
     model: {},

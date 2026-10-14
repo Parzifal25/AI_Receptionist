@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CALL_EVENT_TYPES } from "@halo/core/domain/voice";
 import type { VoiceTurnTimings } from "@halo/voice/turn-handler";
+import { buildRemoteSession } from "../../mocks/remote-voice-harness";
 import { buildSession, ScriptedTurnHandler } from "../../mocks/voice-harness";
 
 /**
@@ -10,6 +11,9 @@ import { buildSession, ScriptedTurnHandler } from "../../mocks/voice-harness";
  * The property under test is honesty, not precision: `llm_first_token` is
  * emitted only when the model actually streamed, and its absence is a
  * recorded fact rather than a number to invent.
+ *
+ * Runs against BOTH media engines: the Pipecat engine is the live path, and a
+ * mark only one engine records cannot be compared across them.
  */
 
 beforeEach(() => {
@@ -22,9 +26,12 @@ afterEach(() => {
 
 const STREAMED: VoiceTurnTimings = { contextReadyMs: 40, firstTokenMs: 210, modelMs: 500, validationMs: 12 };
 
+const ENGINES = { in_process: buildSession, pipecat: buildRemoteSession } as const;
+
+describe.each(Object.keys(ENGINES) as Array<keyof typeof ENGINES>)("voice latency marks (%s engine)", (engine) => {
 async function runTurn(timings: VoiceTurnTimings | undefined) {
   const handler = new ScriptedTurnHandler().then({ reply: "Our team can visit this week.", ...(timings ? { timings } : {}) });
-  const h = buildSession({ handler });
+  const h = ENGINES[engine]({ handler });
   h.session.start();
   await h.settle(2_000);
   await h.caller.say("What are your prices?");
@@ -32,7 +39,7 @@ async function runTurn(timings: VoiceTurnTimings | undefined) {
   return h;
 }
 
-describe("voice latency marks", () => {
+describe("marks", () => {
   it("registers both marks in the closed call-event set", () => {
     expect(CALL_EVENT_TYPES).toContain("context_ready");
     expect(CALL_EVENT_TYPES).toContain("llm_first_token");
@@ -59,7 +66,10 @@ describe("voice latency marks", () => {
     // so the gap between them is exactly the gap the runtime reported, with
     // no second time origin sneaking in.
     expect(at("llm_first_token")! - at("context_ready")!).toBe(STREAMED.firstTokenMs! - STREAMED.contextReadyMs);
-    expect(at("endpoint")).not.toBeNull();
+    // The in-process engine reports its configured hangover here; the Pipecat
+    // engine learns of the endpoint only after the worker's hangover, so it
+    // records the mark without a latency rather than inventing one.
+    expect(h.eventsOf("endpoint")[0]).toBeDefined();
     expect(h.eventsOf("turn_complete")[0]).toBeDefined();
   });
 
@@ -87,10 +97,22 @@ describe("voice latency marks", () => {
     expect(h.eventsOf("agent_turn")[0].detail).not.toHaveProperty("contextMs");
   });
 
+  it("carries persistence and hook time when the handler reports them", async () => {
+    const h = await runTurn({ ...STREAMED, persistenceMs: 7, hooksMs: 3 });
+    expect(h.eventsOf("agent_turn")[0].detail).toMatchObject({ persistenceMs: 7, hooksMs: 3 });
+  });
+
+  it("omits persistence and hook time a handler does not report", async () => {
+    const h = await runTurn(STREAMED);
+    expect(h.eventsOf("agent_turn")[0].detail).not.toHaveProperty("persistenceMs");
+    expect(h.eventsOf("agent_turn")[0].detail).not.toHaveProperty("hooksMs");
+  });
+
   it("never puts transcript text in a latency mark", async () => {
     const h = await runTurn(STREAMED);
     const marks = [...h.eventsOf("context_ready"), ...h.eventsOf("llm_first_token")];
     expect(JSON.stringify(marks)).not.toContain("prices");
     expect(JSON.stringify(marks)).not.toContain("visit");
   });
+});
 });

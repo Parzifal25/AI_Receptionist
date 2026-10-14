@@ -5,7 +5,7 @@ describe("agentConfigSchema", () => {
   it("accepts an empty object and fills defaults", () => {
     const config = parseAgentConfig({});
     expect(config).not.toBeNull();
-    expect(config!.language.primary).toBe("en");
+    expect(config!.language.primary).toBe(""); // Incomplete drafts stay unset.
     expect(config!.language.codeSwitchPolicy).toBe("allow");
     expect(config!.knowledge.collectionIds).toEqual([]);
     expect(config!.tools.grantedToolIds).toEqual([]);

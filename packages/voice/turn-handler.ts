@@ -52,6 +52,22 @@ export interface VoiceTurnTimings {
   modelMs: number;
   /** Time validating the draft reply (act-then-narrate and the repair ladder). */
   validationMs: number;
+  /** Awaited transcript + state writes after validation, before the reply is returned. */
+  persistenceMs?: number;
+  /** Awaited after-turn hooks, also before the reply is returned. */
+  hooksMs?: number;
+}
+
+/** The `agent_turn` event detail for a breakdown; shared so both media engines record the same fields. */
+export function turnTimingDetail(timings: VoiceTurnTimings): Record<string, number | null> {
+  return {
+    contextMs: timings.contextReadyMs,
+    firstTokenMs: timings.firstTokenMs,
+    modelMs: timings.modelMs,
+    validationMs: timings.validationMs,
+    ...(timings.persistenceMs !== undefined ? { persistenceMs: timings.persistenceMs } : {}),
+    ...(timings.hooksMs !== undefined ? { hooksMs: timings.hooksMs } : {}),
+  };
 }
 
 export interface VoiceTurnResult {

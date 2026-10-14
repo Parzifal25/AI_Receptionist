@@ -2,6 +2,7 @@ import type { ChatMessage, KnowledgeSnippet } from "@halo/core/domain/types";
 import type { KnowledgeProvider } from "@halo/ports/knowledge-provider";
 import { buildRetrievalQuery } from "@halo/knowledge/retrieval-query";
 import type { KnowledgeContext } from "./contracts";
+import { AppError } from "@halo/core/errors/app-error";
 
 /**
  * HALO Phase 2 — knowledge resolver (Workstream 6).
@@ -13,9 +14,7 @@ import type { KnowledgeContext } from "./contracts";
  * touched (Phase 3).
  *
  * Known limitations, carried into Phase 3 explicitly:
- *   - `collectionIds` from the agent config are accepted but NOT applied:
- *     the KnowledgeProvider port has no collection parameter yet, so
- *     retrieval remains tenant-wide (today's behaviour).
+ *   - The port does not support collections: nonempty bindings fail closed.
  *   - Query preparation is the English-centric heuristic in
  *     retrieval-query.ts; multilingual queries are not rewritten.
  * Retrieved text is always treated as data by the composer, never as
@@ -25,7 +24,7 @@ import type { KnowledgeContext } from "./contracts";
 export interface KnowledgeResolveParams {
   /** Trusted tenant id. */
   businessId: string;
-  /** Persisted agent binding (unused until the port supports collections). */
+  /** Nonempty bindings must never widen to tenant-wide retrieval. */
   collectionIds: string[];
   history: ChatMessage[];
   userMessage: string;
@@ -86,6 +85,8 @@ export class ProviderKnowledgeResolver implements KnowledgeResolver {
   }
 
   async resolve(params: KnowledgeResolveParams): Promise<KnowledgeContext> {
+    if (!params.businessId?.trim()) throw AppError.forbidden("Knowledge retrieval requires tenant context");
+    if (params.collectionIds.length) throw AppError.forbidden("Configured knowledge collections cannot be enforced by this provider");
     const query = buildRetrievalQuery(params.history, params.userMessage);
     if (!query.trim()) return emptyKnowledge(query);
     const raw = await this.provider.search(params.businessId, query, params.limits.maxSnippets);

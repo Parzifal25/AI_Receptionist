@@ -62,7 +62,7 @@ export interface TtsFactoryConfig {
 }
 
 export function createSttProvider(config: SttFactoryConfig): StreamingSttProvider {
-  if (config.fallback) return new FallbackSttProvider([createSttProvider({ ...config, fallback: undefined }), createSttProvider(config.fallback)]);
+  if (config.fallback) return new FallbackSttProvider([createSttProvider({ ...config, fallback: undefined }), createSttProvider(config.fallback)], undefined, { onChange: circuitLog("stt") });
   switch (config.provider) {
     case "sarvam":
       return new SarvamSttProvider({
@@ -81,7 +81,7 @@ export function createSttProvider(config: SttFactoryConfig): StreamingSttProvide
 }
 
 export function createTtsProvider(config: TtsFactoryConfig): StreamingTtsProvider {
-  if (config.fallback) return new FallbackTtsProvider([{ provider: createTtsProvider({ ...config, fallback: undefined }) }, { provider: createTtsProvider(config.fallback), voiceId: config.fallback.defaultSpeaker }]);
+  if (config.fallback) return new FallbackTtsProvider([{ provider: createTtsProvider({ ...config, fallback: undefined }) }, { provider: createTtsProvider(config.fallback), voiceId: config.fallback.defaultSpeaker }], { onChange: circuitLog("tts") });
   switch (config.provider) {
     case "sarvam":
       return new SarvamTtsProvider({
@@ -96,6 +96,12 @@ export function createTtsProvider(config: TtsFactoryConfig): StreamingTtsProvide
     case "fake":
       return new FakeTtsProvider();
   }
+}
+
+/** `open` means the primary is being skipped and callers are on the fallback. */
+function circuitLog(kind: "stt" | "tts") {
+  return (change: { provider: string; state: string; cooldownMs: number }) =>
+    (change.state === "closed" ? log.info : log.warn).call(log, "speech provider circuit", { kind, ...change });
 }
 
 function requireValue(value: string | undefined, variable: string, provider: string): string {

@@ -11,6 +11,9 @@ const profiles = z.record(z.string(), z.record(z.string(), profile));
  * agent config. Credentials and endpoints never cross the control protocol. */
 export class VoiceProfiles {
   private readonly profiles: z.infer<typeof profiles>;
+  // Built once per profile, like the gateway's default providers, so a
+  // fallback's memory of a vendor outage outlives the call that found it.
+  private readonly built = new Map<string, { stt: ReturnType<typeof createSttProvider>; tts: ReturnType<typeof createTtsProvider> }>();
   constructor(json = "{}") { this.profiles = profiles.parse(JSON.parse(json)); }
   resolve(businessId: string, profileId: string, wire: AudioFormat) {
     const definition = this.profiles[businessId]?.[profileId];
@@ -18,11 +21,14 @@ export class VoiceProfiles {
     // No implicit resampling: the selected carrier/transport determines audio
     // format. New transports may negotiate another supported sample rate.
     if (definition.sampleRate !== wire.sampleRate) throw new Error("Voice profile sample rate does not match transport");
-    const stt = createSttProvider(definition.stt), tts = createTtsProvider(definition.tts);
+    const key = JSON.stringify([businessId, profileId]);
+    const speech = this.built.get(key) ?? { stt: createSttProvider(definition.stt), tts: createTtsProvider(definition.tts) };
+    const { stt, tts } = speech;
     for (const provider of [stt, tts]) {
       if (!provider.capabilities().formats.some(f => f.sampleRate === wire.sampleRate && f.channels === wire.channels &&
         (f.encoding === wire.encoding || (wire.encoding === "mulaw" && f.encoding === "pcm16le")))) throw new Error("Voice profile format unavailable");
     }
+    this.built.set(key, speech);
     return { stt, tts };
   }
 }

@@ -1,3 +1,5 @@
+import { observeVoiceEvent } from "./telemetry";
+import { observe, newTelemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import type {
   CallEndReason,
   CallEventType,
@@ -9,7 +11,7 @@ import type { StreamingTtsProvider } from "@halo/ports/streaming-tts-provider";
 import { audioDurationMs, BoundedAudioQueue, mulawToPcm16, pcm16ToMulaw } from "./audio";
 import { DEFAULT_ENDPOINTER_CONFIG, Endpointer, type EndpointerConfig } from "./endpointer";
 import { chunkForSpeech } from "./sentence-chunker";
-import { isTurnCancelled, type VoiceDirective, type VoiceTurnHandler, type VoiceTurnResult } from "./turn-handler";
+import { isTurnCancelled, turnTimingDetail, type VoiceDirective, type VoiceTurnHandler, type VoiceTurnResult } from "./turn-handler";
 
 /**
  * HALO Phase 3 — server-side voice session state machine (plan §P5.1, §P5.6).
@@ -294,23 +296,30 @@ export class VoiceSession {
   // Inbound media
   // ---------------------------------------------------------------------------
 
+  private audioProcessingMs = 0;
+
   /** Caller audio in `inputFormat`. Safe to call in any state. */
   receiveAudio(audio: Uint8Array): void {
-    if (this.state === "idle" || this.state === "ended" || audio.length === 0) return;
-    const encoding = this.deps.inputFormat.encoding;
-    this.inboundAudioMs += audioDurationMs(audio.length, encoding, this.deps.inputFormat.sampleRate);
-    const pcm = encoding === "mulaw" ? mulawToPcm16(audio) : audio;
-    const forStt = encoding === "mulaw" && this.sttAcceptsMulaw ? audio : pcm;
+    const started = performance.now();
+    try {
+      if (this.state === "idle" || this.state === "ended" || audio.length === 0) return;
+      const encoding = this.deps.inputFormat.encoding;
+      this.inboundAudioMs += audioDurationMs(audio.length, encoding, this.deps.inputFormat.sampleRate);
+      const pcm = encoding === "mulaw" ? mulawToPcm16(audio) : audio;
+      const forStt = encoding === "mulaw" && this.sttAcceptsMulaw ? audio : pcm;
 
-    if (this.sttReconnecting || !this.sttStream) this.reconnectBuffer.push(forStt);
-    else this.sttStream.write(forStt);
+      if (this.sttReconnecting || !this.sttStream) this.reconnectBuffer.push(forStt);
+      else this.sttStream.write(forStt);
 
-    if (this.state === "ending") return;
-    const signal = this.endpointer.push(pcm);
-    if (signal?.type === "speech_start") this.onSpeechStart();
-    else if (signal?.type === "speech_end") this.onSpeechEnd("local_vad");
+      if (this.state === "ending") return;
+      const signal = this.endpointer.push(pcm);
+      if (signal?.type === "speech_start") this.onSpeechStart();
+      else if (signal?.type === "speech_end") this.onSpeechEnd("local_vad");
 
-    if (this.endpointer.inSpeech) this.maybeBargeIn();
+      if (this.endpointer.inSpeech) this.maybeBargeIn();
+    } finally {
+      this.audioProcessingMs += performance.now() - started;
+    }
   }
 
   /** A playback mark we sent was reached by the provider. */
@@ -557,7 +566,7 @@ export class VoiceSession {
       let failure: unknown = null;
       try {
         result = await Promise.race([
-          this.deps.turns.handleTurn({ utterance, language, sttConfidence: confidence, turnIndex, signal: controller.signal }),
+          withTelemetryContext(() => this.deps.turns.handleTurn({ utterance, language, sttConfidence: confidence, turnIndex, signal: controller.signal }), this.telemetrySessionId),
           abandoned,
         ]);
       } catch (error) {
@@ -628,7 +637,7 @@ export class VoiceSession {
         // Present but null = the provider did not stream, so there is no
         // first-token signal. Absent = the handler reports no breakdown.
         ...(timings
-          ? { contextMs: timings.contextReadyMs, firstTokenMs: timings.firstTokenMs, modelMs: timings.modelMs, validationMs: timings.validationMs }
+          ? turnTimingDetail(timings)
           : {}),
       });
       this.lastDirective = result.directive.kind;
@@ -1046,6 +1055,9 @@ export class VoiceSession {
         lastDirective: this.lastDirective,
         consecutiveLowConfidence: this.consecutiveLowConfidence,
       };
+      observe("voice.processing", { component: "voice" }, this.audioProcessingMs, this.telemetrySessionId);
+      observe("voice.audio", { component: "voice", operation: "stt" }, summary.inboundAudioMs, this.telemetrySessionId);
+      observe("voice.audio", { component: "voice", operation: "tts" }, summary.outboundAudioMs, this.telemetrySessionId);
       this.emit("session_ended", null, {
         reason,
         turns: summary.turns,
@@ -1108,7 +1120,10 @@ export class VoiceSession {
     }
   }
 
+  private readonly telemetrySessionId = newTelemetryId();
+
   private emit(type: CallEventType, latencyMs: number | null, detail: VoiceSessionEvent["detail"]): void {
+    observeVoiceEvent(this.telemetrySessionId, type, latencyMs, detail, "node", { stt: this.deps.stt.name, tts: this.deps.tts.name });
     try {
       this.deps.hooks.onEvent({
         type,
@@ -1128,6 +1143,7 @@ export class VoiceSession {
   private setState(state: VoiceSessionState): void {
     if (this.state === state || this.state === "ended") return;
     this.state = state;
+    observe("voice.state", { component: "voice", state }, undefined, this.telemetrySessionId);
     try {
       this.deps.hooks.onStateChange?.(state);
     } catch {

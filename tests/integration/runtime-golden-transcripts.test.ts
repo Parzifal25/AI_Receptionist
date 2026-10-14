@@ -155,6 +155,7 @@ describe("golden transcripts (Phase 2)", () => {
         leads: [leadExtraction({ name: "Jane", intent: "quote for a new boiler" })],
       }),
       leadCapture: true,
+      grantedTools: ["save_contact_details"],
     });
     await h.say("Hi, I'm Jane. Could you email me a quote for a new boiler? jane@example.com");
     expect(h.leads[0]).toMatchObject({ email: "jane@example.com", name: "Jane" });

@@ -1,6 +1,7 @@
 import { DEFAULT_BRANDING, type ChatMessage } from "@halo/core/domain/types";
 import type { TranscriptDelivery } from "@halo/core/domain/voice";
-import type { AgentVersion } from "@halo/core/domain/agents";
+import { agentActivationErrors, type AgentVersion } from "@halo/core/domain/agents";
+import { AppError } from "@halo/core/errors/app-error";
 import type { Business } from "@halo/core/domain/types";
 import { speechLanguageFor } from "@halo/language/response-language";
 import type { LLMDelta, LLMProvider } from "@halo/ports/llm-provider";
@@ -65,6 +66,11 @@ export function resolvedContextForCall(params: {
   version: AgentVersion;
 }): ResolvedAgentRuntimeContext {
   const { business, agentId, version } = params;
+  if (version.businessId !== business.id || version.agentId !== agentId || !version.publishedAt) {
+    throw AppError.forbidden("Call requires a published tenant-owned agent version");
+  }
+  const errors = agentActivationErrors(version.config, version.promptTemplate, true);
+  if (errors.length) throw AppError.validation("Call configuration is unavailable", { reason: "invalid_agent_configuration", fields: errors });
   return {
     business,
     agentId,
@@ -76,10 +82,10 @@ export function resolvedContextForCall(params: {
     receptionist: {
       id: agentId,
       businessId: business.id,
-      name: version.config.identity.name || business.name,
+      name: version.config.identity.name,
       greeting: version.config.voice.prompts.greeting,
       tone: "friendly",
-      language: version.config.language.primary || "en",
+      language: version.config.language.primary,
       customInstructions: version.config.instructions.customInstructions,
       widgetKey: "",
       isActive: true,
@@ -324,6 +330,8 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
       firstTokenMs: this.firstDeltaAt === null ? null : Math.max(0, this.firstDeltaAt - this.turnStartedAt),
       modelMs: Math.max(0, Math.round(t.modelMs)),
       validationMs: Math.max(0, Math.round(t.validationMs)),
+      ...(t.persistenceMs !== undefined ? { persistenceMs: Math.max(0, Math.round(t.persistenceMs)) } : {}),
+      ...(t.hooksMs !== undefined ? { hooksMs: Math.max(0, Math.round(t.hooksMs)) } : {}),
     };
   }
 

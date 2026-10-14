@@ -1,3 +1,4 @@
+import { observe, errorOutcome } from "./telemetry";
 /**
  * Small retry helper for calls to flaky external services (calendar APIs,
  * messaging gateways). Exponential backoff with jitter; retries only errors
@@ -5,6 +6,7 @@
  */
 export interface RetryOptions {
   attempts?: number;
+  telemetryProvider?: "google" | "sarvam" | "local" | "other";
   baseDelayMs?: number;
   /** Return false to fail fast (e.g. on 4xx responses). */
   isRetryable?: (error: unknown) => boolean;
@@ -18,11 +20,16 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions =
   const { attempts = 3, baseDelayMs = 300, isRetryable = () => true, sleep = defaultSleep } = options;
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
+    const started = performance.now();
     try {
-      return await fn();
+      const result = await fn();
+      observe("dependency.attempt", { component: "dependency", provider: options.telemetryProvider ?? "other", outcome: "ok" }, performance.now() - started);
+      return result;
     } catch (error) {
       lastError = error;
+      observe("dependency.attempt", { component: "dependency", provider: options.telemetryProvider ?? "other", outcome: errorOutcome(error) }, performance.now() - started);
       if (attempt === attempts || !isRetryable(error)) throw error;
+      observe("dependency.retry", { component: "dependency", provider: options.telemetryProvider ?? "other", operation: "retry" });
       const delay = baseDelayMs * 2 ** (attempt - 1) * (0.5 + Math.random() * 0.5);
       await sleep(delay);
     }

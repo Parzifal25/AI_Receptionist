@@ -1,3 +1,4 @@
+import { observe, withTelemetryContext, telemetryId } from "@halo/platform/telemetry";
 import { handleWebTts } from "./web-tts";
 import { handleWebCall } from "./web-call";
 import type { StreamingTtsProvider } from "@halo/ports/streaming-tts-provider";
@@ -80,9 +81,21 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
   }
 
   const server = createServer((req, res) => {
-    void handleHttp(req, res).catch((error) => {
-      log.error("gateway request failed", { error });
-      send(res, 500, "application/json", JSON.stringify({ error: "internal_error" }));
+    withTelemetryContext(() => {
+      const started = performance.now();
+      const id = telemetryId();
+      res.setHeader("x-request-id", id!);
+      let recorded = false;
+      const record = () => {
+        if (recorded) return;
+        recorded = true;
+        observe("http.request", { component: "gateway", status: res.statusCode, outcome: !res.writableFinished ? "cancelled" : res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "rejected" : "ok" }, performance.now() - started, id);
+      };
+      res.once("finish", record); res.once("close", record);
+      void handleHttp(req, res).catch((error) => {
+        log.error("gateway request failed", { error });
+        send(res, 500, "application/json", JSON.stringify({ error: "internal_error" }));
+      });
     });
   });
 

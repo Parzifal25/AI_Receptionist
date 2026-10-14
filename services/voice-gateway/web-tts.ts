@@ -1,3 +1,4 @@
+import { observe } from "@halo/platform/telemetry";
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
@@ -23,7 +24,8 @@ export async function handleWebTts(req: IncomingMessage, res: ServerResponse, se
   const language = languages.find(l => l === parsed.data.language) ?? languages.find(l => l.split("-")[0] === parsed.data.language.split("-")[0]);
   if (!format || (languages.length && !language)) { send(400, { error: "tts_unsupported_format_or_language" }); return; }
   const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), 25000);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; abort.abort(); }, 25000);
   const onClose = () => { if (!res.writableEnded) abort.abort(); }; res.on("close", onClose);
   const started = Date.now(); let firstAudioMs: number | undefined;
   try {
@@ -35,9 +37,11 @@ export async function handleWebTts(req: IncomingMessage, res: ServerResponse, se
       audio.push(Buffer.from(chunk));
     }
     if (abort.signal.aborted || !bytes || bytes % 2) throw new Error("incomplete_audio");
+    observe("voice.tts", { component: "voice", engine: "web", phase: "synthesis", provider: provider.name, outcome: "ok" }, Date.now() - started);
     logger.info("web TTS completed", { provider: provider.name, firstAudioMs, latencyMs: Date.now() - started, bytes, sampleRate });
     send(200, { audio: Buffer.concat(audio).toString("base64"), format, provider: provider.name });
   } catch (error) {
+    observe("voice.tts", { component: "voice", engine: "web", phase: "synthesis", provider: provider.name, outcome: timedOut ? "timeout" : abort.signal.aborted ? "cancelled" : "error" }, Date.now() - started);
     const code = error instanceof TtsError ? error.code : "provider";
     logger.warn("web TTS failed", { provider: provider.name, code });
     if (!res.destroyed) send(502, { error: `tts_${code}` });

@@ -1,3 +1,4 @@
+import { makeAgent } from "../mocks/runtime-fakes";
 import { describe, expect, it, vi } from "vitest";
 import { ChatService } from "@/core/services/chat-service";
 import type { BookingOrchestrator } from "@halo/scheduling/booking-orchestrator";
@@ -107,7 +108,7 @@ describe("ChatService.respond", () => {
   it("answers and persists both sides of the turn", async () => {
     const { service, messages } = buildFakes({ llmReplies: ["We are open 9 to 5."] });
 
-    const { reply } = await service.respond({
+    const { reply } = await respondForTest(service, {
       business,
       receptionist,
       conversationId: "c1",
@@ -129,7 +130,7 @@ describe("ChatService.respond", () => {
       ],
     });
 
-    await service.respond({
+    await respondForTest(service, {
       business,
       receptionist,
       conversationId: "c1",
@@ -144,7 +145,7 @@ describe("ChatService.respond", () => {
   it("skips lead capture when disabled", async () => {
     const { service, leads } = buildFakes({ llmReplies: ["Sure."] });
 
-    await service.respond({
+    await respondForTest(service, {
       business,
       receptionist: { ...receptionist, leadCaptureEnabled: false },
       conversationId: "c1",
@@ -202,7 +203,7 @@ describe("ChatService.respond", () => {
       { stateStore: new InMemoryConversationStateStore() },
     );
 
-    const { reply } = await service.respond({
+    const { reply } = await respondForTest(service, {
       business,
       receptionist,
       conversationId: "c1",
@@ -218,7 +219,7 @@ describe("ChatService.respond", () => {
   it("records a knowledge gap when a real question retrieves nothing", async () => {
     const { service, events } = buildFakes({ llmReplies: ["Let me check on that."], knowledgeEmpty: true });
 
-    await service.respond({
+    await respondForTest(service, {
       business,
       receptionist: { ...receptionist, leadCaptureEnabled: false },
       conversationId: "c1",
@@ -231,7 +232,7 @@ describe("ChatService.respond", () => {
   it("does not record a knowledge gap for greetings", async () => {
     const { service, events } = buildFakes({ llmReplies: ["Hi!"], knowledgeEmpty: true });
 
-    await service.respond({
+    await respondForTest(service, {
       business,
       receptionist: { ...receptionist, leadCaptureEnabled: false },
       conversationId: "c1",
@@ -251,9 +252,31 @@ describe("ChatService.respond", () => {
 
     // Third visitor message triggers the periodic extraction pass.
     for (const text of ["hi", "what services do you offer", "tell me more"]) {
-      await service.respond({ business, receptionist, conversationId: "c1", userMessage: text });
+      await respondForTest(service, { business, receptionist, conversationId: "c1", userMessage: text });
     }
 
     expect(leads).toHaveLength(0);
   });
+});
+
+// Explicit synthetic pinned context; legacy mutable fallback is no longer usable.
+function respondForTest(service: ChatService, params: Parameters<ChatService["respond"]>[0]) {
+  const agent = makeAgent({ business: params.business, receptionist: params.receptionist });
+  agent.config.tools.grantedToolIds = params.receptionist.leadCaptureEnabled ? ["save_contact_details"] : [];
+  return service.respondForAgent(agent, params);
+}
+
+it("does not capture contacts without the pinned grant even when mutable receptionist capture is enabled", async () => {
+  const { service, leads, notifications } = buildFakes({ llmReplies: ["Thank you."] });
+  const agent = makeAgent({ business, receptionist: { ...receptionist, leadCaptureEnabled: true } });
+  await service.respondForAgent(agent, { conversationId: "denied-contact", userMessage: "Email me at synthetic@example.com" });
+  expect(leads).toHaveLength(0);
+  expect(notifications.sent).toBe(0);
+});
+
+it("rejects the unpinned legacy entry point before any transcript or lead writes", async () => {
+  const { service, messages, leads } = buildFakes({ llmReplies: ["Must not run"] });
+  await expect(service.respond({ business, receptionist, conversationId: "legacy", userMessage: "Hello" })).rejects.toMatchObject({ code: "VALIDATION_ERROR", details: { reason: "agent_context_required" } });
+  expect(messages).toHaveLength(0);
+  expect(leads).toHaveLength(0);
 });

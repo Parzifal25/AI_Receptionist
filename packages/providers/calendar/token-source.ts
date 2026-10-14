@@ -80,12 +80,19 @@ export function createOAuthTokenSource(params: {
     refreshing ??= (async () => {
       try {
         const next = await refreshOAuthToken(params.endpoint, current.refreshToken);
-        current = {
+        const rotated = {
           accessToken: next.accessToken,
           expiresAt: next.expiresAt,
           refreshToken: next.refreshToken ?? current.refreshToken,
         };
-        await params.onRotate(current).catch(() => {});
+        if (!rotated.accessToken || !Number.isFinite(Date.parse(rotated.expiresAt))) {
+          throw new Error("OAuth token refresh returned invalid credentials");
+        }
+        // Persist before publishing the rotated refresh token. If persistence
+        // fails, fail the calendar operation so a later request can retry the
+        // refresh instead of silently losing the only durable credential.
+        await params.onRotate(rotated);
+        current = rotated;
         return current.accessToken;
       } finally {
         refreshing = null;

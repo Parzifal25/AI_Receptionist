@@ -100,7 +100,7 @@ export class LeadCaptureHook implements TurnHook {
 
   async afterTurn(input: TurnHookInput): Promise<void> {
     const { agent, output, context } = input;
-    if (!agent.receptionist.leadCaptureEnabled || output.degraded.provider) return;
+    if (!agent.config.tools.grantedToolIds.includes("save_contact_details") || output.degraded.provider) return;
 
     // Same cadence as before Phase 2: visitor messages in the recent window
     // (16) plus this turn's message.

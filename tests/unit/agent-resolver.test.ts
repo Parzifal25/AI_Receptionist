@@ -1,3 +1,4 @@
+import { readyAgentConfig } from "../mocks/layer1-agent-config";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AgentResolver } from "@halo/agents/agent-resolver";
 import { AgentVersioningService } from "@halo/agents/agent-versioning";
@@ -47,7 +48,7 @@ async function seedTenants() {
     [sales, "You are Sella, a sales qualification agent for Acme."],
     [r2, "You are Rex, the receptionist for Beta."],
   ] as const) {
-    await versioning.createDraftVersion({
+    await versioning.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: agent.businessId,
       promptTemplate: template,
@@ -163,7 +164,7 @@ describe("AgentResolver", () => {
   });
 
   it("resolves the PUBLISHED version, never a newer draft", async () => {
-    await versioning.createDraftVersion({
+    await versioning.createDraftVersion({ config: readyAgentConfig(),
       agentId: seeded.r1.id,
       businessId: "b1",
       promptTemplate: "Draft v2 content that must not serve traffic.",

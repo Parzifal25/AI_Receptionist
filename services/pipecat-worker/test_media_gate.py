@@ -417,6 +417,74 @@ class MediaGateTests(unittest.IsolatedAsyncioTestCase):
         byes = self.sent("bye")
         self.assertEqual(1, len(byes))
 
+    # -- latency marks (observation only) ------------------------------------
+
+    async def _speak_two_chunks_with_marks(self) -> list[dict]:
+        marks: list[dict] = []
+        self.gate.set_timing_sink(marks.append)
+        await self.gate.on_speak(SpeakRequest(playback_id="pb-m", kind="reply", turn_id="t-m",
+                                              chunks=["ఒక", "రెండు"], interruptible=True))
+        for index, context in enumerate(("ctx-m0", "ctx-m1")):
+            await self._wait_armed()
+            await self.gate.process_frame(TTSStartedFrame(context_id=context), FrameDirection.DOWNSTREAM)
+            await self.gate.process_frame(
+                TTSAudioRawFrame(audio=pcm(100), sample_rate=RATE, num_channels=1, context_id=context),
+                FrameDirection.DOWNSTREAM,
+            )
+            await self.gate.process_frame(TTSStoppedFrame(context_id=context), FrameDirection.DOWNSTREAM)
+        await self._drain(0.2)
+        return marks
+
+    async def test_latency_marks_follow_each_chunk_in_order_on_one_monotonic_clock(self):
+        marks = await self._speak_two_chunks_with_marks()
+        self.assertEqual(
+            ["speak_received",
+             "chunk_queued", "chunk_tts_started", "chunk_first_audio", "chunk_synthesized",
+             "chunk_queued", "chunk_tts_started", "chunk_first_audio", "chunk_synthesized",
+             "playback_completed"],
+            [m["mark"] for m in marks],
+        )
+        self.assertEqual([0, 0, 0, 0, 1, 1, 1, 1], [m["chunk"] for m in marks[1:-1]])
+        times = [m["monoMs"] for m in marks]
+        self.assertEqual(sorted(times), times)
+
+    async def test_latency_marks_carry_no_spoken_text(self):
+        marks = await self._speak_two_chunks_with_marks()
+        self.assertNotIn("ఒక", repr(marks))
+        self.assertNotIn("రెండు", repr(marks))
+
+    async def test_latency_marks_do_not_change_what_halo_is_told(self):
+        await self._speak_two_chunks_with_marks()
+        self.assertEqual([0, 1], [m["args"][1] for m in self.sent("playback_chunk_played")])
+        self.assertEqual(["completed"], [m["args"][1] for m in self.sent("playback_stopped")])
+
+    async def test_latency_marks_are_off_unless_telemetry_is_enabled(self):
+        previous = os.environ.pop("HALO_TELEMETRY", None)
+        try:
+            gate = MediaGate(RecordingClient())  # type: ignore[arg-type]
+            self.assertIsNone(gate._timing_sink)
+            gate.mark("vad_start")  # a no-op, not an error
+        finally:
+            if previous is not None:
+                os.environ["HALO_TELEMETRY"] = previous
+
+    async def test_barge_in_marks_bracket_the_cut(self):
+        marks: list[dict] = []
+        self.gate.set_timing_sink(marks.append)
+        await self.gate.on_speak(SpeakRequest(playback_id="pb-b", kind="reply", turn_id=None,
+                                              chunks=["long line"], interruptible=True))
+        await self._wait_armed()
+        await self.gate.process_frame(TTSStartedFrame(context_id="ctx-b"), FrameDirection.DOWNSTREAM)
+        await self.gate.process_frame(
+            TTSAudioRawFrame(audio=pcm(100), sample_rate=RATE, num_channels=1, context_id="ctx-b"),
+            FrameDirection.DOWNSTREAM,
+        )
+        await self.gate.process_frame(VADUserStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
+        await self._drain(0.1)
+        names = [m["mark"] for m in marks]
+        self.assertLess(names.index("vad_start"), names.index("interrupt_start"))
+        self.assertLess(names.index("interrupt_start"), names.index("interrupt_done"))
+
     async def test_frames_are_passed_through_to_the_sink(self):
         frame = InputAudioRawFrame(audio=pcm(20), sample_rate=RATE, num_channels=1)
         await self.gate.process_frame(frame, FrameDirection.DOWNSTREAM)

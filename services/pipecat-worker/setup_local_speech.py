@@ -124,8 +124,6 @@ def provision_espeak(root: str) -> str:
 
 def provision_voice(root: str, language: str) -> dict:
     """Piper ships plain VITS weights; sherpa-onnx needs its metadata and a token table."""
-    import onnx
-
     voice_id, remote, model_sha, config_sha = PIPER[language]
     sources = os.path.join(root, ".downloads")
     model_src = os.path.join(sources, f"{voice_id}.onnx")
@@ -133,7 +131,19 @@ def provision_voice(root: str, language: str) -> dict:
     fetch(f"{PIPER_VOICES}/{remote}/{voice_id}.onnx", model_src, model_sha)
     fetch(f"{PIPER_VOICES}/{remote}/{voice_id}.onnx.json", config_src, config_sha)
 
-    target = os.path.join(root, "tts", language)
+    sample_rate = convert_piper_voice(model_src, config_src, os.path.join(root, "tts", language))
+    return {
+        "id": voice_id,
+        "model": f"tts/{language}/model.onnx",
+        "tokens": f"tts/{language}/tokens.txt",
+        "sampleRate": sample_rate,
+    }
+
+
+def convert_piper_voice(model_src: str, config_src: str, target: str) -> int:
+    """Write `model.onnx` (with sherpa-onnx metadata) and `tokens.txt` into `target`; returns the sample rate."""
+    import onnx
+
     os.makedirs(target, exist_ok=True)
     with open(config_src, encoding="utf-8") as handle:
         config = json.load(handle)
@@ -154,12 +164,7 @@ def provision_voice(root: str, language: str) -> dict:
         entry = model.metadata_props.add()
         entry.key, entry.value = key, str(value)
     onnx.save(model, os.path.join(target, "model.onnx"))
-    return {
-        "id": voice_id,
-        "model": f"tts/{language}/model.onnx",
-        "tokens": f"tts/{language}/tokens.txt",
-        "sampleRate": int(config["audio"]["sample_rate"]),
-    }
+    return int(config["audio"]["sample_rate"])
 
 
 def main() -> None:

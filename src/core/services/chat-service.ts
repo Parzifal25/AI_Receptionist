@@ -1,5 +1,5 @@
 import "server-only";
-import { defaultAgentConfig, type AgentConfig } from "@halo/core/domain/agents";
+import { AppError } from "@halo/core/errors/app-error";
 import type { Business, ChatMessage, Receptionist } from "@halo/core/domain/types";
 import type { KnowledgeProvider } from "@halo/ports/knowledge-provider";
 import type { LLMProvider } from "@halo/ports/llm-provider";
@@ -19,7 +19,7 @@ import { ProviderKnowledgeResolver } from "@halo/runtime/knowledge-resolver";
 import { SupabaseConversationStateStore } from "@halo/runtime/stores/supabase-conversation-state-store";
 import type { ConversationStore } from "@halo/runtime/system-actions";
 import { BUILTIN_TOOLS, ToolRegistry } from "@halo/runtime/tools/registry";
-import { PROMPT_ASSEMBLER_VERSION, receptionistDoctrine } from "./prompt-builder";
+import { PROMPT_ASSEMBLER_VERSION } from "./prompt-builder";
 import {
   KnowledgeGapHook,
   LeadCaptureHook,
@@ -33,42 +33,14 @@ export type { ResolvedAgentRuntimeContext } from "@halo/runtime/contracts";
 
 const log = logger.child({ service: "chat" });
 
-/**
- * Compatibility adapter: lifts a receptionist-shaped context (the pre-HALO
- * path) into a resolved agent context. Agent identity is unknown on this
- * path (legacy callers); the receptionist row remains the selector and the
- * conversation carries no agent linkage. The 0014 backfill maps every
- * receptionist to an agent, so this path is behaviour-identical, not
- * agent-broken.
- */
-export function resolvedContextFromReceptionist(params: {
+/** Deprecated: mutable receptionist rows cannot establish a pinned identity. */
+export function resolvedContextFromReceptionist(_params: {
   business: Business;
   receptionist: Receptionist;
 }): ResolvedAgentRuntimeContext {
-  const config: AgentConfig = {
-    identity: { name: params.receptionist.name, persona: params.receptionist.tone },
-    objective: "",
-    instructions: {
-      promptTemplate: "",
-      customInstructions: params.receptionist.customInstructions,
-    },
-    language: { primary: params.receptionist.language || "en", fallbacks: [], codeSwitchPolicy: "allow" },
-    voice: defaultAgentConfig().voice,
-    knowledge: { collectionIds: [], retrievalPolicy: "hybrid" },
-    tools: { grantedToolIds: [], policy: {} },
-    workflows: { allowedTriggers: [] },
-    guardrails: defaultAgentConfig().guardrails,
-  };
-  return {
-    business: params.business,
-    agentId: null as unknown as string,
-    agentVersionId: null as unknown as string,
-    agentVersion: 0,
-    config,
-    promptTemplate: "",
-    model: undefined,
-    receptionist: params.receptionist,
-  };
+  throw AppError.validation("A published pinned agent context is required; use respondForAgent", {
+    reason: "agent_context_required",
+  });
 }
 
 export interface ChatServiceOptions {
@@ -129,12 +101,7 @@ export class ChatService {
       }),
       systemActions: this.booking ? [new BookingSystemActionProvider(this.booking)] : [],
       hooks: [new LeadCaptureHook(leads), new KnowledgeGapHook(this.repository)],
-      // Agents with a published template run the generic doctrine; the
-      // receptionist compatibility path keeps its persona, tone and playbook.
-      doctrine: (agent, channel) =>
-        agent.promptTemplate.trim()
-          ? defaultDoctrine(agent, channel)
-          : receptionistDoctrine({ business: agent.business, receptionist: agent.receptionist }),
+      doctrine: defaultDoctrine,
       events: this.options.events,
       policy: this.options.policy,
     });
@@ -143,8 +110,7 @@ export class ChatService {
 
   /**
    * One conversational turn for a RESOLVED agent context — the runtime
-   * boundary for the web channel. `respond()` remains as a thin, deprecated
-   * compatibility shim over it.
+   * boundary for the web channel. Unpinned legacy calls fail closed.
    */
   async respondForAgent(
     ctx: ResolvedAgentRuntimeContext,
@@ -179,8 +145,7 @@ export class ChatService {
   }
 
   /**
-   * @deprecated Compatibility shim for the pre-agent receptionist path.
-   * Prefer `respondForAgent` with a resolver-built context.
+   * @deprecated Always rejects; use `respondForAgent` with a resolver-built context.
    */
   async respond(params: {
     business: Business;

@@ -48,7 +48,8 @@ const instructionsSchema = z.object({
 });
 
 const languageSchema = z.object({
-  primary: z.string().default("en"),
+  // Missing language stays unset in drafts; activation must never invent it.
+  primary: z.string().default(""),
   fallbacks: z.array(z.string()).default([]),
   codeSwitchPolicy: z.enum(["allow", "prefer-primary", "reject"]).default("allow"),
 });
@@ -157,6 +158,8 @@ const guardrailsSchema = z.object({
  * applied by `parseAgentConfig`.
  */
 export const agentConfigSchema = z.object({
+  /** Explicit unresolved approvals; drafts/harnesses remain usable. */
+  activationBlockers: z.array(z.string().trim().min(1).max(200)).max(30).optional(),
   identity: identitySchema.optional(),
   objective: z.string().optional(),
   instructions: instructionsSchema.optional(),
@@ -172,6 +175,7 @@ export const agentConfigSchema = z.object({
 
 /** Fully-defaulted, validated agent configuration (what callers consume). */
 export interface AgentConfig {
+  activationBlockers?: string[];
   identity: z.infer<typeof identitySchema>;
   objective: string;
   instructions: z.infer<typeof instructionsSchema>;
@@ -191,6 +195,7 @@ export function parseAgentConfig(raw: unknown): AgentConfig | null {
   if (!base.success) return null;
   const d = base.data;
   return {
+    ...(d.activationBlockers ? { activationBlockers: d.activationBlockers } : {}),
     identity: identitySchema.parse(d.identity ?? {}),
     objective: d.objective ?? "",
     instructions: instructionsSchema.parse(d.instructions ?? {}),
@@ -206,6 +211,34 @@ export function parseAgentConfig(raw: unknown): AgentConfig | null {
     workflows: workflowsSchema.parse(d.workflows ?? {}),
     guardrails: guardrailsSchema.parse(d.guardrails ?? {}),
   };
+}
+
+/** Readiness is stricter than draft parsing. Returns field names, never values. */
+export function agentActivationErrors(raw: unknown, promptTemplate: string, requireVoice = false): string[] {
+  const config = parseAgentConfig(raw);
+  if (!config) return ["config: invalid schema"];
+  const errors: string[] = [];
+  if (!config.identity.name.trim()) errors.push("identity.name: required");
+  if (!config.objective.trim()) errors.push("objective: required");
+  if (!promptTemplate?.trim()) errors.push("promptTemplate: required versioned instructions");
+  const nested = config.instructions.promptTemplate.trim();
+  if (nested && nested !== promptTemplate?.trim()) errors.push("instructions.promptTemplate: conflicts with version promptTemplate");
+  for (const [index, language] of [config.language.primary, ...config.language.fallbacks].entries()) {
+    try {
+      if (!language.trim() || language !== language.trim()) throw new Error("unset");
+      new Intl.Locale(language);
+    } catch {
+      errors.push(index === 0 ? "language.primary: explicit valid language tag required" : `language.fallbacks.${index - 1}: invalid language tag`);
+    }
+  }
+  if (config.knowledge.collectionIds.length) errors.push("knowledge.collectionIds: restricted collections are not supported by the current access boundary");
+  if (config.activationBlockers?.length) errors.push("activationBlockers: unresolved business approvals");
+  if (requireVoice) {
+    for (const [key, value] of Object.entries(config.voice.prompts)) {
+      if (!value.trim()) errors.push(`voice.prompts.${key}: required`);
+    }
+  }
+  return errors;
 }
 
 /** A fully-defaulted valid config — e.g. for brand-new drafts. */

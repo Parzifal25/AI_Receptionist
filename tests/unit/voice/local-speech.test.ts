@@ -4,6 +4,7 @@ import { TtsError } from "@halo/ports/streaming-tts-provider";
 import { floatToMulaw, LocalSpeechConfigError, mulawToFloat, splitClauses, splitScriptRuns } from "@halo/providers/voice-vendors/local-speech-engine";
 import { LocalSttProvider } from "@halo/providers/voice-vendors/local-stt-provider";
 import { LocalTtsProvider } from "@halo/providers/voice-vendors/local-tts-provider";
+import { PAUSE_MS } from "@halo/providers/voice-vendors/local-tts-text";
 import { linearToMulaw, mulawToLinear } from "@halo/voice/audio";
 import { StandInSpeechEngine } from "../../mocks/local-speech";
 
@@ -69,9 +70,22 @@ describe("local TTS", () => {
     const engine = new StandInSpeechEngine();
     const chunks = await speak(engine, "మీ office timings ఏంటి?");
     expect(engine.spoken).toEqual([{ language: "te", text: "మీ" }, { language: "en", text: "office timings" }, { language: "te", text: "ఏంటి?" }]);
-    // Three runs of two half-second sentences each, 8 kHz PCM16.
-    expect(chunks.reduce((sum, chunk) => sum + chunk.length, 0)).toBe(3 * 8000 * 2);
+    // Three runs of two half-second sentences each, 8 kHz PCM16, each followed by its
+    // pause: two mid-phrase voice switches and the sentence end.
+    const pauseMs = 2 * PAUSE_MS.switch + PAUSE_MS.sentence;
+    expect(chunks.reduce((sum, chunk) => sum + chunk.length, 0)).toBe(3 * 8000 * 2 + (8000 * pauseMs / 1000) * 2);
     expect(splitScriptRuns("appointmentకి 10 గంటలకు", "te", ["en", "te"])).toEqual([{ language: "en", text: "appointment" }, { language: "te", text: "కి 10 గంటలకు" }]);
+  });
+
+  it("says digits as words in the language around them before choosing voices", async () => {
+    const engine = new StandInSpeechEngine();
+    await speak(engine, "మీ నంబర్ 9876543210, appointment 10:30 AM కి");
+    expect(engine.spoken).toEqual([
+      { language: "te", text: "మీ నంబర్ తొమ్మిది ఎనిమిది ఏడు ఆరు ఐదు, నాలుగు మూడు రెండు ఒకటి సున్నా," },
+      { language: "en", text: "appointment" },
+      // Followed by a Telugu word, so said in Telugu, and the suffix joins it.
+      { language: "te", text: "ఉదయం పది గంటల ముప్పై నిమిషాలకు" },
+    ]);
   });
 
   it("speaks a long sentence clause by clause, dropping and reordering nothing", () => {
@@ -97,6 +111,6 @@ describe("local TTS", () => {
     const bytes = Uint8Array.from({ length: 256 }, (_, i) => i);
     expect(Array.from(mulawToFloat(bytes), v => v + 0)).toEqual(Array.from(bytes, b => mulawToLinear(b) / 32768 + 0)); // + 0 folds -0
     const chunks = await speak(new StandInSpeechEngine(), "hello", "en-IN", { encoding: "mulaw", sampleRate: 8000, channels: 1 });
-    expect(chunks.reduce((sum, chunk) => sum + chunk.length, 0)).toBe(8000);
+    expect(chunks.reduce((sum, chunk) => sum + chunk.length, 0)).toBe(8000 + (8000 * PAUSE_MS.clause) / 1000);
   });
 });

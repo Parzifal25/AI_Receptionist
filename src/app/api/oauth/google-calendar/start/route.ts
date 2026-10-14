@@ -30,7 +30,7 @@ export async function GET(): Promise<NextResponse> {
   if (role === "member") {
     return NextResponse.redirect(settingsRedirect(env, { error: "forbidden" }));
   }
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY) {
     log.warn("google calendar connect attempted without GOOGLE_CLIENT_ID/SECRET");
     return NextResponse.redirect(settingsRedirect(env, { error: "not_configured" }));
   }

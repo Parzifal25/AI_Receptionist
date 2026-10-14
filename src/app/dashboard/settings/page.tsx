@@ -63,7 +63,7 @@ export default async function SettingsPage({
         connected={calendar !== null}
         connectedAt={calendar?.created_at ?? null}
         readOnly={role === "member"}
-        configured={Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET)}
+        configured={Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY)}
         redirectUri={googleRedirectUri(env)}
         flowResult={
           params.calendar === "connected"

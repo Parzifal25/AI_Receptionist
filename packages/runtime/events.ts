@@ -1,3 +1,4 @@
+import { observe } from "@halo/platform/telemetry";
 import { logger } from "@halo/platform/logger";
 import type { RuntimeEvent, RuntimeEventSink, RuntimeEventType, TrustedRequestContext } from "./contracts";
 
@@ -58,6 +59,9 @@ export class TurnEvents {
   ) {}
 
   emit(type: RuntimeEventType, data: RuntimeEvent["data"] = {}): void {
+    if (["runtime.completed", "runtime.failed", "runtime.cancelled", "tool.intent_rejected"].includes(type)) {
+      observe("runtime.outcome", { component: "runtime", outcome: type === "runtime.completed" ? "ok" : type === "runtime.failed" ? "error" : type === "runtime.cancelled" ? "cancelled" : "rejected" }, typeof data.totalMs === "number" ? data.totalMs : undefined);
+    }
     const event: RuntimeEvent = {
       type,
       at: this.clock().toISOString(),

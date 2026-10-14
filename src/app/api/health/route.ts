@@ -1,3 +1,4 @@
+import { telemetryStatus } from "@halo/platform/telemetry";
 import { NextResponse, type NextRequest } from "next/server";
 import { AppError } from "@halo/core/errors/app-error";
 import { getLLMProvider } from "@halo/providers/llm/factory";
@@ -64,6 +65,7 @@ export const GET = withErrorHandling("health", async (request: NextRequest) => {
     {
       data: {
         status: isOk ? "ok" : "degraded",
+        telemetry: telemetryStatus(),
         llm: { provider, healthy: llmHealthy },
         database: readiness.database,
         providers: readiness.providers,

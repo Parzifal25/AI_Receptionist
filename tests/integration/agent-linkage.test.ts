@@ -1,3 +1,4 @@
+import { readyAgentConfig } from "../mocks/layer1-agent-config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -65,7 +66,7 @@ const versionRow: Row = {
   agent_id: "agent-1",
   business_id: "b1",
   version: 1,
-  config: { identity: { name: "Riley", persona: "friendly" } },
+  config: { ...readyAgentConfig(), identity: { name: "Riley", persona: "friendly" } },
   prompt_template: "You are Riley, the receptionist for Acme.",
   prompt_version: "2026-07-28.1",
   model: {},

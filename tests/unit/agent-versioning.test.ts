@@ -1,3 +1,4 @@
+import { readyAgentConfig } from "../mocks/layer1-agent-config";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppError } from "@halo/core/errors/app-error";
 import { AgentVersioningService } from "@halo/agents/agent-versioning";
@@ -34,20 +35,20 @@ describe("AgentVersioningService", () => {
 
   it("numbers versions 1, 2, 3 across draft creations", async () => {
     const agent = await createReceptionist();
-    const v1 = await service.createDraftVersion({
+    const v1 = await service.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: BIZ,
       promptTemplate: "t1",
       promptVersion: "2026-07-28.1",
       model: MODEL_V1,
     });
-    const v2 = await service.createDraftVersion({
+    const v2 = await service.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: BIZ,
       promptTemplate: "t2",
       promptVersion: "2026-07-28.1",
     });
-    const v3 = await service.createDraftVersion({
+    const v3 = await service.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: BIZ,
       promptTemplate: "t3",
@@ -60,13 +61,13 @@ describe("AgentVersioningService", () => {
 
   it("publishing v1 makes it live; publishing v2 repoints; rollback returns to v1", async () => {
     const agent = await createReceptionist();
-    const v1 = await service.createDraftVersion({
+    const v1 = await service.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: BIZ,
       promptTemplate: "t1",
       promptVersion: "p",
     });
-    const v2 = await service.createDraftVersion({
+    const v2 = await service.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: BIZ,
       promptTemplate: "t2",
@@ -87,7 +88,7 @@ describe("AgentVersioningService", () => {
 
   it("an already-published version is never re-published (immutable)", async () => {
     const agent = await createReceptionist();
-    const v1 = await service.createDraftVersion({
+    const v1 = await service.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: BIZ,
       promptTemplate: "t1",
@@ -105,7 +106,7 @@ describe("AgentVersioningService", () => {
     const agent = await createReceptionist();
     await expect(service.publishVersion(agent.id, BIZ, 99)).rejects.toBeInstanceOf(AppError);
     await expect(
-      service.createDraftVersion({
+      service.createDraftVersion({ config: readyAgentConfig(),
         agentId: "missing",
         businessId: BIZ,
         promptTemplate: "t",
@@ -116,8 +117,8 @@ describe("AgentVersioningService", () => {
 
   it("cannot roll back to an unpublished draft", async () => {
     const agent = await createReceptionist();
-    await service.createDraftVersion({ agentId: agent.id, businessId: BIZ, promptTemplate: "t1", promptVersion: "p" });
-    await service.createDraftVersion({ agentId: agent.id, businessId: BIZ, promptTemplate: "t2", promptVersion: "p" });
+    await service.createDraftVersion({ config: readyAgentConfig(), agentId: agent.id, businessId: BIZ, promptTemplate: "t1", promptVersion: "p" });
+    await service.createDraftVersion({ config: readyAgentConfig(), agentId: agent.id, businessId: BIZ, promptTemplate: "t2", promptVersion: "p" });
     await service.publishVersion(agent.id, BIZ, 1);
 
     await expect(service.rollbackTo(agent.id, BIZ, 2)).rejects.toBeInstanceOf(AppError);
@@ -127,7 +128,7 @@ describe("AgentVersioningService", () => {
     const agent = await createReceptionist();
     await repository.setAgentStatus(agent.id, BIZ, "archived");
     await expect(
-      service.createDraftVersion({ agentId: agent.id, businessId: BIZ, promptTemplate: "t", promptVersion: "p" }),
+      service.createDraftVersion({ config: readyAgentConfig(), agentId: agent.id, businessId: BIZ, promptTemplate: "t", promptVersion: "p" }),
     ).rejects.toBeInstanceOf(AppError);
     await expect(service.publishVersion(agent.id, BIZ, 1)).rejects.toBeInstanceOf(AppError);
   });
@@ -136,7 +137,7 @@ describe("AgentVersioningService", () => {
     const agent = await createReceptionist();
     expect(await service.getLiveVersion(agent.id, BIZ)).toBeNull();
 
-    const v1 = await service.createDraftVersion({
+    const v1 = await service.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: BIZ,
       promptTemplate: "t1",
@@ -170,7 +171,7 @@ describe("AgentVersioningService", () => {
 
   it("tenancy: a version from another business resolves to nothing", async () => {
     const agent = await createReceptionist();
-    const v1 = await service.createDraftVersion({
+    const v1 = await service.createDraftVersion({ config: readyAgentConfig(),
       agentId: agent.id,
       businessId: BIZ,
       promptTemplate: "t1",

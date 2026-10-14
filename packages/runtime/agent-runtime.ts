@@ -1,6 +1,8 @@
+import { withTelemetryContext } from "@halo/platform/telemetry";
 import { randomUUID } from "node:crypto";
 import { classifyTurn } from "./turn-complexity";
 import type { ChatMessage } from "@halo/core/domain/types";
+import { agentActivationErrors } from "@halo/core/domain/agents";
 import { AppError, isAppError } from "@halo/core/errors/app-error";
 import { isSubstantiveQuestion } from "@halo/knowledge/retrieval-query";
 import { resolveResponseLanguage } from "@halo/language/response-language";
@@ -122,7 +124,7 @@ export type DoctrineProvider = (agent: ResolvedAgentRuntimeContext, channel: Cha
 /** Generic doctrine plus contact-capture behaviour when the agent captures leads. */
 export const defaultDoctrine: DoctrineProvider = (agent, channel) => {
   const doctrine = genericDoctrine(channel);
-  if (agent.receptionist.leadCaptureEnabled) doctrine.extras.push(LEAD_CAPTURE_DOCTRINE);
+  if (agent.config.tools.grantedToolIds.includes("save_contact_details")) doctrine.extras.push(LEAD_CAPTURE_DOCTRINE);
   return doctrine;
 };
 
@@ -168,7 +170,11 @@ export class AgentRuntime {
     this.clock = deps.clock ?? (() => new Date());
   }
 
-  async run(input: RuntimeInput): Promise<RuntimeOutput> {
+  run(input: RuntimeInput): Promise<RuntimeOutput> {
+    return withTelemetryContext(() => this.runObserved(input));
+  }
+
+  private async runObserved(input: RuntimeInput): Promise<RuntimeOutput> {
     const { trusted, agent, channel } = input;
     // Defence in depth: the trusted context and the resolved agent must
     // agree on the tenant. A mismatch is a programming error upstream and
@@ -179,6 +185,11 @@ export class AgentRuntime {
     if (trusted.agentVersionId && agent.agentVersionId && trusted.agentVersionId !== agent.agentVersionId) {
       throw AppError.forbidden("Agent version mismatch", { reason: "version_mismatch" });
     }
+    if (!trusted.businessId?.trim() || !trusted.agentId || !trusted.agentVersionId || trusted.agentId !== agent.agentId) {
+      throw AppError.forbidden("Missing or inconsistent tenant/agent identity", { reason: "agent_identity_mismatch" });
+    }
+    const configErrors = agentActivationErrors(agent.config, agent.promptTemplate, channel.id === "phone-voice");
+    if (configErrors.length) throw AppError.validation("Agent configuration is unavailable", { reason: "invalid_agent_configuration", fields: configErrors });
 
     // `now` is the turn's business time (injectable for deterministic
     // tests); deadlines and timings always use the wall clock.
@@ -825,6 +836,7 @@ export class AgentRuntime {
         { role: "user", content: userMessage },
         { role: "assistant", content: reply },
       ];
+      const persistenceStart = Date.now();
       await this.deps.conversations.appendMessages(trusted.conversationId, trusted.businessId, transcript);
       if (toolRecords.length > 0 && this.deps.conversations.appendToolRecords) {
         await this.deps.conversations
@@ -841,6 +853,7 @@ export class AgentRuntime {
         degraded.state = true;
         log.warn("conversation state save failed", { conversationId: trusted.conversationId, error });
       }
+      const persistenceMs = Date.now() - persistenceStart;
 
       // ---- output ----------------------------------------------------------------
       const totalMs = Date.now() - startedAt;
@@ -858,7 +871,7 @@ export class AgentRuntime {
         timings: {
           ...(firstModelRequestMs !== undefined ? { firstModelRequestMs } : {}),
           replyValidatedMs,
-          contextMs, retrievalMs, modelMs, actionsMs, validationMs, totalMs,
+          contextMs, retrievalMs, modelMs, actionsMs, validationMs, persistenceMs, totalMs,
         },
         degraded,
         transcript,
@@ -866,6 +879,7 @@ export class AgentRuntime {
         ...(speechOutcome ? { speech: speechOutcome } : {}),
       };
 
+      const hooksStart = Date.now();
       for (const hook of this.hooks) {
         try {
           await hook.afterTurn({ trusted, agent, context, output, transcript: [...history, ...transcript] });
@@ -873,6 +887,9 @@ export class AgentRuntime {
           log.warn("turn hook failed", { hook: hook.name, error });
         }
       }
+      // Hooks are awaited before the reply is returned, so they sit on the
+      // caller's wait exactly like persistence does.
+      output.timings.hooksMs = Date.now() - hooksStart;
 
       events.emit("runtime.completed", {
         totalMs: Date.now() - startedAt,
