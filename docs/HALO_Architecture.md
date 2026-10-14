@@ -350,8 +350,20 @@ The three built-in tools are `offer_concession`, `request_human_handoff` and `sa
 **Gaps against blueprint §11/§12 (PROPOSED, [D5](DECISIONS.md#d5--tool-invocation-model) and [D7](DECISIONS.md#d7--new-migrations-tool-executions-and-audit-logs)):**
 
 - No tool has its own output schema, timeout or retry policy.
-- There is no `tool_executions` audit table.
 - Whether `offer_concession` should stay callable by the model is open.
+
+**Tool-execution audit (D7; VERIFIED `local test`, database rules static-only).** Every model tool call that reaches the loop gets one `tool_executions` row. The audit is written in the loop itself, so no tool can opt out.
+
+- **Rejections:** an unknown tool, invalid arguments, the budget limit or an authorization denial is recorded as a final `rejected` row.
+- **Executions:** a `started` row is written **before** the executor runs, then finalized once as `succeeded` or `failed`, with a bounded error code.
+- **What a row holds:** tenant, conversation, agent and version (from trusted state), channel, turn and correlation ID, round, intent ID, a registry tool name, the idempotency key and timestamps. It never holds arguments, results, messages or contact data.
+- **Failure policy:**
+  - **Side-effecting tools** do not run without their `started` row, and report `AUDIT_UNAVAILABLE`.
+  - **The handoff tool** runs regardless.
+  - **Rejections** are recorded best-effort.
+  - **A failed finalize** leaves `started` for an operator to reconcile. The action is never retried.
+  - Every audit failure emits `tool.audit_failed`.
+- **Not applied anywhere:** migration `0032` has not run against any database ([HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-tool-execution-audit--2026-10-15)).
 
 ### 5.4 Workflow and campaign integration
 
@@ -628,7 +640,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
   - Bookings are protected by the exclusion constraint and are idempotent per conversation on voice.
   - Calendar-credential updates use compare-and-swap.
   - A workflow timeout is quarantined rather than replayed.
-- **Audit (VERIFIED, partial):** `lead_state_events`, `campaign_events`, `call_events`, `workflow_events` and `workflow_run_logs`, `usage_events`, `learning_proposals`, and `messages.role='tool'`. There is no `tool_executions` or `audit_logs` table (PROPOSED, [D7](DECISIONS.md#d7--new-migrations-tool-executions-and-audit-logs)).
+- **Audit (VERIFIED, partial):** `lead_state_events`, `campaign_events`, `call_events`, `workflow_events` and `workflow_run_logs`, `usage_events`, `learning_proposals`, and `messages.role='tool'`. Since 2026-10-15, model tool calls are audited in `tool_executions` (§5.3; migration `0032`, not yet applied to any database). There is no `audit_logs` table (PENDING, [D7](DECISIONS.md#d7--new-migrations-tool-executions-and-audit-logs)).
 - **Escalation (VERIFIED: `source`, `local test`):**
   - Escalations are typed: explicit human request, repeated misunderstanding, unsupported request, sensitive situation, action failed, low confidence. Each is recorded once per conversation.
   - On the phone, a live transfer is offered only when one is available; otherwise a callback is recorded.
@@ -657,12 +669,13 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 | Campaigns | `campaigns`, `campaign_contacts`, `campaign_events` (0025) | Service role |
 | Learning | `learning_proposals` (0027) | Tenant-admin review |
 | Usage | `usage_events` (0001) | Service role |
+| Tool audit | `tool_executions` (0032, written 2026-10-15, **not applied to any database**) | Runtime on the service role; members read through RLS; one-way lifecycle trigger |
 
 **Compared with blueprint §22:**
 
 - `tenants` is `businesses` and `call_outcomes` is `conversation_outcomes`.
 - `analytics_events` is approximated by `usage_events` plus `call_events`.
-- There are no `tool_executions`, `audit_logs` (D7), generic `integrations` or `billing` tables.
+- `tool_executions` exists as migration `0032` (D7; not yet applied). There are no `audit_logs` (D7, PENDING), generic `integrations` or `billing` tables.
 - `campaigns`, `knowledge_documents` and `knowledge_chunks` already exist.
 
 ### 8.2 Knowledge retrieval and approval
@@ -849,7 +862,7 @@ The authoritative list, with options, trade-offs, recommendations and required a
   - R8 pilot environment and data handling.
 - **Pending architecture choices:**
   - D1 stack and D2 layout. The recommendation is to keep both and fix the gateway import leak.
-  - D5 tool model and D7 audit migrations.
+  - D5 tool model, and the `audit_logs` part of D7. The `tool_executions` part was implemented locally on 2026-10-15.
   - D9 targets.
   - D12 optional infrastructure, D13 workflow engine, D14 knowledge approval, D18 telemetry backend, D19 hosting, D20 phone speech streaming.
 - **Pending governance:** D15 tracking IDs; D16 the "Astra" role. D10 (commit grouping) was executed on 2026-10-15.
@@ -872,7 +885,7 @@ Each item is VERIFIED unless stated otherwise. The full list of gaps is in [HALO
    - no human has reviewed the TTS output.
 5. The LLM provider is process-global, so an agent cannot pin a model.
 6. Voice sessions live in one process, with no failover. The rate limiter is per instance.
-7. There is no `tool_executions` or `audit_logs` table, and tools have no per-tool timeout or retry policy.
+7. Tool calls are audited only by the runtime tests: migration `0032` has not been applied to any database. There is no `audit_logs` table, and tools have no per-tool timeout or retry policy.
 8. General document knowledge is withheld until the D14 approval schema exists. A non-empty collection binding denies retrieval.
 9. No alert delivery, hosted backup, approved RPO/RTO or artifact rollback exists.
 10. Worker and gateway use different default speech models, and the worker ignores the minimum-speech settings for VAD and barge-in.
@@ -897,7 +910,7 @@ Each item is VERIFIED unless stated otherwise. The full list of gaps is in [HALO
 | 6–7 | High-level system; call lifecycle | §3, §6 | Single process plus gateway and worker, not separate services — D1 |
 | 8 | Real-time voice loop | §6 | Aligned; LLM→TTS streaming not on the phone path |
 | 9–10, 35 | Agent runtime; context and token architecture | §5.3, §6.4 | Aligned; prompt caching not implemented |
-| 11–12 | Tool architecture and execution | §5.3 | Partial: no per-tool timeout, retry or output schema, and no audit table — D5, D7 |
+| 11–12 | Tool architecture and execution | §5.3 | Partial: no per-tool timeout, retry or output schema (D5). Audit implemented locally (D7, `tool_executions`). |
 | 13–14, 40 | Business adapter layer; OpsCorp | §10.5 | `OpsProvider` port, log adapter only; out of V1 scope |
 | 15–16, 30 | Knowledge architecture, guardrails, Arunodhaya knowledge | §8.2 | Partial: approval schema D14; facts D11 |
 | 17 | Workflow engine | §5.4 | PENDING D13 |

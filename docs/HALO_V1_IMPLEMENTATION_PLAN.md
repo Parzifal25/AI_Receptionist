@@ -111,7 +111,7 @@
 |---|---|---|---|---|---|---|
 | W1.4 | Remove the gateway → app-layer import (the call assembly is injected through a port) | G4.2, principle 2 | D2 | $0-local | No `@/` import in `services/*` (add an architecture-gate rule); gateway tests pass | S4.3 |
 | W3.1 | Tool contract per D5: per-tool timeout, retry and output schema where approved; decide where `offer_concession` lives | G7.9 | D5 | $0-local | Registry tests; act-then-narrate tests | S4.5 (inferred) |
-| W3.2 | Additive `tool_executions` migration plus a writer for allowed, denied and failed actions | G7.9 | D7, W3.1 | $0-local (disposable DB) | `check:migrations` and `check:rls` on a fresh `halo_check_*` DB; one row per action (test) | S4.4 |
+| W3.2 | Additive `tool_executions` migration plus a writer for allowed, denied and failed actions. Implemented locally on 2026-10-15 against the current tool model, without waiting for W3.1; see [the status register](HALO_V1_STATUS.md#d7-tool-execution-audit--2026-10-15). | G7.9 | D7 | $0-local (disposable DB) | **Remaining:** `check:migrations` and `check:rls` on a fresh `halo_check_*` DB. One row per action is already covered by `local test`. | S4.4 |
 | W3.3 | `audit_logs` migration | G7.9 | D7 (later phase) | $0-local | As W3.2 | S13 |
 | W2.4 | D14 knowledge approval and provenance, composite foreign keys, allowed-collection RPCs, revision semantics, legacy rollout | G2.2, G1.1, G1.3 | D14 | $0-local (disposable DB) | Pending, revoked or foreign content excluded by both keyword and vector paths; real-role knowledge isolation fixtures pass | Layer 1 L1-CLOSE items 1–6 |
 | W2.5 | Telugu retrieval: language-aware text search or multilingual embeddings evaluation | G5.5 | New D-entry (migration), D14 | $0-local | Recall@k on an approved Telugu set meets an approved threshold | Archived plan §P3.2–P3.5 |
@@ -213,7 +213,7 @@ S-6  W10.1 GA packet ─▶ W10.2 (R10)
 | D4 Call direction and harness | W6.4, W9.1 scope |
 | D5 Tool model | W3.1, W3.2, W6.1 |
 | D6 Recording | W6.3, W9.1 |
-| D7 Audit migrations | W3.2, W3.3 |
+| D7 Audit migrations | W3.2 implemented locally on 2026-10-15 (`tool_executions`); W3.3 (`audit_logs`) still PENDING |
 | D8 Spend | Every S-4 task; W8.3 and W8.4 if costed; W9.x |
 | D9 Numeric targets | W9.2 acceptance (set after W5.3) |
 | D10 Commit grouping and `0001` | Executed 2026-10-15 (W0.2; evidence in [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d10-repository-baseline--2026-10-15)) |

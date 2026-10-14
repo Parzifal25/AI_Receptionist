@@ -622,13 +622,24 @@ See Outcome 4.
 
 #### G7.9 — Action audit
 
-- **Current implementation:** tool rows in `messages`, and partial event trails.
-- **Evidence:** `source`.
-- **Gap / risk:** authorization decisions and failures are not durably audited per action.
-- **Required change:** add the `tool_executions` table, and later `audit_logs`.
-- **Dependencies:** D5, D7.
-- **Acceptance criteria:** every allowed, denied and failed action has one audit row (test on a disposable DB).
-- **Blocking decisions:** D5, D7.
+- **Current implementation (2026-10-15):** every model tool call is audited in `tool_executions` (migration `0032`, D7) from the single runtime tool loop.
+  - Executions are written as `started` before the executor runs and finalized once. Rejections are written as final rows.
+  - Side-effecting tools fail closed when their record cannot be written.
+  - Tool rows in `messages` and the partial event trails remain.
+- **Evidence:** `local test` (runtime boundary, store and static migration tests). See [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-tool-execution-audit--2026-10-15).
+- **Gap / risk:**
+  - Migration `0032` has not been applied to any database, so RLS, the triggers and the constraints are unverified in a real database.
+  - Deterministic system actions (qualification, visit booking, negotiation) are not audited as tools (D5).
+  - `audit_logs` does not exist.
+- **Required change:**
+  - Run `check:migrations` and `check:rls` (which now include `tool_executions` assertions) on a fresh disposable `halo_check_<suffix>` database.
+  - Decide D5 for system actions.
+  - Add `audit_logs` later (D7).
+- **Dependencies:** a disposable database run; D5; D7 (`audit_logs` part).
+- **Acceptance criteria:**
+  - **Met locally:** every allowed, denied and failed tool call has one audit row in the runtime tests.
+  - **Pending:** the `check:rls` `tool_executions` assertions pass on a disposable database.
+- **Blocking decisions:** D5 (system actions); D7 (`audit_logs` part only).
 
 #### G7.10 — Idempotency of external effects
 
@@ -651,7 +662,7 @@ The principles are APPROVED under [G1](DECISIONS.md#g1--target-design-and-engine
 | 1. HALO is independent of OpsCorp | VERIFIED: an `OpsProvider` port with a log adapter only | — | — |
 | 2. Customers get agents, not codebases | VERIFIED for configuration; the Arunodhaya call assembly lives in app code, imported by the gateway | Leak (D2) | G4.2 |
 | 3. The runtime is shared | VERIFIED: one runtime for web and phone | The model is process-global | G5.6 |
-| 4. Tools execute actions | VERIFIED: closed registry, act-then-narrate | No per-tool contract fields or audit | G7.9 |
+| 4. Tools execute actions | VERIFIED: closed registry, act-then-narrate; every model tool call audited (D7, `local test`) | No per-tool contract fields (D5); audit migration not yet applied to a database | G7.9 |
 | 5. Workflows control business processes | Partial: engines exist, process not declared | D13 | G7.8 |
 | 6. Providers are replaceable | VERIFIED: ports and adapters; `check:architecture` | Exotel absent; speech defaults differ | G6.5 |
 | 7. Knowledge is controlled | VERIFIED as fail-closed | No approval schema; English-only paths | G2.2, G5.4, G5.5 |

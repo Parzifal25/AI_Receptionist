@@ -49,7 +49,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D4](#d4--pilot-call-direction-and-pre-carrier-harness) | Pilot call direction and pre-carrier harness | PENDING | — | Minimum set S1–S6 |
 | [D5](#d5--tool-invocation-model) | Tool invocation model | PENDING | — | Minimum set S1–S6; S4.4, S4.5 |
 | [D6](#d6--call-recording-in-the-pilot) | Call recording in the pilot | PENDING | — | External gate before S7; S10 |
-| [D7](#d7--new-migrations-tool-executions-and-audit-logs) | New migrations (tool executions, audit logs) | PENDING | — | Minimum set S1–S6; S4.4 |
+| [D7](#d7--new-migrations-tool-executions-and-audit-logs) | New migrations (tool executions, audit logs) | `tool_executions` APPROVED and implemented locally; `audit_logs` PENDING | Owner instruction, 2026-10-15 | Applying `0032` to a real database: R8, D19 |
 | [D8](#d8--spend) | Spend | PENDING | — | Everything from S7 onward |
 | [D9](#d9--numeric-pilot-targets) | Numeric pilot targets (latency, recognition, extraction, cost) | PENDING | — | S11 acceptance |
 | [D10](#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit) | Dirty-tree commit grouping; uncommitted `0001` edit | APPROVED and executed | Owner instruction, 2026-10-15 | — (hosted follow-on: D21) |
@@ -215,7 +215,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - **Tool definitions** carry a name, description, argument schema, side-effect flag, confirmation flag and optional precondition. They have **no** per-tool output schema, timeout or retry policy: the turn deadline applies, and executor failures are never retried.
   - **Deterministic system actions:** qualification, visit booking/scheduling and negotiation run before the model as `SystemActionProvider`s.
   - **Enforcement:** the act-then-narrate validator checks replies against verified action records.
-  - **Records:** tool turns are stored as `messages.role = 'tool'` rows, and `tool.outcome` telemetry is emitted. There is no `tool_executions` table (D7).
+  - **Records:** tool turns are stored as `messages.role = 'tool'` rows, and `tool.outcome` telemetry is emitted. Since 2026-10-15 every model tool call is also audited in `tool_executions` (D7; migration `0032`, not yet applied anywhere).
 - **Options:**
   1. All actions as LLM-callable tools: blueprint-literal, but more model authority, tokens and latency.
   2. Hybrid (below).
@@ -241,15 +241,43 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
 ### D7 — New migrations: tool executions and audit logs
 
-- **State:** PENDING. **Required approver:** owner. `AGENTS.md` requires owner approval for any new migration.
+- **State:** split on 2026-10-15.
+  - **`tool_executions`: APPROVED and implemented locally.** Decided by owner instruction ("HALO D7 — Autonomous Tool-Execution Audit Implementation Loop", given to Claude Code), which directed implementation with a new additive migration. Migration `0032_tool_executions.sql` was **written but not applied to any database**.
+  - **`audit_logs`: still PENDING.** The instruction did not ask for it, and the original recommendation defers it.
+- **Required approver:** owner. `AGENTS.md` requires owner approval for any new migration.
 - **Question:** approve the additive `tool_executions` migration (blueprint §22) now, and `audit_logs` later?
-- **Current implementation (source):** neither table exists. Partial audit trails are `messages.role='tool'`, `call_events`, `lead_state_events`, `campaign_events`, `workflow_events`, `workflow_run_logs` and `usage_events`.
+- **Before 2026-10-15 (source):** neither table existed. Partial audit trails were `messages.role='tool'`, `call_events`, `lead_state_events`, `campaign_events`, `workflow_events`, `workflow_run_logs` and `usage_events`. They remain.
 - **Options:**
   1. Add `tool_executions` now and `audit_logs` later (below).
   2. Add both now.
   3. Keep the partial trails. Tool authorization decisions then stay unaudited in the database.
 - **Original recommendation (2026-10-14, verbatim):** "Approve the additive `tool_executions` migration (S4.4); `audit_logs` later (S13)."
 - **Blocks:** minimum set for S1–S6; S4.4. **Related:** D5, D14 (another migration that needs approval).
+
+**What was implemented (2026-10-15).** Evidence is in [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-tool-execution-audit--2026-10-15).
+
+- **Data model** (`0032_tool_executions.sql`): one row per model tool call that reaches the runtime tool boundary.
+  - Columns: tenant, conversation, agent and version; channel; turn and correlation ID; round; intent ID; tool name (registry names only, `null` for invented names); idempotency key; side-effect flag; status (`started`/`succeeded`/`failed`/`rejected`); rejection reason; a bounded error code; requested/started/finished times.
+  - There are no columns for arguments, results, summaries, error messages or contact data.
+- **Database rules** (as written; not yet executed anywhere):
+  - An ownership trigger rejects a conversation, agent or version from another tenant.
+  - A lifecycle trigger allows inserts only as `started`/`rejected`, and exactly one update from `started` to `succeeded`/`failed` that changes nothing else.
+  - A unique index allows one execution per idempotency key per turn.
+  - RLS: tenant members get SELECT; clients get no write grant; the service role writes.
+  - Rows cascade with their conversation, so the existing retention purge covers them.
+- **Runtime:** `packages/runtime/tools/audit.ts`, called from the single tool loop in `agent-runtime.ts`, so no tool can bypass it. Records come from trusted runtime state only, never from tool arguments.
+- **Wiring:** `ChatService` (web) and the voice gateway (`PhoneTurnHandler`, `SalesCallAssembly`) use `SupabaseToolExecutionAuditStore`.
+- **Audit-write failure policy:**
+  - **Side-effecting tools** (`save_contact_details`, `offer_concession`): fail closed. The tool does not run unless its `started` record was written, and its result is `AUDIT_UNAVAILABLE`.
+  - **The non-side-effecting handoff tool:** runs anyway, so a caller asking for a person is never blocked.
+  - **Rejections:** recorded best-effort.
+  - **A failed finalize** leaves the row `started` for an operator to reconcile. The action is never retried.
+  - Every audit failure emits `tool.audit_failed`, carrying stage and tool name only.
+- **Out of D7 scope:**
+  - Deterministic system actions (qualification, visit booking, negotiation) are not model tools. Whether they become audited tools is part of D5.
+  - Per-tool timeouts do not exist (D5), so there is no `timed_out` status.
+  - Retries: tool executors are never retried, and a duplicate intent is recorded as `rejected`/`duplicate`.
+  - No operator UI. Operators read the table through RLS.
 
 ### D8 — Spend
 
@@ -499,3 +527,4 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 | 2026-10-14 | D1–D13 table created from HALO Phase 1 plan §9 (a proposal). D14 and the Astra question added as open questions. D14 non-migration subset authorized and implemented. | Owner instruction; plan author |
 | 2026-10-15 | **Consolidation** (requested 2026-10-14). The register was restructured into per-entry form and every original recommendation was preserved verbatim. The release register was merged in as R1–R10 (formerly D1–D10 in `HALO_V1_RELEASE_DECISIONS.md`). G1–G4 standing instructions were recorded. New PENDING questions D15–D20 were added, and the Astra question became D16. No state changed and nothing was approved. | Claude Code (consolidation task) |
 | 2026-10-15 | **D10 executed under owner instruction.** D10 marked APPROVED and executed. `0001` restored to its committed version, with the edit preserved and quoted. D21 added (PENDING). Candidate commits recorded in D10 and in the status register. | Owner instruction; Claude Code |
+| 2026-10-15 | **D7 `tool_executions` implemented under owner instruction.** D7 is split: `tool_executions` APPROVED and implemented locally (migration `0032` written, not applied); `audit_logs` PENDING. D5's evidence line updated. No other state changed. | Owner instruction; Claude Code |

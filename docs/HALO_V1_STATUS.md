@@ -387,3 +387,29 @@ Of the 183 recorded files, 182 are byte-identical in the candidate; the only dif
 - `npm run build`, because it fetches Google Fonts over the network.
 - `check:migrations` and `check:rls`, because they execute migrations, which this task does not permit.
 - Any hosted, staging or provider check.
+
+## D7 tool-execution audit — 2026-10-15
+
+Implemented under the owner's D7 instruction ([DECISIONS.md D7](DECISIONS.md#d7--new-migrations-tool-executions-and-audit-logs)). Branch `d7/tool-execution-audit`, based on the D10 candidate `a1f2fd52ad6e5f5acd7c25aa047c7bc3802d9700`. It has not been pushed or merged. The ten criterion rows above are unchanged.
+
+**Status: LOCALLY IMPLEMENTED — INTEGRATION UNVERIFIED.** The runtime behaviour is verified by local tests. The migration was **not applied to any database**, so the database rules (RLS, triggers, constraints) are verified only by static checks. The real-role assertions added to `scripts/check-rls.mjs` have not been executed.
+
+| Area | Evidence |
+|---|---|
+| Migration `0032_tool_executions.sql` | **Static only.** Filenames are contiguous (`0001`–`0032`); columns are allowlisted, with no payload-capable types; RLS read-only for members; no client write grant; revoked `SECURITY DEFINER` ownership and lifecycle triggers; partial unique index; cascades; the rejection-reason list equals the runtime's `ToolRejectionReason` type (`tests/unit/tool-executions-migration.test.ts`). `0001`–`0031` are unchanged. |
+| Runtime audit at the tool boundary | `local test`: 19 cases in `tests/integration/tool-execution-audit.test.ts`. They cover success; executor failure and thrown errors without rewriting the original result; error-code sanitizing; denials, unknown tools, invalid arguments and budget rejections; tenant taken from trusted state, not arguments; tenant-separated records; no arguments, results or contact data stored; a missing correlation ID; duplicate intents (one execution); the fail-closed and best-effort failure policies; no retry after a failed finalize; cancellation writing nothing; and no self-auditing. |
+| Postgres store | `local test` with a fake client (`tests/unit/tool-execution-audit-store.test.ts`): allowlisted columns, tenant-scoped finalize of `started` rows only, and failures thrown to the runtime. |
+| Regression | `npm test -- --maxWorkers=2`: 159 files, 1,632 passed, 5 skipped. Typecheck, lint, `check:architecture`, `check:neutral`, `preflight:ci` and the worker suite (70 run, 1 skipped) all pass. `npm run perf:baseline` still executes its tool-round scenario. |
+| Not run | `check:migrations` and `check:rls`, because they execute migrations, which this task does not permit. They need a fresh disposable `halo_check_<suffix>` database. `npm run build` was not run, because it fetches Google Fonts over the network. No hosted, staging or provider check. |
+
+**Incident during implementation (local, no effect).** Before the test harnesses received in-memory audit stores, one intermediate local test run let `ChatService` fall back to the Postgres store. That store attempted writes to the test environment's configured URL `http://127.0.0.1:54321`, with the fake key `test-service-role-key`. Port 54321 is in the 5432x range that belongs to another project. Nothing was listening on any 5432x port (`ss -ltn`), so every attempt failed with connection refused and no data was reached.
+
+The harnesses now inject in-memory stores. A structural check confirms that every test construction of `ChatService` passes one, and that no test imports the gateway composition root. The route test that builds `ChatService` with production defaults mocks the admin client.
+
+**Remaining:**
+
+- Apply `0032` only on a fresh disposable database for `check:migrations` and `check:rls`.
+- Any staging or hosted application needs R8 and D19 (and D21 for `0001`).
+- `audit_logs` stays PENDING (D7).
+- Whether deterministic system actions become audited tools is part of D5.
+- There is no operator UI; operators read the table through RLS.
