@@ -223,3 +223,13 @@ Priorities: P0 blocks safe validation or critical correctness/security; P1 is re
 Primary status/decision sources: [HALO v1 status](HALO_V1_STATUS.md), [release decisions](HALO_V1_RELEASE_DECISIONS.md), [release gaps and pilot matrix](HALO_V1_RELEASE_GAPS.md), [implementation plan](HALO_IMPLEMENTATION_PLAN.md), [historical current-state audit](CURRENT_STATE_AUDIT.md), and [implementation verification, dated 2026-10-01](HALO_IMPLEMENTATION_VERIFICATION.md). Additional sources: [security](SECURITY.md), [deployment](DEPLOYMENT.md), [operations](OPERATIONS.md), [workflows](WORKFLOWS.md), [voice latency model](VOICE_LATENCY_MODEL.md), [Arunodaya agent](ARUNODHAYA_AGENT.md), and [negotiation policy](ARUNODHAYA_NEGOTIATION_POLICY.md).
 
 Validation for this checkpoint ran the full local JavaScript suite, ESLint, TypeScript check, production build, configuration preflight, Pipecat worker tests, migration replay/schema assertions, disposable real-role RLS/privilege harness, and `git diff --check`. It performed no provider calls, inference, deployment, hosted database query, or live calls. Before closing a later-phase item, capture its evidence against a pinned candidate revision and retain the relevant approval record.
+
+### Current three-gate evidence refresh — 2026-10-13
+
+Candidate `cb6b75496755364cd288adb62b3492830b841288` passed fresh local
+application/build/worker checks, disposable migrations and real-role RLS, and a
+synthetic chat journey before and after a 44-table local restore. Provider
+inference, real Auth lifecycle, alert delivery and immutable application rollback
+remain blocked by external evidence/authorization. This does not change backlog
+dependencies or close Beta/Charlie acceptance; details and minimum owner actions
+are in the [three-gate report](HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run).

@@ -1,0 +1,4 @@
+speaker_id,consent_record_id,consent_version,explicit_yes_no,consent_date,project_contact,allowed_reviewers,deletion_date,withdrawal_status,recording_started
+P01,CONSENT-TE-P01-v1,1,,,[fill before recording],[fill before recording],,not_requested,no
+P02,CONSENT-TE-P02-v1,1,,,[fill before recording],[fill before recording],,not_requested,no
+P03,CONSENT-TE-P03-v1,1,,,[fill before recording],[fill before recording],,not_requested,no

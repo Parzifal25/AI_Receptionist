@@ -230,3 +230,53 @@ by 15 restored application-path assertions. No hosted Auth login, inference,
 alert delivery or artifact rollback was performed. Preserve the existing ten
 criteria and Alpha/Beta/Charlie boundaries. External traffic stays disabled;
 no deployment, hosted mutation, commit, push or paid operation was authorized.
+
+### 2026-10-13 current-candidate verification refresh
+
+Candidate `cb6b75496755364cd288adb62b3492830b841288` was freshly checked. The
+full JavaScript suite passed (139 files, 1,333 passed, 5 existing skips); lint,
+typecheck, architecture and neutrality checks, build, configuration-only
+preflight, 31 disposable migrations and 109 disposable real-role RLS assertions
+passed. Hosted Supabase metadata reports the identified project active, but does
+not provide Auth settings or synthetic test users. No inference, real login,
+alert, hosted restore, rollback or deployment was performed. Local incremental
+service cost was $0; external account cost/quota remains unverified. All three
+release gates stay **BLOCKED** and production remains **NO-GO**. Exact current
+results and owner actions are in [the execution report](docs/HALO_THREE_GATE_EXECUTION.md#current-candidate-refresh--2026-10-13).
+
+### 2026-10-13 full local verification addendum
+
+The current candidate was rechecked with the full JavaScript suite, lint,
+typecheck, architecture/neutrality, production build, configuration preflight,
+Python worker suite, fresh disposable migration/RLS harnesses, and a synthetic
+chat journey before and after disposable restore. The restore matched 44 table
+fingerprints and passed six identity/tenant checks; both application journeys
+passed 15 assertions. All verification containers created for this run were
+stopped; the shared local Supabase stack was untouched. No application source
+change was needed in this refresh. Provider inference, real Auth login, alert
+delivery, hosted restore and artifact rollback remain blocked by the prerequisites
+listed in `docs/HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run`.
+Incremental service spend was $0; account quotas and billing controls are not
+verified as zero. Release recommendation: **NO-GO**.
+
+Provider follow-up: current read-only OpenRouter metadata confirmed a free-tier
+key and 19 zero-priced catalog models; one bounded real adapter inference using
+`nvidia/nemotron-3.5-lightning:free` then failed without HTTP status or usage and
+was not retried. Before/after account usage counters were unchanged. This does
+not pass the inference gate, and the normal configured fallback still includes
+priced models. Preserve the $0 cap; diagnose the sanitized adapter failure and
+get authorization before another inference. Details are in
+`docs/HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run`.
+
+### 2026-10-13 Gate 3 local alert follow-up
+
+Added deterministic alert evaluation with thresholds for sustained provider
+failure, database readiness, failed/dead-letter backlog, overdue work and stale
+monitoring, plus transition deduplication/resolution and a bounded local test
+sink. Tightened monitoring responses to distinguish unavailable query/count
+results from empty queues, and to report observation freshness. Targeted suite:
+5 files and 38 tests passed. Alert code is not scheduled or durable and the sink
+is process-local; no external delivery occurred. Hosted alerting and application
+artifact rollback remain blocked. Existing local 44-table checksum/restore and
+post-restore journey evidence is unchanged; hosted recovery is not inferred.
+No deployment, hosted mutation, commit, push or paid operation occurred.

@@ -144,3 +144,36 @@ by 15 restored application-path assertions. No hosted Auth login, inference,
 alert delivery or artifact rollback was performed. Preserve the existing ten
 criteria and Alpha/Beta/Charlie boundaries. External traffic stays disabled;
 no deployment, hosted mutation, commit, push or paid operation was authorized.
+
+### Current-candidate verification refresh — 2026-10-13
+
+On candidate `cb6b75496755364cd288adb62b3492830b841288`, the complete local suite
+passed (139 files; 1,333 passed, 5 existing skips), along with lint, typecheck,
+architecture/neutral checks, build, and configuration-only preflight. A fresh
+disposable database passed all 31 migration checks and the 109-assertion RLS
+harness. These results are local evidence only. The Supabase connector confirms
+the documented project is active, but Auth settings and existing synthetic users
+remain unavailable; no login was attempted. The three external gates, Beta target
+verification, Charlie acceptance, and production approval remain **BLOCKED/OPEN**.
+See [the current-candidate execution report](HALO_THREE_GATE_EXECUTION.md#current-candidate-refresh--2026-10-13)
+for exact commands, limits, and minimum owner inputs. The ten-criterion register
+is unchanged.
+
+### Full local verification addendum — 2026-10-13
+
+The current candidate also passed fresh worker, disposable migration/RLS,
+synthetic chat and post-restore application-path checks. The local Auth server
+was not exercised because no designated synthetic account was available. One
+bounded real OpenRouter free-model inference attempt failed without completion
+or usage; no alert was sent. This strengthens local Alpha evidence
+only. Phase Beta remains **BLOCKED** pending an identified, authorized staging
+target. The ten criteria and Alpha/Beta/Charlie boundaries are unchanged; see
+the [execution addendum](HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run).
+
+Local Gate 3 follow-up adds deterministic alert threshold/transition tests and
+an inspectable in-memory sink, and tightens operational status handling so
+query/count failures cannot become empty healthy queues. This is local test
+evidence only: alert evaluation is not scheduled or durable, no external
+destination was exercised, and hosted monitoring, backup recovery and artifact
+rollback remain blocked. The ten-criterion register and phase boundaries remain
+unchanged.

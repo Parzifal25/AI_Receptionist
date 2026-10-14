@@ -615,3 +615,357 @@ from this evidence. The next single action is to have a Telugu speaker review
 the existing human Telugu and receptionist transcripts, with extra attention
 to phone-number and cancellation utterances; then decide whether to recover a
 checksum-pinned candidate artifact for a repeat run.
+
+## Phase B.4 — recovered-artifact check and engineering follow-up (2026-10-14)
+
+The checkout contains `models/local-speech-benchmark/corpus/corpus.json`, the
+nine referenced WAVs (all explicitly `Sarvam TTS (synthetic)`), TTS WAVs,
+`results/score.txt`, `results/summary.json`, and the per-candidate raw result
+JSON. It does **not** contain the FLEURS `fleurs.json` clip manifest or any of
+the 16 FLEURS WAVs. The eight Telugu references and stored hypotheses remain
+in the raw JSON, but the local rows identify only `fleurs-te-0` … `fleurs-te-7`
+and have no source dataset IDs or audio checksums. The recorded benchmark
+scratchpad paths are no longer present. A read-only public metadata recovery
+request timed out without data; no model or dataset was downloaded. There was
+no expected checksum list for the available corpus WAVs to verify against.
+
+The current manifest-pinned local STT model was freshly run against all nine
+available synthetic clips using four threads, once after normal 16 kHz
+resampling and once after an 8 kHz wire-band round trip. See
+`scripts/evaluate-local-synthetic-corpus.py` and
+`docs/LOCAL_TELUGU_STT_HUMAN_REVIEW.md` for per-clip output and metrics. This
+does not reproduce any FLEURS score and gives no evidence of human acceptance.
+The exact model is
+`sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-v2-int8-2026-02-05`, as
+recorded in `models/voice-local/manifest.json`. The previous
+`vasista22/whisper-telugu-base` q5_1 inference remains historical; its model
+artifact and expected checksum are absent.
+
+Local Venkatesh Telugu and Joe English TTS listening files covering short and
+long utterances, names, dates, times, digit read-back, booking language, and a
+Telugu/English switch were generated from the already-installed manifest
+models. Exact text, paths, consented recording instructions, and scoring
+criteria are in `docs/LOCAL_TELUGU_HUMAN_REVIEW_PACKET.md`. Human STT and TTS
+review remains pending.
+
+The booking system now reads back the selected offered date/time and waits for
+a clear yes before calling the booking port. A rejection, ambiguous answer,
+or unconfirmed selection cannot finalize a booking. Arunodhaya's phone field
+already requires read-back via `confirm: true`, including when confidence is
+null; this change adds no tenant-schema or broad policy edits. Sarvam remains
+the primary provider and no new model was selected.
+
+## Phase B.5 — Venkatesh vs Padmavathi and the local TTS text pipeline (2026-10-14)
+
+**Scope:** isolated benchmark plus a text-pipeline fix in both local TTS
+implementations. Production models, `models/voice-local/manifest.json` and
+provider routing are unchanged; Sarvam stays primary. **No human has listened
+to any of this audio**, and every intelligibility number below comes from a
+machine recognizer, not from a person.
+
+### Padmavathi model: source, licence, checksums
+
+| | |
+| --- | --- |
+| Source | `rhasspy/piper-voices`, pinned revision `c10ece1aade47bb51c153c893d14e5bf8e5b7117`, path `te/te_IN/padmavathi/medium/` |
+| Repository licence (HF card) | MIT |
+| Voice `MODEL_CARD` | 1 speaker, 22,050 Hz, medium; dataset `ai4bharat/indicvoices_r`, **CC-BY-4.0**; trained by `github.com/PravalX` (third party). CC-BY attribution applies before any shipped use; not a legal review. |
+| `te_IN-padmavathi-medium.onnx` | 63,516,050 B, SHA-256 `414aa5960d91ceb6e45bbdf8c27fdc71af09f205130d7be4e99470f3c2cfa57d` (= HF LFS oid), md5 `1a7fb140ecc8b5e8b3e80e460b719319` (= repo `voices.json`) |
+| `te_IN-padmavathi-medium.onnx.json` | SHA-256 `6c86e4ee99d379815f78a75f23cdad62ccf50370062dd915c233d6e22de7109f`, md5 `3f07441340aecc2a8b89987361e8078e` (= `voices.json`), git blob `5afaa8ee…` (= HF tree) |
+| `MODEL_CARD` | SHA-256 `8cdccd0ca4c26d1e949431f03180bcf9eaeb3c013f627087c6a806a3f7487b07`, md5 = `voices.json` |
+| sherpa-onnx conversion | `setup_local_speech.convert_piper_voice` (extracted from `provision_voice`, byte-identical: re-converting Venkatesh reproduces the installed `f84931d2…`) → `model.onnx` SHA-256 `104d1d0b1d88bd243b3543a208bd98405c69e3d77f05a18055359ce867a5649b` |
+| Stored at | `models/local-speech-benchmark/voices/te_IN-padmavathi-medium/` (git-ignored); `onnx.checker` passes |
+
+The installed Venkatesh download also matches `voices.json` (md5
+`145092d2…`). The benchmark refuses to run on any checksum mismatch.
+Indic Parler-TTS remains deferred: not downloaded, no dependency added.
+
+### What was run
+
+Twenty-eight synthetic lines in `scripts/local-tts-benchmark-phrases.json`
+(no customer data): మీకు/నీకు minimal pairs, పది/పదకొండు, phone
+digits (bare, `+91` grouped, pre-spelled, English), numeric and Telugu-month
+dates, times (colon, AM/PM, range, English), prices (lakh grouping, `Rs.`,
+percent), Telugu and mixed names, booking confirmation, cancellation, and
+Telugu-English code-switching including a suffix glued to an English word.
+Each Telugu voice is paired with the installed `en_US-joe-medium` for Latin
+runs, exactly as production pairs Venkatesh.
+
+```sh
+.venv/bin/python -I scripts/benchmark-local-tts.py --label legacy  --pipeline legacy  --stt   # pre-change pipeline, 3 repeats
+.venv/bin/python -I scripts/benchmark-local-tts.py --label current --pipeline current --stt   # new pipeline, 3 repeats
+.venv/bin/python -I scripts/benchmark-local-tts.py --label <l> --pipeline legacy --rescore     # re-score stored hypotheses
+```
+
+sherpa-onnx 1.13.8, 4 threads, `max_num_sentences=1`, speed 1.0, i5-8265U
+(WSL2, 4.8 GB). Latency is the median of 3 synthesis repeats after a warm-up;
+"first audio" is the end of the first segment's synthesis, which is when the
+worker releases it.
+Audio: `models/local-speech-benchmark/tts-te-voices/<label>/<voice>/<phrase>.wav`
+(22,050 Hz mono PCM16) with `results.json` holding the command, checksums,
+config, per-segment text and timing, join metrics and every hypothesis.
+
+**Machine round trip.** Each WAV went through the *installed* local recognizer
+(sherpa-onnx Omnilingual 300M CTC int8) at 16 kHz and after an 8 kHz
+wire-band round trip. That recognizer is weak on Telugu (it sometimes answers
+in Kannada, Tamil or Malayalam script and writes spoken digits as numerals),
+so its scores are a **relative signal between variants on identical text**,
+not intelligibility to a listener. Scoring: NFC, lowercase, punctuation and
+ZWJ/ZWNJ removed; numerals in a hypothesis count as the spoken digit word of
+the phrase's language; CER against the closer of the Latin and Telugu-script
+references; "critical" = booking-critical tokens found in spoken order (LCS),
+119 per voice per band.
+
+**Synthesis failures:** none, for either voice, in any of the 13 runs
+(28/28 lines × 2 voices each).
+
+### Results: legacy vs new pipeline (critical tokens found / CER)
+
+| Category | Venkatesh legacy 16k · 8k | Venkatesh new 16k · 8k | Padmavathi legacy 16k · 8k | Padmavathi new 16k · 8k |
+| --- | --- | --- | --- | --- |
+| Phone (42 tokens) | 19 · 15 / 43 % · 42 % | 28 · 31 / 17 % · 10 % | 16 · 16 / 43 % · 46 % | 23 · 26 / 18 % · 16 % |
+| Time (13) | 1 · 2 / 50 % · 44 % | 9 · 8 / 18 % · 23 % | 4 · 4 / 43 % · 44 % | 11 · 10 / 10 % · 13 % |
+| Date (6) | 1 · 1 / 78 % · 64 % | 2 · 3 / 28 % · 27 % | 1 · 1 / 65 % · 64 % | 2 · 2 / 48 % · 34 % |
+| Price (13) | 3 · 2 / 28 % · 28 % | 4 · 4 / 20 % · 19 % | 4 · 3 / 25 % · 27 % | 7 · 7 / 17 % · 11 % |
+| Booking (10) | 3 · 3 / 46 % · 41 % | 4 · 4 / 17 % · 18 % | 4 · 2 / 46 % · 46 % | 5 · 4 / 18 % · 22 % |
+| Cancellation (5) | 2 · 2 / 48 % · 40 % | 2 · 2 / 22 % · 22 % | 3 · 2 / 41 % · 40 % | 2 · 2 / 19 % · 19 % |
+| Minimal contrast (9) | 7 · 6 / 7 % · 8 % | 8 · 8 / 10 % · 7 % | 9 · 9 / 2 % · 3 % | 7 · 8 / 8 % · 4 % |
+| Names (6) | 1 · 1 / 18 % · 18 % | 1 · 1 / 28 % · 29 % | 1 · 2 / 15 % · 27 % | 1 · 0 / 17 % · 32 % |
+| Code-switch (13) | 4 · 4 / 26 % · 24 % | 5 · 5 / 29 % · 25 % | 5 · 5 / 24 % · 23 % | 5 · 5 / 26 % · 21 % |
+| **All (119)** | **43 · 38 / 37 % · 34 %** | **65 · 68 / 20 % · 19 %** | **49 · 46 / 34 % · 36 %** | **65 · 66 / 19 % · 18 %** |
+
+What the legacy rows show, in the recognizer's own words: Padmavathi's
+`9876543210` came back as `తొమ్మిది వందల ఎనభై ఏడు కోట్ల…` (one cardinal in
+crores, 4.7–5.4 s of audio); `24/03/2026` as `ఇరవైనాలుగు కుదిరాలు గీత…` (the
+slash read as a word); `Dr. Rao at 10:30 AM, Rs. 45,000` was split by
+sherpa-onnx into three "sentences" at the abbreviation dots; `10:30` and
+`5 PM` were lost.
+
+Read the small categories with care. The minimal-contrast and name lines have
+**identical text** in both pipelines; only the edge trim and pauses differ,
+so their movement (e.g. Padmavathi `పది` heard as `1ది` in one band) is
+recognizer noise. **మీకు/నీకు (c01–c04) was recognized correctly in every
+clip, both voices, both pipelines, both bands** — this recognizer does not
+reproduce the Phase B.2 flag (Venkatesh heard as `నీకు` by the Whisper
+fine-tune), so that flag is neither confirmed nor cleared. Names score 0–2/6
+in every run because the strict token match rejects `శ్రీలక్ష్మీ` (long ī)
+and `రెడ్డిగారికి` (joined); the English voice still says `Ravi Kumar` as an
+American would.
+
+**Venkatesh vs Padmavathi.** On identical lines and this recognizer the two
+are indistinguishable after the fix (65/119 each at 16 kHz). Before it,
+Padmavathi scored higher (49 vs 43), mostly on the minimal pairs and names.
+Padmavathi is slower to first audio on long lines (phone lines 704 ms vs
+644 ms median) and produces 16 % more audio for the same text (133 s vs
+115 s), i.e. speaks more slowly. **Padmavathi is female and is paired with
+the male American `joe` voice for English words**, so every code-switched
+line changes gender mid-sentence; no female English voice was downloaded.
+Choosing between the voices is a listening decision; nothing here supports
+replacing Venkatesh.
+
+### Latency (median of 3 repeats; warm models)
+
+| | First audio, all lines | Max | Phone lines | Booking lines | Code-switch lines | RTF |
+| --- | --- | --- | --- | --- | --- | --- |
+| Venkatesh legacy | 296 ms | 758 ms | 680 ms | 652 ms | 55 ms | 0.12 |
+| Venkatesh new | 312 ms | 836 ms | 644 ms | 380 ms | 69 ms | 0.11 |
+| Padmavathi legacy | 356 ms | 1,037 ms | 854 ms | 828 ms | 59 ms | 0.12 |
+| Padmavathi new | 346 ms | 826 ms | 704 ms | 453 ms | 73 ms | 0.11 |
+
+The new run started at load average 3.7 against 0.65 for the legacy run, so
+small differences are not meaningful. Booking lines got faster because the
+new pipeline synthesizes one sentence (or clause) per call, where the legacy
+worker path synthesized a whole multi-sentence run before releasing any of it;
+code-switch first audio is the first one-word Telugu run (`మీకు`).
+
+### Text-pipeline fix (both implementations)
+
+`services/pipecat-worker/local_tts_text.py` and
+`packages/providers/voice-vendors/local-tts-text.ts` implement the same
+pipeline and are pinned to each other by 55 shared cases in
+`tests/fixtures/local-tts-text-cases.json` (run by
+`tests/unit/voice/local-tts-text.test.ts` and
+`services/pipecat-worker/test_local_tts_text.py`, written before any tuning).
+
+- **Numbers in the language around them:** Telugu if the next word is
+  Telugu, or the previous one is and the next is not English; English if
+  either neighbour is English; otherwise the line's language. A line with
+  no voice for its language still fails `unsupported_language`.
+- **Phone numbers** (5–15 digits, `+cc`, spaces/hyphens) digit by digit,
+  grouped as written (10 bare digits as 5 + 5) with a comma pause that is
+  never a segment boundary. Leading-zero numbers digit by digit.
+- **Dates** `DD/MM/YYYY`, ISO, `March 24`, `24th March` → Telugu
+  `రెండు వేల ఇరవై ఆరు మార్చి ఇరవై నాలుగో తేదీ` (year first) or English
+  `twenty fourth March, two thousand twenty six`. Day-first is assumed.
+- **Times** with colon or AM/PM, ranges → `ఉదయం పది గంటల ముప్పై నిమిషాలు`
+  (period word omitted when the line already says it; ఒంటి గంట for 1),
+  `ten thirty ay em`; Telugu suffixes merge (`గంటలకు`, `గంటల తర్వాత`,
+  `తేదీన`, `పదికి`, `మూడవ`).
+- **Prices** `₹`, `Rs.`, `INR`, `/-`, lakh/crore grouping and scale words →
+  `ఒక లక్ష నలభై ఐదు వేల రూపాయలు`, `one lakh eighty five thousand rupees`
+  (Indian scale in English too); percent, decimals; attributive forms before
+  a known noun (`ఒక రోజు`, `రెండు వేల మంది`).
+- **Abbreviations and units:** `Dr. Mr. Mrs. Ms. No. Ltd. e.g. i.e. etc.
+  approx. vs` and `డా.`; `kW kWh km hr(s) min(s) sq ft` after a number;
+  2–3-letter capitals spelled (`GST` → `jee es tee`, `OK` → `okay`).
+- **Segmentation:** one synthesis per sentence (abbreviation dots no longer
+  end sentences); sentences over 60 characters at clause punctuation with a
+  short tail merged back; then by script. Each segment carries the pause for
+  how it ends.
+- **Joining:** each segment's own edge silence is trimmed (−40 dBFS, 25 ms
+  kept), edges faded 5 ms, then a pause inserted: 280 ms after a sentence,
+  160 ms after a clause, 40 ms at a mid-phrase voice switch. Previously a
+  switch left the two voices' own edge silence (40–190 ms each) in between.
+  The gateway now releases audio a segment at a time (one sherpa callback
+  per segment, as segments are single sentences).
+
+Existing tests changed only where behaviour intentionally changed (audio
+length now includes the pause; `10` reaches the voice as `పది`/`ten`).
+
+### Tuning (one change at a time)
+
+Same 28 lines, both voices, 1 repeat each, scored as above. VITS synthesis is
+stochastic, so the unchanged configuration was run three times to measure the
+noise floor. Pre-registered rule: adopt a change only if its critical-token
+total (both voices, both bands, of 476) exceeds the floor's maximum plus its
+spread and no voice/band falls below the floor's minimum.
+
+| Variant (vs new defaults) | Total | Venkatesh 16k · 8k | Padmavathi 16k · 8k | Audio | Verdict |
+| --- | ---: | --- | --- | ---: | --- |
+| Defaults, run 1 / 2 / 3 | 264 / 266 / 261 | 60–65 · 62–68 | 65–67 · 66–72 | 249–250 s | noise floor, spread 5 |
+| Voice-switch pause 20 ms | 275, repeat **260** | 66 · 67 / 65 · 61 | 72 · 70 / 67 · 67 | 249 s | not confirmed on repeat — rejected |
+| Voice-switch pause 80 ms | 248 | 59 · 60 | 61 · 68 | 251 s | worse (single run) — rejected |
+| Clause pause 240 ms | 267 | 63 · 66 | 67 · 71 | 250 s | within noise — kept 160 |
+| Sentence pause 200 ms | 261 | **55** · 66 | 70 · 70 | 243 s | Venkatesh below floor — kept 280 |
+| Telugu speed 0.9 | 261 | 59 · 64 | 67 · 71 | 258 s | within noise, slower — kept 1.0 |
+| No fade (0 ms) | 272 | 71 · 68 | **63** · 70 | 250 s | Padmavathi below floor; fades guard joins — kept 5 ms |
+| Keep 10 ms at trimmed edges | 264 | 62 · 62 | 67 · 73 | 247 s | within noise — kept 25 ms |
+
+**No tuning change was adopted.** This recognizer cannot resolve pause or
+rate changes of this size; naturalness of pauses, pace and voice switches is
+a listening question.
+
+### Sarvam STT round trip — estimate only, not run
+
+Sarvam speech-to-text is ₹30 per audio hour, billed per second rounded up per
+request ([pricing](https://docs.sarvam.ai/api/pricing.md), checked
+2026-10-14). On the measured clip durations (each under 30 s):
+
+| Option | Requests | Billed seconds | Estimate |
+| --- | ---: | ---: | ---: |
+| New pipeline only, both voices, 16 kHz | 56 | 280 | ₹2.33 |
+| Legacy + new, 16 kHz | 112 | 552 | ₹4.60 |
+| Legacy + new, 16 kHz + 8 kHz | 224 | 1,104 | ₹9.20 |
+
+**Stopped.** The approved project budget (`POA` rule 1) is $0 incremental
+spend and says to stop when cost is uncertain; free-credit balance could not
+be confirmed. No Sarvam request was made and no audio left this machine. To
+run it, an owner must approve the spend (or confirm a $0 credit balance); the
+input would be synthetic benchmark WAVs only.
+
+### Still required from people
+
+1. A Telugu-fluent reviewer listens to `tts-te-voices/current/{venkatesh,padmavathi}/`
+   (and `legacy/` for the same lines) and scores intelligibility,
+   pronunciation, naturalness and pace per the
+   [review packet](LOCAL_TELUGU_HUMAN_REVIEW_PACKET.md), first `c01`–`c04`
+   (మీకు/నీకు) and `d01`–`d03` (digits).
+2. The same reviewer checks the Telugu renderings themselves: year-first dates,
+   `గంటల … నిమిషాలు` times, `నుంచి` ranges, `ఒక లక్ష…`, the period-word
+   choices (`తెల్లవారుజామున` for 4–5 AM) and the attributive forms. They are
+   engineering choices, not verified Telugu usage.
+3. Whether a mid-sentence voice switch (and, for Padmavathi, a gender switch)
+   is acceptable on a customer call.
+4. Owner decision on the Sarvam round-trip spend above.
+
+## Phase B.6 — normalization regression coverage, parity, blinded packet (2026-10-14)
+
+**Scope:** local TTS text pipeline and benchmark tooling only. Sarvam stays
+primary; production routing, `models/voice-local/manifest.json`, calendar
+code and environment files are unchanged. No Sarvam request, no model
+download (Indic Parler-TTS still deferred), no network. **No human has
+listened to any audio; nothing below is a naturalness claim.**
+
+### Defects found and fixed (both implementations, identical output)
+
+Probing the B.5 pipeline with booking-style lines found these, all now fixed
+and pinned by fixture cases:
+
+| Input | B.5 output (what the voice was given) | Now |
+| --- | --- | --- |
+| `AR-2041` | `ay ar-two thousand forty one` | `ay ar, two zero four one` — always the English voice, letter and digit by digit, hyphen → short pause (never a segment break) |
+| `AR2041`, `HALO-7Q2X9`, `2BHK` | `ARtwo thousand…`, `sevenQtwoXnine`, `twoBHK` | spelled; `10AM`, `5PM` and 5+-letter words (`COVID-19`) are not codes |
+| `03/24/2026` | `zero three/twenty four/two thousand twenty six` (slashes reach espeak) | `March twenty fourth, …` / `…మార్చి ఇరవై నాలుగో తేదీ`; month-first only when day-first is impossible |
+| `31/02/2026`, `13/13/2026` | slashes / a non-existent date | digit groups (`three one, zero two, …`); real calendar check incl. leap years |
+| `2026/03/24` | slashes | same as ISO `2026-03-24` |
+| `₹500 - ₹1,000`, `₹500-1,000` | `five hundred rupees - one thousand rupees` | `five hundred to one thousand rupees` / `ఐదు వందల నుంచి వెయ్యి రూపాయలు` |
+| `₹2-3 lakh`, `₹1.50-₹2.50` | hyphen left between amounts | `two to three lakh rupees` / `రెండు నుంచి మూడు లక్షల రూపాయలు`; paise ranges said in full |
+| `45,000/- రూపాయలు` | `…రూపాయలు రూపాయలు` | one రూపాయలు |
+| `₹2.5L`, `₹5 Cr`, `lac` | `two rupees and fifty paiseL` | `two point five lakh rupees` |
+| `$100` | `$one hundred` | `one hundred dollars` / `వంద డాలర్లు` |
+| `+919848012345` | `nine one nine eight, four eight zero one, …` (fours) | `plus nine one, nine eight four eight zero, one two three four five` |
+| `09848012345`, `+91 9848012345` | fours / one 10-digit run | `zero, 98480, 12345`; a written 10-digit group is always 5 + 5 |
+| `(040) 2345 6789` | brackets reach espeak, no pause after the code | `zero four zero, two three four five, …` |
+| `Sr. No.`, `Ref.`, `Opp.`, `Mob.`, `Ph.`/`Ph:`, `Appt.`, `Rd.`/`Rd`, `No. AR-2041` | left as is; the dot ended the sentence mid-line | `serial number`, `reference`, `opposite`, `mobile`, `phone`, `appointment`, `Road` (a `Rd.` before a capital keeps its sentence end), `number` |
+| `051,000` (leading zero with a comma) | **Python worker raised `ValueError`** (synthesis failure); TypeScript silently dropped the comma | digit by digit in both |
+
+Also aligned: Python's `round()` (half-to-even) vs `Math.round` in sample
+counts (22,050 Hz × 10 ms gave 220 vs 221 samples); a whitespace-only script
+run is dropped before the voice check in Python as in TypeScript.
+
+Not changed, listed for a reviewer in
+[`LOCAL_TELUGU_TTS_REVIEWER_DECISIONS.md`](LOCAL_TELUGU_TTS_REVIEWER_DECISIONS.md)
+§D: ambiguous `03/04/2026` stays day-first; `5-2-40` (house number) is read as
+a date; `St.` is left alone; lower-case codes are not codes.
+
+### Parity evidence
+
+- `tests/fixtures/local-tts-text-cases.json`: 55 → **100** shared cases (45 new
+  across booking codes, numeric dates, prices, phone digits, abbreviations and
+  Telugu-English code-switching), plus two new invariants in both suites: no
+  slash, currency sign or bracket left for espeak, and a booking code is one
+  English segment in either language.
+- `npx tsx scripts/check-local-tts-text-parity.ts` (new): seeded random lines
+  from 131 fragments (codes, dates, times, prices, phones, abbreviations,
+  Telugu/English words, NBSP/ZWNJ, punctuation) × three voice sets, compared
+  on normalized text, segments and error type, plus pause/trim sample counts
+  at 5 rates × 7 durations. Result: **0 mismatches and 0 crashes in 103,000
+  lines** (seeds 1–8 × 10,000, 2026 × 20,000, 7 × 3,000); before the fix above,
+  seeds 1 and 2 found the `051,000` Python crash.
+- Test runs: `test_local_tts_text.py` 11/11, worker suite 65 OK (1 skipped,
+  as before); `tests/unit/voice/local-tts-text.test.ts` 110/110,
+  `tests/unit/voice` 323/323; `tsc --noEmit`, ESLint and `check:architecture`
+  clean.
+
+### Latency and synthesis failures (no STT)
+
+`benchmark-local-tts.py` gained `--phrases`; the 13 new lines are in
+`scripts/local-tts-regression-phrases.json` (synthetic). The 28-line set is
+unchanged, and its text plans are identical to B.5 `current` (0 of 56 differ),
+so the B.5 audio and machine scores still describe those lines.
+
+| Run (both voices, 3 repeats, warm) | Start load | Failures | First audio median V / P | Max V / P | RTF median V / P |
+| --- | ---: | ---: | --- | --- | --- |
+| B.5 `current`, 28 lines (13:07) | 3.70 | 0 / 56 | 312 / 346 ms | 836 / 826 ms | 0.11 / 0.11 |
+| `b6-current`, same 28 lines (15:13) | 1.14 | 0 / 56 | 411 / 423 ms | 1,033 / 1,023 ms | 0.14 / 0.13 |
+| `b6-current-r2`, same (15:17) | 3.31 | 0 / 56 | 392 / 475 ms | 1,025 / 1,203 ms | 0.14 / 0.14 |
+| `b6-regression`, 13 new lines (15:14) | 3.43 | 0 / 26 | 440 / 442 ms | 996 / 857 ms | 0.15 / 0.14 |
+
+Identical text plans gave medians up to 37 % apart between runs on this laptop
+(i5-8265U, WSL2), so these runs **cannot show a latency change in either
+direction**; they show no failures and the same order of magnitude. The text
+pipeline itself costs a median 0.36 ms (Python) / 0.16 ms (TypeScript) per
+line, max 0.7 ms, on the 41 lines. The slowest first audio of the new lines is
+`k04` (≈0.85–1.0 s): a 112-character English booking confirmation with a code,
+date and time stays one segment because the commas inside a code or date are
+protected and never split.
+
+### Blinded listening packet
+
+`scripts/build-local-tts-blind-review.py` (new) built packet `b6` from
+`b6-current`: Part A, మీకు/నీకు forced choice without text (c01–c04 × 2
+voices); Part B, 7 booking-critical lines (phone digits, date, times, booking
+confirmation, cancellation) as voice pairs in random order; gain-matched,
+checksummed, key stored separately. Protocol and acceptance criteria:
+[`LOCAL_TELUGU_TTS_BLIND_REVIEW.md`](LOCAL_TELUGU_TTS_BLIND_REVIEW.md).
+**Not reviewed.**

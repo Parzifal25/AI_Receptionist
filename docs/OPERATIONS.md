@@ -203,3 +203,43 @@ harness blocks external destinations and uses synthetic LLM/Auth; preserve its
 JSON result before running another exercise. Stop only containers created for
 the exercise after evidence capture. Do not run the destructive canonical RLS
 rebuild against the restored dataset as proof of restore integrity.
+
+### Current evidence refresh — 2026-10-13
+
+The current candidate's local build, application suite, worker suite (see the
+execution report for its final result), migration validation and disposable RLS
+checks do not demonstrate hosted monitoring, alert delivery, backups, recovery,
+or rollback. No hosted target or responder was exercised. Keep alert, backup,
+RPO/RTO and artifact rollback marked **BLOCKED** until the named operations,
+database and release owners provide the isolated authorized $0 target, evidence,
+and approval listed in [the three-gate report](HALO_THREE_GATE_EXECUTION.md#current-candidate-refresh--2026-10-13).
+
+The current-candidate local restore was rerun on a fresh, task-owned PostgreSQL
+16 container. The synthetic dump restored to a new database; 44 table row
+fingerprints matched and six identity/tenant assertions passed. The restored
+database then passed the 15-assertion chat integration harness. The measured
+17.175 seconds covers only this small local fixture and is not an approved RTO;
+RPO/RTO targets remain owner decisions. Verification containers were stopped,
+and shared Supabase containers were left untouched. No alert destination was
+approved or tested, and no immutable deployment artifact was available for
+rollback. See the [current run record](HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run).
+
+Monitoring completeness is still limited: the tenant-scoped system-status API
+reports scheduled/overdue reminders and oldest overdue age, workflow
+pending/processing/failed/dead-letter counts, and bounded successful-turn
+latency percentiles. It marks status degraded for overdue reminders, failed
+runs, and dead-letter runs. Provider failure/timeout rate remains unavailable
+because no durable aggregation sink is configured or validated. No hosted alert
+destination or delivery drill was available; do not describe alerting as
+operational.
+
+### Local alert evaluator follow-up — 2026-10-13
+
+`packages/platform/alerts.ts` provides deterministic threshold evaluation,
+incident transition deduplication/resolution, and bounded delivery attempts.
+`LocalAlertSink` supports inspection in tests and stores no data outside process
+memory. The evaluator is not scheduled or persisted by the application. Local
+tests demonstrate alert creation, discovery, duplicate suppression, recovery,
+unavailable observations, and observable delivery failure. Hosted alert delivery
+and durable incident history remain **BLOCKED** pending a configured destination,
+approved test recipient, scheduler, persistence, and a hosted drill.

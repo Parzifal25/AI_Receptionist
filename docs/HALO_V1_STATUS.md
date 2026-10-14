@@ -294,3 +294,34 @@ by 15 restored application-path assertions. No hosted Auth login, inference,
 alert delivery or artifact rollback was performed. Preserve the existing ten
 criteria and Alpha/Beta/Charlie boundaries. External traffic stays disabled;
 no deployment, hosted mutation, commit, push or paid operation was authorized.
+
+### Current-candidate verification refresh — 2026-10-13
+
+Current candidate `cb6b75496755364cd288adb62b3492830b841288` passed the full local
+JavaScript suite (139 files; 1,333 passed, 5 existing skips), lint, typecheck,
+architecture/neutral checks, production build, configuration preflight, 31
+disposable migration checks, and 109 real-role disposable RLS assertions. The
+connected Supabase project is active, but hosted Auth lifecycle, provider
+inference, alert delivery, hosted restore and artifact rollback remain unverified.
+Section C's ten criteria and the Alpha/Beta/Charlie boundaries are unchanged;
+this is not a release approval. See [the execution report](HALO_THREE_GATE_EXECUTION.md#current-candidate-refresh--2026-10-13)
+for statuses, command results, and exact external owner actions.
+
+### Full local verification addendum — 2026-10-13
+
+Fresh verification also passed the synthetic local PostgREST journey before and
+after restore (15 assertions each), a disposable 44-table restore with six
+identity/tenant assertions, and the worker suite (54 run, 53 passed, one
+skipped). One bounded OpenRouter free-model inference attempt failed without a
+completion or usage. No real Auth lifecycle, alert delivery, hosted restore or
+artifact rollback was performed. The three external gates remain
+**BLOCKED**; the ten-criterion register and project phase boundaries are
+unchanged. Exact evidence is in the
+[execution report](HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run).
+
+Local Gate 3 follow-up: alert evaluator and in-memory delivery/discovery tests
+pass; system status now fails visibly on missing counts/query errors and includes
+observation freshness. No scheduler, persistent alert store or external
+destination is connected. Hosted alert delivery and application artifact
+rollback remain blocked; local restore evidence does not establish hosted
+recovery. Ten release criteria and Alpha/Beta/Charlie boundaries remain intact.

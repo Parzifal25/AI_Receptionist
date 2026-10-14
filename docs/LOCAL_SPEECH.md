@@ -101,6 +101,35 @@ Behaviour when it is taken:
 - **Gateway:** the existing `FallbackSttProvider` / `FallbackTtsProvider`,
   which replay only before the first final / before any audio is released.
 
+- **Gateway outage memory** (`provider-circuit.ts`, in-process engine and
+  web speech): after 2 consecutive recoverable failures the primary is skipped
+  for 30 s, then one request probes it; a working probe returns speech to the
+  primary, a failed one doubles the wait (5 min cap). Non-recoverable errors,
+  defects and barge-ins never count. State is per gateway process, per
+  provider chain (the default chain, and one per tenant profile); it is not
+  shared between gateway instances and is lost on restart. The values are
+  constructor options, not environment variables. With real Sarvam adapters
+  against a local socket that never answers, six lines took 30.8 s to first
+  audio without it and 10.0 s with it (two 5 s connect timeouts, then 0 ms);
+  six STT stream opens likewise 30.8 s against 10.0 s. A call whose STT
+  stream opens while the circuit is open stays on the fallback recognizer for
+  that call. The worker has no equivalent: each call starts on the primary.
+  Outage-to-recovery is covered by `tests/integration/speech-outage-recovery.test.ts`
+  (real Sarvam adapters against `tests/mocks/sim-sarvam.ts` on loopback). In a
+  timed run with a 10 s cooldown and one line per second, the only waits were
+  the two 5 s timeouts that opened the circuit and one 5 s failed probe;
+  Sarvam came back at 30 s and was used again from 45 s, because the failed
+  probe had doubled the wait. With the default 30 s cooldown that lag can
+  reach the current cooldown, at most 5 minutes.
+- **Read-back does not depend on the provider, because no provider reports
+  confidence.** The confidence-gated read-back (`system-action.ts`, below 0.6)
+  and the consecutive-low-confidence signal need a transcript confidence;
+  Sarvam's realtime endpoint and the local model both report none, so neither
+  fires on a real call, primary or fallback. What remains is the tenant
+  schema: for Arunodhaya only `monthly_bill` and `phone` are `confirm: true`.
+  A name, an area or a capacity heard by the weaker local recognizer is stored
+  unconfirmed (`tests/unit/voice/readback-without-confidence.test.ts`).
+
 Two behaviours changed to meet these rules, both outside the Phase A path
 (which configures no fallback):
 
@@ -139,15 +168,26 @@ Two behaviours changed to meet these rules, both outside the Phase A path
   `అసిస్ట్ టైమింగ్స్`), so Latin-script runs are spoken by the English voice.
   That fixes intelligibility and means the speaker changes mid-sentence.
 - **The English voice is American**, not Indian English.
-- **Sentence-level, not streaming.** A whole clause is synthesized before any
-  of it plays. Long sentences are split at clause punctuation to shorten the
-  wait for the first audio.
+- **Sentence-level, not streaming.** A whole segment (a sentence, a clause of
+  a long sentence, or a script run) is synthesized before any of it plays.
+  Each segment's own edge silence is trimmed and a fixed pause inserted
+  after it (280 ms sentence, 160 ms clause, 40 ms voice switch); the values
+  were not changed by tuning because the only available judge, the local
+  recognizer, cannot tell them apart (`LOCAL_SPEECH_BENCHMARK.md`, Phase B.5).
 - **Telugu and English only.** A line no installed voice can speak (for
   example Hindi) fails as `unsupported_language`; it is not read out as
   letter names. Agent `voice.ttsVoice` is ignored: a vendor speaker name has
   no meaning here.
-- Numerals inside a Telugu line are read by whichever voice the surrounding
-  text selects; how each voice reads digits was not evaluated.
+- **Numbers are written out before synthesis** (`local_tts_text.py` /
+  `local-tts-text.ts`, kept identical by a shared fixture): phone numbers
+  digit by digit, dates, times, prices, percentages, units and common
+  abbreviations as words in the language of the surrounding words. Before
+  this, espeak read `9876543210` as one cardinal in crores and `24/03/2026`
+  with the slash as a word. Booking codes (`AR-2041`) are spelled character
+  by character by the English voice; a numeric date is day-first unless only
+  month-first is valid (`03/24/2026`), and an impossible date is read digit
+  by digit. The Telugu renderings have not been checked by a native speaker;
+  the open choices are listed in `LOCAL_TELUGU_TTS_REVIEWER_DECISIONS.md`.
 
 ## Benchmark
 
@@ -293,3 +333,20 @@ useful for credential-free development, but its suitability as a production
 fallback for Telugu calls is not accepted: STT quality is substantially worse
 than Sarvam, and TTS still needs human assessment. Configure it as a production
 fallback only if that degradation is acceptable for the specific use case.
+
+## Telugu acceptance status (2026-10-14)
+
+**Engineering follow-up complete; human acceptance pending.** The original
+FLEURS audio and clip manifest could not be recovered from this checkout or
+its documented scratchpad/cache locations. The fresh 9-clip run uses only
+synthetic Sarvam-TTS audio and is recorded separately in
+`LOCAL_TELUGU_STT_HUMAN_REVIEW.md`; it is not a human-speech result. New local
+TTS listening files and a consented recording protocol are in
+`LOCAL_TELUGU_HUMAN_REVIEW_PACKET.md`. Do not mark Telugu speech accepted until
+the stated native-speaker review criteria are met.
+
+The scheduling action now reads the exact offered visit date/time back and
+requires a clear confirmation before booking. Arunodhaya already requires a
+phone-number read-back through its field schema, including when the recognizer
+reports no confidence. No broad tenant-policy change was made; Sarvam remains
+the primary provider.

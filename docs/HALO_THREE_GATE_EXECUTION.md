@@ -198,11 +198,33 @@ from `getUser()` or cookie deletion.
 7. Retain sanitized case IDs/status/timing/revision only. PASS requires every
    original Gate 2 acceptance condition on the intended target.
 
-Current attempt disposition: **BLOCKED before browser execution** because the
-identified Supabase project is inactive and connector permissions do not include
-Auth-settings or existing-user inspection. Even after access is supplied, tenant
-isolation requires two authorized synthetic accounts and tenant-owned test
-resources; a single account or the local disposable RLS suite is insufficient.
+Current disposition: **BLOCKED before authenticated browser execution** because
+the connector does not include Auth-settings or existing-user inspection, and no
+authorized synthetic account was available. The identified project is currently
+active, but the local app's configured Supabase endpoint is loopback and does not
+match that hosted project. Even after access is supplied, tenant isolation requires
+two authorized synthetic accounts and tenant-owned test resources; a single account
+or the local disposable RLS suite is insufficient.
+
+### Follow-up: user-provided local app at `http://localhost:3000`
+
+On 2026-10-13 the running local app was reachable for read-only HTTP checks.
+`/` and `/login` returned 200; unauthenticated `/dashboard` returned 307 to
+`/login?next=%2Fdashboard` with `Cache-Control: private, no-store`; `/api/health`
+returned 200 for public liveness. No sign-in was attempted because no authorized
+synthetic account was available. These results verify the local signed-out route
+boundary and process liveness only. They do not establish authenticated session
+refresh/persistence, session expiry, hosted Auth configuration, or hosted tenant
+isolation.
+
+The three release gates remain blocked. No inference request was made because
+account-specific free quota/overage behavior is unverified and the $0 budget rules
+out an unbounded or potentially billable request. Public health is only a liveness
+signal; no alert delivery was tested. Deep health remains disabled when
+`CRON_SECRET` is absent, as implemented. Local recovery was not rerun because the
+Docker API was inaccessible in this execution context; prior disposable restore
+results remain historical local evidence and do not prove hosted recovery or app
+artifact rollback.
 
 ## Gate 3: operational findings and local recovery
 
@@ -366,3 +388,206 @@ untouched. Synthetic dump bytes were held only in memory. No paid service,
 provider inference, real Auth login, hosted recovery, application deployment,
 commit, push, or outbound communication was performed. All three external gates
 remain **BLOCKED**; production remains **NO-GO**.
+
+## Current-candidate refresh — 2026-10-13
+
+Candidate `cb6b75496755364cd288adb62b3492830b841288` (`main`, 51 commits ahead
+of `halo/main`). At the first status snapshot, six tracked documentation files
+were modified: `POA`, `docs/DEPLOYMENT.md`,
+`docs/HALO_PHASE_BETA_READINESS.md`, this report, `docs/HALO_V1_STATUS.md`, and
+`docs/OPERATIONS.md`. None were staged and there were no untracked paths. Those
+pre-existing edits were preserved. No source files changed during that refresh. Results below supersede
+older counts only for the commands rerun here; prior restore/chat evidence remains
+local historical evidence, not a hosted exercise.
+
+| Gate / item | Current status | Fresh evidence and exact limit |
+|---|---|---|
+| Real Groq/OpenRouter inference | **BLOCKED — acceptance not met** | At the first refresh no request had been made. A later metadata check established OpenRouter free-tier/zero-priced model access and one bounded request was attempted; it failed without status, completion or usage and was not retried. See the later verification addendum for exact evidence and remaining action. |
+| Supabase Auth login/session | **BLOCKED — exact external prerequisite** | Read-only Supabase project metadata confirms `AI_Receptionist`, `riwgdqogswoewfduajcl`, region `ap-southeast-2`, status `ACTIVE_HEALTHY`. The connector did not provide Auth settings/users/session inspection; local `.env.local` targets loopback. No login, account, refresh, logout, hosted authorization or tenant test occurred. Identity owner must provide deployed origin/revision, settings visibility, two existing synthetic tenant accounts via approved secret handling, and $0/permitted-operation confirmation. |
+| Monitoring, hosted recovery, rollback | **BLOCKED — exact external prerequisite** | No hosted alert, backup, restore or app artifact rollback was exercised. Ops/database/release owners must identify an isolated authorized $0 target, recovery authority and backup/retention evidence, named responder, numeric RPO/RTO, compatible current/prior artifact checksums, and approved rollback procedure. |
+| Local application/regression evidence | **PASS — local evidence only** | `npm test -- --maxWorkers=2`: 139 files; 1,333 passed, 5 existing skips. `npm run lint`, `npm run typecheck`, `npm run check:architecture`, `npm run check:neutral`, `npm run preflight:ci`, and `npm run build` passed. Preflight skipped DB and warned `CRON_SECRET` absent. |
+| Local schema/security/worker checks | **PASS — local evidence only** | Fresh disposable DB, not the existing shared stack: all 31 migration/identity checks, 109 real-role RLS assertions, and 54 worker tests (53 passed, 1 skipped) passed. |
+| Other checks | **SKIPPED — no relevant source changes** | No hosted E2E, real LLM/Auth, alert delivery, hosted recovery/rollback, or restore run. No source files changed. |
+
+Outstanding-item classification:
+
+| Item | Classification |
+|---|---|
+| Provider free capacity, overage behavior and bounded zero-cost route | Cost/quota uncertainty; provider account evidence and owner authorization missing. |
+| Intended hosted Auth configuration, two synthetic identities, deployed app origin/revision | Missing account/test identities, owner authorization and deployed target evidence. |
+| Hosted alerts, backup inventory, isolated restore target and compatible artifact rollback | Missing infrastructure, owner authorization and recovery evidence. |
+| Charlie pilot and final approval | Later-phase requirements; remain open regardless of local checks. |
+
+Minimum owner actions: (1) the provider/account owner supplies dated model-tier,
+remaining-quota and billing/overage evidence, approves synthetic data handling,
+and authorizes one bounded single-provider request with a $0 cap; alternatively,
+keep real inference blocked. (2) The identity owner supplies the deployed origin
+and revision, read-only Auth-settings access, two existing synthetic tenant
+accounts through an approved secret store or supervised browser, and confirms
+the login/session checks are permitted at $0; alternatively, keep hosted Auth
+blocked. (3) Operations/database/release owners name the isolated target and
+responder, supply backup/retention and recovery authority, approve numeric
+RPO/RTO and $0 use, and provide current/prior artifact checksums plus rollback
+authorization; alternatively, keep hosted recovery/rollback blocked. No secrets
+or account credentials should be sent in chat.
+
+The only new service was a cached local disposable PostgreSQL container
+(`halo-close-gates-20261013`, loopback port 55442); no cloud service or paid
+operation was used. Incremental vendor/hosted cost: **$0**. This does not
+establish any external provider account's cost. The container is stopped after
+verification. Release recommendation remains **NO-GO**. The ten-criterion
+register, Alpha boundary, Charlie pilot acceptance and final production approval
+remain open and unchanged.
+
+Exact refreshed commands and results:
+
+- `npm test -- --maxWorkers=2` — 139 files passed; 1,333 passed, 5 existing
+  skips; exit 0.
+- `npm run lint`, `npm run typecheck`, `npm run check:architecture`,
+  `npm run check:neutral` — exit 0.
+- `npm run build` — exit 0; Next production compile, TypeScript, prerender and
+  widget bundle completed. `.env.local` was loaded by Next; no value was printed.
+- `npm run preflight:ci` — exit 0; configuration-only; DB check skipped and
+  `CRON_SECRET` warning shown.
+- `HALO_DISPOSABLE_DATABASE=1 npm run check:migrations -- postgresql://postgres:postgres@127.0.0.1:55442/halo_check_gates`
+  — exit 0; 31 migrations and identity/backfill assertions passed.
+- `HALO_DISPOSABLE_DATABASE=1 npm run check:rls -- postgresql://postgres:postgres@127.0.0.1:55442/halo_check_gates`
+  — exit 0; real-role tenant isolation harness passed.
+- `/bin/bash -lc ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py' > /tmp/halo-gates-evidence/worker-unrestricted.log 2>&1"`
+  — exit 0; 54 tests ran, 53 passed, 1 skipped. The first sandboxed invocation
+  stalled without output and was interrupted; the supported authorized rerun
+  completed in 9.351 seconds.
+- `git diff --check` — passed after the documentation updates.
+
+The no-argument migration/RLS invocations were also attempted and safely refused
+because no explicit disposable URL was supplied. No checks were aimed at the
+existing shared Supabase containers. The prior hosted and real-inference gates
+remain blocked; no source change was required by this refresh.
+
+### Verification addendum — 2026-10-13, full task run
+
+Evidence checklist prepared before this run's verification:
+
+- Provider: identify effective route/models, inspect adapter and regressions, and
+  verify zero-cost eligibility before any inference request.
+- Auth: establish the configured target, inspect current server/browser handling,
+  and use only an existing authorized synthetic identity.
+- Operations: run local health/failure/security checks, disposable migration and
+  real-role RLS checks, then backup/restore and post-restore application checks;
+  record anything that still requires a hosted target.
+- Finish: rerun repository suites/build/preflight, inspect the diff, and preserve
+  branch, HEAD and all pre-existing worktree changes.
+
+The checklist completed locally. Provider and Auth prerequisites remain as
+recorded below. The continuation of this run found and fixed a local monitoring
+coverage defect in the admin system-status endpoint. Fresh results below
+supersede earlier candidate counts and the earlier statement that Docker was
+unavailable for this execution.
+
+| Area | Fresh result | Evidence boundary |
+|---|---|---|
+| Provider route/config | `LLM_PROVIDER=cloud`, `LLM_TIMEOUT_MS=25000`, `HALO_MODEL_ROUTES` unset. Factory order is Groq `openai/gpt-oss-120b`, Groq `qwen/qwen3.8-27b`, OpenRouter `anthropic/claude-sonnet-4.6`, OpenRouter `qwen/qwen3.8-27b`. Groq and OpenRouter key variables are present; no secret values were emitted. | Fresh read-only metadata confirmed both Groq models are available but carry positive listed token prices; Groq account tier/quota remains unknown. OpenRouter key reports free tier, zero purchased credits and 0 daily/monthly usage; catalog exposes 19 zero-priced models. One bounded OpenRouter `:free` inference attempt failed without an HTTP status, parsed response or usage. It was not retried. Gate 1 **BLOCKED**. |
+| Supabase target/Auth | `.env.local` is ignored by Git and configures `NEXT_PUBLIC_SUPABASE_URL` to loopback `127.0.0.1:55321`; anon and service-role variables are present. `.env.example` is tracked as expected. | Local environment only; no hosted URL was substituted. Shared local Supabase/Auth was not queried or modified. No designated existing synthetic login account was identified, so no Auth login/session lifecycle was attempted. Gate 2 **BLOCKED**. |
+| JavaScript tests | `npm test -- --maxWorkers=2`: exit 0; 139 files passed, 1,333 tests passed, 5 skipped. | Current candidate, local suite. |
+| Lint/type/architecture | `npm run lint`, `npm run typecheck`, `npm run check:architecture`, `npm run check:neutral`: exit 0. | Current candidate. |
+| Production build | `npm run build`: exit 0; widget and Next production build completed. | Local build only; no deploy/artifact registry identity. |
+| Preflight | `npm run preflight:ci`: exit 0; explicitly configuration-only, DB connectivity skipped, warning that `CRON_SECRET` is absent/too short for production. | No readiness or hosted dependency proof. |
+| Python worker | `.venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'`: exit 0; 54 run, 53 passed, 1 skipped. | Supported local Python environment; no vendor speech request. Initial sandboxed run stalled and was interrupted; authorized local-socket rerun completed in 9.312s. |
+| Migration/RLS | `HALO_DISPOSABLE_DATABASE=1 npm run check:migrations -- postgresql://postgres:halo_disposable_synthetic@127.0.0.1:55443/halo_check_current`: exit 0, 31 migrations plus identity/backfill assertions. Same target with `npm run check:rls`: exit 0, 109 assertions under real `authenticated`/`service_role` roles. | Fresh task-owned PostgreSQL 16 disposable container, separate from shared Supabase. RLS harness rebuilt only that disposable DB. |
+| Synthetic application path | `HALO_DISPOSABLE_DATABASE=1 npm test -- --config scripts/vitest.local-integration.config.ts`: exit 0, 1 test and 15 internal assertions. Repeated with `HALO_LOCAL_RESTORED_DATABASE=halo_check_restore_current`: exit 0, same 15 assertions. | Real local app routes/runtime/PostgREST/PostgreSQL, synthetic LLM/Auth identities. Not provider inference or Supabase Auth login. |
+| Backup/restore | `HALO_DISPOSABLE_DATABASE=1 npm run check:recovery:local -- halo-gates-disposable-202610131 halo_check_integrations halo_check_restore_current`: exit 0. 44 table fingerprints matched; six identity/tenant assertions passed; source untouched; new restore target; backup SHA-256 `c600d9e3ec7c145b569bbe81758158deeec8c5495d9f6e7ba43a86a4fefeb6fc`; measured 17.175 seconds. | Synthetic local dump/restore only. Restored app journey passed. This does not test hosted backup, Auth issuer/users, separate-instance roles/secrets, or application artifact rollback; it is not an approved RPO/RTO. |
+| Alerts/rollback | No alert was sent; no approved test sink or named destination was found. No immutable deployed artifact/digest or compatible prior deployment was available. | Gate 3 remains **BLOCKED** for hosted alert delivery and application rollback. Local restore is partial recovery evidence only. |
+| Operational metric coverage | Updated tenant-scoped system-status API returns scheduled/overdue reminder counts and oldest overdue age, workflow pending/processing/failed/dead-letter counts, and p50/p95 successful-turn latency from at most 500 events over 24 hours. It marks status degraded for overdue reminders, failed runs, dead-letter runs, failed readiness, or unhealthy LLM. | Targeted tenant-isolation regression passes. Provider failure/timeout rate remains explicitly `null`/unavailable because the application has no durable aggregation sink; no durable metrics/alert sink or alert delivery drill was verified. |
+| Diff | `git diff --check`: exit 0 after final source and evidence updates. | This continuation changes the status API and its integration test; other changes in the run remain documentation/evidence updates. |
+
+Provider metadata and one-request record (2026-10-13): authenticated read-only
+GETs to Groq model catalog and OpenRouter key/credits/model catalogs returned
+200. The OpenRouter key reported `is_free_tier=true`, `total_credits=0`, and
+`usage_daily=usage_monthly=0`; a free-model catalog query returned 19 models
+with zero prompt/completion prices. Before and after the test, `total_usage`
+remained `0.183508087` and daily/monthly usage remained zero. The one inference
+used `nvidia/nemotron-3.5-lightning:free`, an eight-token output ceiling, a
+15-second timeout, one fixed non-sensitive prompt, and no retry/fallback. The
+real `OpenAICompatibleProvider.complete()` call failed in 971 ms; sanitized
+result: no HTTP status, no parsed completion, no token usage, zero retries and
+no fallback. The application adapter exposed no safe failure category in that
+attempt. No prompt contents beyond the fixed test string or provider response
+were recorded. The free model's zero listed price, free-tier key and unchanged
+account counters support **$0 incremental provider cost** for this attempt;
+the default configured cloud route still includes priced candidates and is not
+cost-constrained to free models. Therefore inference acceptance is **not met**.
+Public plan/model evidence is documented at [OpenRouter pricing](https://openrouter.ai/pricing),
+[OpenRouter free models](https://openrouter.ai/collections/free-models), and
+[Groq rate limits](https://console.groq.com/docs/rate-limits); account-level
+Groq billing/quota remains unavailable from the model catalog.
+
+The next Gate 1 action is to diagnose the adapter/provider failure from an
+approved safe diagnostic path and obtain authorization for another single
+bounded free-model attempt. Do not enable the normal cloud fallback chain under
+the $0 cap until every candidate that can run is restricted to a verified
+zero-cost route.
+
+All four containers created for this verification were stopped; the five existing
+shared `supabase_*_AI_Receptionist` containers were left running and untouched.
+No provider request, hosted Auth operation, hosted database query/mutation,
+deployment, outbound alert, commit or push occurred. Incremental service spend
+was $0. External account billing/quota is **unverified**, not proven zero by
+these local checks. Release recommendation remains **NO-GO**.
+
+The owner action for Gate 3 is now limited to external proof: approve a safe
+alert destination and responder, provide an isolated hosted recovery target and
+backup facts, approve numeric RPO/RTO targets, and identify immutable current
+and rollback artifact digests plus a compatible rollback procedure. Provider
+failure/timeout-rate aggregation still requires an approved durable metrics
+source; the endpoint reports it unavailable rather than implying zero. Local
+system-status tests do not prove hosted alert delivery or multi-instance
+monitoring.
+
+### Continuation — local system-status coverage and final checks
+
+Changed `src/app/api/admin/system-status/route.ts` to include tenant-scoped
+queue/dead-letter and bounded latency telemetry, and degrade health when
+overdue reminders, failed workflow runs, or dead-letter runs are present. The
+provider failure-rate field remains unavailable because failures are not
+persisted in a durable metric source. The regression in
+`tests/integration/system-status-security.test.ts` checks tenant filtering,
+queue values, age, latency percentiles, the explicit unavailable state, and
+degraded status.
+
+Final source check results after that change: targeted monitoring regression,
+`npm test -- --run tests/integration/system-status-security.test.ts`, passed
+(5 tests); full JavaScript suite `npm test -- --maxWorkers=2` passed (139 files,
+1,333 passed, 5 skipped); production build, lint, and typecheck all exited 0 on
+the final source. Architecture and neutrality checks exited 0 before the final
+status threshold-only adjustment; `git diff --check` is run after evidence
+updates. No hosted systems were involved.
+
+### Gate 3 local alert and monitoring follow-up — 2026-10-13
+
+Added a deterministic operational alert evaluator and an inspectable in-memory
+local sink. It emits transition events for sustained provider failure (three
+consecutive observations), database unready, failed-job backlog (5+), any
+dead-letter work, overdue work, and stale/missing monitoring observations. Active
+incidents deduplicate, recoveries emit resolution, and delivery retries cap at
+three attempts. This is library/test infrastructure only: no scheduler,
+durable incident store, operational endpoint, or external destination is wired;
+those are not claimed as production alerting.
+
+The system-status API now treats missing exact counts and failed queries as
+unavailable (503), reports telemetry freshness separately from zero samples,
+and keeps configuration details out of its response. Existing tenant filters,
+provider check, and bounded 24-hour/500-row successful latency sample remain.
+Targeted checks: 5 files, 38 tests passed (alert transitions, missing inputs,
+local sink discovery, bounded delivery failure, monitoring tenant scope/query
+failure/config redaction, health, provider fallback and stream behavior). The
+separate full-repository results below apply to the prior candidate before this
+follow-up and must be refreshed for this source revision.
+
+Gate 3 local capability status: monitoring **PASS locally**; failure detection
+and bounded fallback **PASS in deterministic local tests**; alert generation and
+local discovery **PASS in deterministic local tests**; external alert delivery
+**BLOCKED** (no approved destination); backup/restore **PASS locally** (44 table
+fingerprints, six identity/tenant checks, checksum and post-restore app journey
+recorded above); application artifact rollback **BLOCKED** (no two compatible
+immutable artifacts). No production traffic, hosted mutation, external alert,
+commit, push, or deployment was performed; incremental spend remains $0.

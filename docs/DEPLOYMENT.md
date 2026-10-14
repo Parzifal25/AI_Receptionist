@@ -292,3 +292,30 @@ reset/stash/clean or overwrite earlier user work. Reverting fixes would reopen
 tenant-count leakage, redirect/cookie and diagnostic defects: keep all traffic
 disabled until replacement fixes are verified. The local dump/restore exercise
 in Operations proves neither application artifact rollback nor hosted recovery.
+
+### Current candidate release boundary — 2026-10-13
+
+Candidate `cb6b75496755364cd288adb62b3492830b841288` has fresh passing local
+build and regression evidence, but no verified deployment target, approved
+artifact checksum, hosted Auth test, $0 inference route, alert delivery, restore,
+or compatible artifact rollback. The current release recommendation is **NO-GO**;
+deployment remains unauthorized. Preserve disabled external traffic and use the
+minimum owner inputs in [the three-gate report](HALO_THREE_GATE_EXECUTION.md#current-candidate-refresh--2026-10-13)
+before any separately authorized hosted procedure.
+
+The local alert evaluator and in-memory sink added on 2026-10-13 are testable
+building blocks, not deployment wiring: no scheduler, durable store, approved
+notification destination, or production delivery has been configured. Local alert
+tests pass; hosted delivery remains blocked. No compatible prior immutable app
+artifact is available, so artifact rollback remains blocked. Use a forward-fix
+when schema changes are not backward compatible; do not reverse an irreversible
+migration as part of an application rollback.
+
+Fresh local verification on the same candidate passed the full JS suite,
+lint/type/architecture/neutral checks, production build, configuration preflight,
+Python worker suite, disposable migration/RLS checks, synthetic chat journey and
+local restore/post-restore journey. It does not supply a deployment artifact
+digest or prove hosted Auth, provider billing/quota, alert delivery, backup
+retention or application rollback. Keep deployment **NO-GO** until the external
+owner actions in the [three-gate report](HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run)
+are complete and separately authorized.

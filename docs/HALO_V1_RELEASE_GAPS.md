@@ -80,6 +80,28 @@ The earlier “ENG-04 Phase 2” label for the database migration/linkage audit 
 - **Validation:** the current dirty candidate passed the 2026-10-12 full application and worker suites, lint, typecheck, production build, config preflight, disposable migration replay, real-role RLS harness, and `git diff --check`. These checks do not establish external provider or pilot acceptance.
 - **Preservation:** no existing runtime behavior or user changes were discarded. No production data, provider, deployment, or live call was touched.
 
+### Current candidate gate recheck — 2026-10-13
+
+Fresh local checks passed on `cb6b75496755364cd288adb62b3492830b841288`, including
+the complete JS suite/build/worker suite, fresh disposable migration and real-role
+RLS checks, and a synthetic local chat journey on source and restored databases.
+This does not close provider inference, dashboard Auth, hosted monitoring/recovery/
+rollback, pilot acceptance or final release approval. Remaining gates and concrete
+owner prerequisites are in the [execution report](HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run).
+
+The local operations audit extended the system-status endpoint with tenant-
+scoped oldest overdue reminder age and queue/dead-letter counts, plus bounded
+successful-turn latency percentiles. Provider failure/timeout-rate aggregation
+still lacks a durable metric source, so it is explicitly unavailable rather
+than presented as zero; full monitoring coverage still requires that source and
+hosted alert-delivery evidence.
+
+The 2026-10-13 local follow-up adds testable alert transitions and local sink
+delivery/discovery, and explicit unavailable status for failed or incomplete
+operational queries. It does not wire a durable scheduler/store or external
+destination. Hosted alert delivery and compatible app artifact rollback remain
+open release gaps; prior disposable restore evidence is local only.
+
 
 ## Three production-readiness gates — 2026-10-13 execution
 

@@ -132,6 +132,40 @@ npm test -- tests/unit/llm-fallback-router.test.ts tests/unit/llm-wire-safety.te
 npm test -- tests/integration/widget-messages-security.test.ts tests/integration/chat-service.test.ts tests/integration/runtime-orchestration.test.ts
 ```
 
+## Current candidate refresh — 2026-10-13
+
+On `main` at `cb6b75496755364cd288adb62b3492830b841288`, `.env.local` is ignored
+and selects the local Supabase API at `127.0.0.1:55321`; local anon and
+service-role variables are present. The LLM route is `cloud`, timeout 25,000 ms,
+with two Groq candidates followed by two OpenRouter candidates. This refresh made
+no provider request. Public Groq docs describe free-plan model/rate limits, but
+this account's plan, remaining quota and overage controls are unknown. The
+configured OpenRouter model IDs are not an explicit `:free` route. No zero-cost
+inference path is established, so Gate 1 remains **BLOCKED**.
+
+Fresh local verification: 139 JS files passed (1,333 tests passed, 5 skipped);
+lint, typecheck, architecture, neutrality, production build and
+configuration-only preflight passed. The worker suite ran 54 tests (53 passed,
+1 skipped). A fresh PostgreSQL 16 disposable target passed all 31 migrations,
+109 real-role RLS assertions, and a 15-assertion local chat/PostgREST journey.
+A synthetic dump/restore matched 44 table fingerprints and passed six
+identity/tenant assertions; the restored database passed the same 15 application
+assertions. No Auth login, hosted target, provider call, alert delivery or app
+artifact rollback occurred. Exact commands and owner actions are in the
+[three-gate report](HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run).
+
+### Provider verification correction — 2026-10-13
+
+After the read-only metadata checks established the free OpenRouter account and
+zero-priced model catalog, one bounded `nvidia/nemotron-3.5-lightning:free`
+request was attempted through HALO's real OpenAI-compatible adapter (8 output
+tokens maximum, 15-second timeout, no retry/fallback). It failed in 971 ms with
+no HTTP status, parsed completion or usage; it was not retried. Read-only account
+metadata before/after showed zero daily/monthly usage and unchanged total usage.
+This is a failed real attempt, not provider success; Gate 1 remains blocked. The
+configured cloud fallback still contains priced model candidates. See the
+[sanitized provider record](HALO_THREE_GATE_EXECUTION.md#verification-addendum--2026-10-13-full-task-run).
+
 
 ## Three production-readiness gates — 2026-10-13 execution
 
