@@ -41,7 +41,7 @@ vi.mock("@halo/providers/llm/factory", () => ({
   }),
 }));
 vi.mock("@halo/providers/knowledge/factory", () => ({
-  getKnowledgeProvider: () => ({ name: "fake", async search() { return []; }, async indexDocument() {}, async removeDocument() {} }),
+  getKnowledgeProvider: () => ({ name: "fake", async search() { return []; }, async indexRevision() { return "ready" as const; } }),
 }));
 vi.mock("@halo/providers/notification/factory", () => ({
   getNotificationProvider: () => ({ name: "fake", async notifyNewLead() {} }),

@@ -14,7 +14,8 @@ import { AppError } from "@halo/core/errors/app-error";
  * touched (Phase 3).
  *
  * Known limitations, carried into Phase 3 explicitly:
- *   - The port does not support collections: nonempty bindings fail closed.
+ *   - A nonempty collection binding is passed to the provider only when the
+ *     provider enforces it (D14); any other provider fails closed.
  *   - Query preparation is the English-centric heuristic in
  *     retrieval-query.ts; multilingual queries are not rewritten.
  * Retrieved text is always treated as data by the composer, never as
@@ -86,10 +87,14 @@ export class ProviderKnowledgeResolver implements KnowledgeResolver {
 
   async resolve(params: KnowledgeResolveParams): Promise<KnowledgeContext> {
     if (!params.businessId?.trim()) throw AppError.forbidden("Knowledge retrieval requires tenant context");
-    if (params.collectionIds.length) throw AppError.forbidden("Configured knowledge collections cannot be enforced by this provider");
+    if (params.collectionIds.length && !this.provider.enforcesCollectionScope) {
+      throw AppError.forbidden("Configured knowledge collections cannot be enforced by this provider");
+    }
     const query = buildRetrievalQuery(params.history, params.userMessage);
     if (!query.trim()) return emptyKnowledge(query);
-    const raw = await this.provider.search(params.businessId, query, params.limits.maxSnippets);
+    const raw = await this.provider.search(params.businessId, query, params.limits.maxSnippets, {
+      collectionIds: [...params.collectionIds],
+    });
     const minScore = this.options.minScore ?? 0;
     const ranked = raw.filter((s) => s.score >= minScore);
     const { snippets, charsUsed, truncated } = budgetSnippets(

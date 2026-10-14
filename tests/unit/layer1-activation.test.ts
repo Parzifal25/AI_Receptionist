@@ -14,7 +14,7 @@ describe("Layer 1 activation boundary", () => {
     ["invalid language", { language: { primary: "bad tag!" } }],
     ["invalid value", { voice: { speakingRate: -1 } }],
     ["conflicting instructions", { instructions: { promptTemplate: "Another version" } }],
-    ["unsupported collection", { knowledge: { collectionIds: ["foreign-collection"] } }],
+    ["malformed collection binding", { knowledge: { collectionIds: ["foreign-collection"] } }],
     ["pending approval", { activationBlockers: ["Policy pending"] }],
   ])("rejects %s before publication or live-pointer writes", async (_name, override) => {
     const repo = new InMemoryAgentRepository();

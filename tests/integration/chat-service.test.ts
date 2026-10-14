@@ -69,8 +69,7 @@ function buildFakes(options: { llmReplies: string[]; knowledgeEmpty?: boolean })
       if (options.knowledgeEmpty) return [];
       return [{ source: "faq" as const, refId: "f1", title: "Hours", content: "Q: Hours?\nA: 9-5", score: 1 }];
     },
-    async indexDocument() {},
-    async removeDocument() {},
+    async indexRevision() { return "ready" as const; },
   };
 
   const notifications: NotificationProvider & { sent: number } = {
@@ -196,7 +195,7 @@ describe("ChatService.respond", () => {
 
     const service = new ChatService(
       llm,
-      { name: "fake", search: async () => [], indexDocument: async () => {}, removeDocument: async () => {} },
+      { name: "fake", search: async () => [], indexRevision: async () => "ready" as const },
       { name: "fake", notifyNewLead: async () => {} },
       repository,
       orchestrator,

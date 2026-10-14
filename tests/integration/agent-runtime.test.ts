@@ -79,8 +79,7 @@ function makeRuntimeFakes() {
     async search(): Promise<KnowledgeSnippet[]> {
       return [];
     },
-    async indexDocument() {},
-    async removeDocument() {},
+    async indexRevision() { return "ready" as const; },
   } as unknown as KnowledgeProvider;
   const notifications = {
     name: "fake-notifications",
@@ -221,8 +220,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
           { source: "faq", refId: "f1", title: "Pricing", content: "Standard visit is $99.", score: 1 },
         ];
       },
-      async indexDocument() {},
-      async removeDocument() {},
+      async indexRevision() { return "ready" as const; },
     } as unknown as KnowledgeProvider;
     const chat = new ChatService(
       makeLlm(calls),

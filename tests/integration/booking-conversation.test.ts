@@ -120,8 +120,7 @@ function buildConversation() {
     async search() {
       return [];
     },
-    async indexDocument() {},
-    async removeDocument() {},
+    async indexRevision() { return "ready" as const; },
   };
 
   const notifications: NotificationProvider = { name: "fake", async notifyNewLead() {} };

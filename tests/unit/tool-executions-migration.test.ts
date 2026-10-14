@@ -13,11 +13,11 @@ const code = sql.replace(/--.*$/gm, "");
 const tableBody = code.slice(code.indexOf("create table public.tool_executions"), code.indexOf("constraint tool_executions_lifecycle"));
 
 describe("migration 0032_tool_executions (static)", () => {
-  it("is the next contiguous, uniquely numbered migration", () => {
+  it("is migration 0032 in a contiguous, uniquely numbered sequence", () => {
     const files = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
     const numbers = files.map((f) => Number(f.slice(0, 4)));
     expect(numbers).toEqual(numbers.map((_, i) => i + 1));
-    expect(files.at(-1)).toBe("0032_tool_executions.sql");
+    expect(files[31]).toBe("0032_tool_executions.sql");
     expect(files.every((f) => /^\d{4}_[a-z0-9_]+\.sql$/.test(f))).toBe(true);
   });
 

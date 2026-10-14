@@ -7,6 +7,13 @@ import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
 import { logger } from "@halo/platform/logger";
 import type { ActionState } from "@/features/business/actions";
 
+/**
+ * D14 FAQ governance (migration 0033). Every create or edit adds an
+ * immutable revision pending review; the receptionist answers only from
+ * an FAQ revision an owner or admin approved. A client-supplied publish
+ * flag is ignored. Logs carry ids only, never question or answer text.
+ */
+
 const log = logger.child({ feature: "faqs" });
 
 const faqSchema = z.object({
@@ -14,8 +21,11 @@ const faqSchema = z.object({
   answer: z.string().trim().min(1, "Answer is required").max(4000),
   category: z.string().trim().max(100).default(""),
 });
+const uuid = z.string().uuid();
 
-export async function createFaq(_prev: ActionState, formData: FormData): Promise<ActionState> {
+const canApprove = (role: string) => role === "owner" || role === "admin";
+
+async function saveRevision(faqId: string | null, formData: FormData): Promise<ActionState> {
   const { businessId } = await requireBusiness();
   const parsed = faqSchema.safeParse({
     question: formData.get("question"),
@@ -25,69 +35,63 @@ export async function createFaq(_prev: ActionState, formData: FormData): Promise
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
-    .from("faqs")
-    // Draft content must not inherit the schema's legacy published default.
-    .insert({ business_id: businessId, ...parsed.data, is_published: false });
-
+  const { error } = await supabase.rpc("faq_create_revision", {
+    p_business_id: businessId,
+    p_faq_id: faqId,
+    p_question: parsed.data.question,
+    p_answer: parsed.data.answer,
+    p_category: parsed.data.category,
+  });
   if (error) {
-    log.error("faq insert failed", { error: error.message });
-    return { error: "Could not add the FAQ. Please try again." };
+    log.error("faq revision create failed", { faqId, error: error.message.slice(0, 200) });
+    return { error: "Could not save the FAQ. Please try again." };
   }
-
   revalidatePath("/dashboard/faqs");
-  return { error: null, message: "FAQ added." };
+  return { error: null, message: "Saved and sent for review. The receptionist uses it once an owner or admin approves it." };
+}
+
+export async function createFaq(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return saveRevision(null, formData);
 }
 
 export async function updateFaq(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const { businessId } = await requireBusiness();
-  const idResult = z.string().uuid().safeParse(formData.get("id"));
-  const parsed = faqSchema.safeParse({
-    question: formData.get("question"),
-    answer: formData.get("answer"),
-    category: formData.get("category"),
+  const id = uuid.safeParse(formData.get("id"));
+  if (!id.success) return { error: "Invalid FAQ" };
+  return saveRevision(id.data, formData);
+}
+
+/** Approve (publish) or reject a pending FAQ revision. Owner/admin only. */
+export async function reviewFaqRevision(formData: FormData): Promise<void> {
+  const { role } = await requireBusiness();
+  const revisionId = uuid.safeParse(formData.get("revisionId"));
+  if (!canApprove(role) || !revisionId.success) return;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("faq_review_revision", {
+    p_revision_id: revisionId.data,
+    p_approve: formData.get("decision") === "approve",
   });
-  if (!idResult.success) return { error: "Invalid FAQ" };
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
-    .from("faqs")
-    // Editing an answer invalidates its prior publication.
-    .update({ ...parsed.data, is_published: false })
-    .eq("id", idResult.data)
-    .eq("business_id", businessId);
-
-  if (error) {
-    log.error("faq update failed", { error: error.message });
-    return { error: "Could not save changes. Please try again." };
-  }
-
-  revalidatePath("/dashboard/faqs");
-  return { error: null, message: "FAQ updated." };
-}
-
-export async function toggleFaqPublished(formData: FormData): Promise<void> {
-  const { businessId } = await requireBusiness();
-  const id = z.string().uuid().parse(formData.get("id"));
-  const publish = formData.get("publish") === "true";
-
-  const supabase = await createSupabaseServerClient();
-  await supabase
-    .from("faqs")
-    .update({ is_published: publish })
-    .eq("id", id)
-    .eq("business_id", businessId);
-
+  if (error) log.error("faq review failed", { revisionId: revisionId.data, error: error.message.slice(0, 200) });
   revalidatePath("/dashboard/faqs");
 }
 
+/** Stop serving an FAQ. Owner/admin only. */
+export async function withdrawFaq(formData: FormData): Promise<void> {
+  const { role } = await requireBusiness();
+  const id = uuid.safeParse(formData.get("id"));
+  if (!canApprove(role) || !id.success) return;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("faq_withdraw", { p_faq_id: id.data });
+  if (error) log.error("faq withdraw failed", { faqId: id.data, error: error.message.slice(0, 200) });
+  revalidatePath("/dashboard/faqs");
+}
+
+/** Delete an unpublished FAQ and its history. Owner/admin only. */
 export async function deleteFaq(formData: FormData): Promise<void> {
-  const { businessId } = await requireBusiness();
-  const id = z.string().uuid().parse(formData.get("id"));
-
+  const { businessId, role } = await requireBusiness();
+  const id = uuid.safeParse(formData.get("id"));
+  if (!canApprove(role) || !id.success) return;
   const supabase = await createSupabaseServerClient();
-  await supabase.from("faqs").delete().eq("id", id).eq("business_id", businessId);
-
+  const { error } = await supabase.from("faqs").delete().eq("id", id.data).eq("business_id", businessId);
+  if (error) log.error("faq delete failed", { faqId: id.data, error: error.message.slice(0, 200) });
   revalidatePath("/dashboard/faqs");
 }

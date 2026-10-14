@@ -1,16 +1,34 @@
 import type { KnowledgeSnippet } from "@halo/core/domain/types";
 
+/** Which approved knowledge a lookup may use. Empty = all of the tenant's. */
+export interface KnowledgeScope {
+  collectionIds: readonly string[];
+}
+
+/** Outcome of indexing one draft revision; `failed` never becomes searchable. */
+export type KnowledgeIndexStatus = "ready" | "failed";
+
+export interface KnowledgeRevisionIndexInput {
+  businessId: string;
+  documentId: string;
+  revisionId: string;
+  chunks: string[];
+}
+
 /**
- * Port for tenant-scoped knowledge retrieval. The default implementation is
- * Postgres full-text search over knowledge chunks + FAQs; a vector-search
- * implementation activates automatically when an EmbeddingProvider is
- * configured. Future implementations (external vector DBs, hosted RAG)
- * plug in behind this same interface.
+ * Port for tenant-scoped knowledge retrieval and indexing (D14).
+ *
+ * search() returns approved, published content of one tenant only. A
+ * provider that sets `enforcesCollectionScope` applies `scope.collectionIds`
+ * itself and denies unknown or foreign collections; the runtime refuses a
+ * nonempty scope for any provider that does not.
+ *
+ * indexRevision() indexes one draft revision. It never publishes: approval
+ * is a separate, human, tenant-scoped action.
  */
 export interface KnowledgeProvider {
   readonly name: string;
-  search(businessId: string, query: string, limit?: number): Promise<KnowledgeSnippet[]>;
-  /** Index a document's chunks so they become retrievable. */
-  indexDocument(businessId: string, documentId: string, chunks: string[]): Promise<void>;
-  removeDocument(businessId: string, documentId: string): Promise<void>;
+  readonly enforcesCollectionScope?: boolean;
+  search(businessId: string, query: string, limit?: number, scope?: KnowledgeScope): Promise<KnowledgeSnippet[]>;
+  indexRevision(input: KnowledgeRevisionIndexInput): Promise<KnowledgeIndexStatus>;
 }

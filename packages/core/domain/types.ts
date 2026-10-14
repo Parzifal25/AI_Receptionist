@@ -129,6 +129,8 @@ export interface KnowledgeSnippet {
   title: string;
   content: string;
   score: number;
+  /** D14: the approved revision the content was served from. */
+  revisionId?: string;
 }
 
 export type UsageEventType =

@@ -102,7 +102,9 @@ const routingSchema = z.object({
 });
 
 const knowledgeSchema = z.object({
-  // Empty = all tenant collections, preserving today's behaviour.
+  // D14: empty = all of the tenant's approved knowledge; nonempty = only
+  // documents bound to these collections (FAQs and unbound documents are
+  // excluded). Unknown or foreign ids deny retrieval; they never widen it.
   collectionIds: z.array(z.string()).default([]),
   retrievalPolicy: z.enum(["hybrid", "vector", "fts"]).default("hybrid"),
 });
@@ -231,7 +233,13 @@ export function agentActivationErrors(raw: unknown, promptTemplate: string, requ
       errors.push(index === 0 ? "language.primary: explicit valid language tag required" : `language.fallbacks.${index - 1}: invalid language tag`);
     }
   }
-  if (config.knowledge.collectionIds.length) errors.push("knowledge.collectionIds: restricted collections are not supported by the current access boundary");
+  // Tenant ownership is enforced at retrieval (D14 governed RPCs); here the
+  // binding must at least be well-formed collection ids.
+  for (const [index, id] of config.knowledge.collectionIds.entries()) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      errors.push(`knowledge.collectionIds.${index}: must be a collection id`);
+    }
+  }
   if (config.activationBlockers?.length) errors.push("activationBlockers: unresolved business approvals");
   if (requireVoice) {
     for (const [key, value] of Object.entries(config.voice.prompts)) {

@@ -189,7 +189,12 @@ const assertions = [
   { table: "messages", columns: ["id", "conversation_id", "business_id", "role", "content", "created_at", "tool_call_id", "tool_name", "tool_args", "tool_result"] },
   // HALO Phase 1 — knowledge collections (0017).
   { table: "knowledge_collections", columns: ["id", "business_id", "name", "language", "embedding_model", "embedding_dim", "created_at", "updated_at"] },
-  { table: "knowledge_documents", columns: ["id", "business_id", "title", "content", "source_type", "source_ref", "status", "created_at", "updated_at", "collection_id"] },
+  { table: "knowledge_documents", columns: ["id", "business_id", "title", "content", "source_type", "source_ref", "status", "created_at", "updated_at", "collection_id", "published_revision_id"] },
+  // D14 — knowledge governance (0033). Mirrors packages/providers/knowledge/supabase-knowledge-provider.ts and src/features/{knowledge,faqs}.
+  { table: "knowledge_document_revisions", columns: ["id", "business_id", "document_id", "revision", "title", "content", "content_sha256", "source_type", "source_ref", "origin", "state", "index_status", "chunk_count", "created_by", "created_at", "submitted_by", "submitted_at", "reviewed_by", "reviewed_at", "retired_by", "retired_at"] },
+  { table: "faq_revisions", columns: ["id", "business_id", "faq_id", "revision", "question", "answer", "category", "content_sha256", "origin", "state", "created_by", "created_at", "reviewed_by", "reviewed_at", "retired_by", "retired_at"] },
+  { table: "faqs", columns: ["id", "business_id", "question", "answer", "category", "sort_order", "is_published", "published_revision_id"] },
+  { table: "knowledge_chunks", columns: ["id", "document_id", "business_id", "revision_id", "content", "chunk_index", "embedding"] },
   // HALO Phase 2 — agent runtime conversation state (0019).
   { table: "conversation_state", columns: ["conversation_id", "business_id", "state", "state_version", "updated_at"] },
   // D7 — tool-execution audit (0032). Mirrors packages/runtime/stores/supabase-tool-execution-audit-store.ts.
@@ -232,6 +237,20 @@ for (const { table, columns } of assertions) {
       failed = true;
     }
   }
+}
+
+// D14: on a database without legacy tenant mismatches, 0033 validates its
+// composite tenant foreign keys instead of leaving them NOT VALID.
+const unvalidated = psql(`
+  select count(*) from pg_constraint
+  where conname in ('knowledge_documents_collection_tenant_fk', 'knowledge_chunks_document_tenant_fk')
+    and not convalidated;
+`, true).trim();
+if (unvalidated !== "0") {
+  console.error(`  ❌ 0033 left ${unvalidated} composite tenant foreign key(s) NOT VALID on a clean database`);
+  failed = true;
+} else {
+  console.log("  ✅ 0033 composite tenant foreign keys are validated on a clean database");
 }
 
 if (failed) {

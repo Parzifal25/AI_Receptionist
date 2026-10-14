@@ -290,8 +290,7 @@ export function emptyKnowledgeProvider(snippets: KnowledgeProvider["search"] ext
     async search() {
       return snippets;
     },
-    async indexDocument() {},
-    async removeDocument() {},
+    async indexRevision() { return "ready" as const; },
   };
 }
 
