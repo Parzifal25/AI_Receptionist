@@ -31,8 +31,8 @@ This document maps each owner-stated V1 outcome, and the architecture requiremen
 
 | # | V1 outcome | Current state | Most important gap | Blocking decisions | Local | Staging | Pilot |
 |---|---|---|---|---|---|---|---|
-| 1 | Tenant isolation | RLS on every table; service-role paths scoped in code; pinned agent identity | Not verified in any deployed environment; knowledge foreign keys not tenant-composite | D14, D15, D19, R8 | VERIFIED | BLOCKED | BLOCKED |
-| 2 | Secure data, privacy, reliable database access | Secrets server-side; calendar credentials encrypted; retention cron; disposable restore | Consent, retention and deletion policy; knowledge approval schema; hosted backup and RPO/RTO; data residency | D6, D10, D11, D14, D19, R8 | Partial | BLOCKED | BLOCKED |
+| 1 | Tenant isolation | RLS on every table; service-role paths scoped in code; pinned agent identity; tenant-composite knowledge keys (`0033`, disposable DB) | Not verified in any deployed environment | D14 (ratification), D15, D19, R8 | VERIFIED | BLOCKED | BLOCKED |
+| 2 | Secure data, privacy, reliable database access | Secrets server-side; calendar credentials encrypted; retention cron; disposable restore | Consent, retention and deletion policy; knowledge approval applied only on a disposable database; hosted backup and RPO/RTO; data residency | D6, D10, D11, D14, D19, R8 | Partial | BLOCKED | BLOCKED |
 | 3 | Telemetry and observability | Allowlisted stdout telemetry; call-stage events; tenant-scoped system status; local alert evaluator | No cross-process correlation, export backend, alert delivery or real latency baseline | D8, D18, D19 | Partial | BLOCKED | BLOCKED |
 | 4 | Calendar integration | Race-safe booking engine; Google, Outlook and CalDAV adapters; voice visit booking wired | No real calendar write; voice cannot reschedule or cancel; visit rules unset | D2, D11, D17, R5, R8 | Partial | BLOCKED | BLOCKED |
 | 5 | Sales intelligence and tactics | Deterministic qualification and negotiation; act-then-narrate; 50/50 scripted golden conversations | No approved facts or commercial policy; no real-model Telugu quality evidence; English-only knowledge-gap and retrieval paths | D5, D9, D11, D17 | Partial | — | BLOCKED |
@@ -51,11 +51,11 @@ The largest block of work that needs no owner decision is local-only engineering
 
 #### G1.1 — Database-enforced tenant isolation
 
-- **Current implementation:** RLS on all 41 migrated tables, via the `is_business_member` / `is_business_admin` helpers. Ownership triggers in `0020`; identity guards in `0030` and `0031`.
-- **Evidence:** `disposable DB` (109 real-role assertions, 2026-10-13); `check:architecture` (`local test`).
-- **Gap / risk:** no hosted or staging verification. Knowledge chunk→document and document→collection foreign keys are not tenant-composite.
-- **Required change:** run the real-role isolation suite on an authorized staging target. Add composite tenant foreign keys under the D14 design (after a census of existing rows).
-- **Dependencies:** staging target (D19, R8); D14 approval.
+- **Current implementation:** RLS on every migrated table (44 with `tool_executions` and the two D14 revision tables), via the `is_business_member` / `is_business_admin` helpers. Ownership triggers in `0020`; identity guards in `0030` and `0031`; tenant-composite knowledge keys and revision ownership in `0033` (2026-10-15).
+- **Evidence:** `disposable DB` (269 real-role assertions, 2026-10-15, including 128 for D14 and 32 for D7); `check:architecture` (`local test`).
+- **Gap / risk:** no hosted or staging verification. On a database with legacy knowledge mismatches the two composite keys on pre-existing tables stay NOT VALID until the owner dispositions the mismatched rows.
+- **Required change:** run the real-role isolation suite on an authorized staging target. Before applying `0033` there, run `knowledge_governance_census()` read-only.
+- **Dependencies:** staging target (D19, R8); D14 ratification.
 - **Acceptance criteria:** 100% of the versioned adversarial cross-tenant cases are denied on staging as `authenticated` and `service_role`. Composite foreign keys validate with zero mismatched rows, and any mismatch is dispositioned by the owner, never auto-repaired.
 - **Blocking decisions:** D14, D19, R8.
 
@@ -74,8 +74,8 @@ The largest block of work that needs no owner decision is local-only engineering
 - **Current implementation:** pinned tenant/agent/version tuples; Layer 1 activation readiness; conversations and calls bind published versions only.
 - **Evidence:** `source`, `local test`, `disposable DB`.
 - **Gap / risk:** legacy published versions without an objective refuse to serve, and their rollout is undecided. There is no database-level readiness constraint.
-- **Required change:** create attributable replacement versions under an approved rollout (D14 item 6). Never invent objectives.
-- **Dependencies:** D14.
+- **Required change:** create attributable replacement versions through the normal versioning path (D14 item 6 default, recorded 2026-10-15: no data change and no backfill of agent versions). Never invent objectives.
+- **Dependencies:** D14 ratification; tenant-authored objectives.
 - **Acceptance criteria:** every in-scope channel resolves the same approved version. Legacy rows are dispositioned and none is invented.
 - **Blocking decisions:** D14.
 
@@ -129,13 +129,13 @@ The largest block of work that needs no owner decision is local-only engineering
 
 #### G2.2 — Approved knowledge only
 
-- **Current implementation:** unapproved document snippets are withheld; FAQs are re-read as published and tenant-owned; collection bindings fail closed.
-- **Evidence:** `source`, `local test`.
-- **Gap / risk:** no approval or provenance schema exists, so general documents cannot be used at all, and knowledge revisions are not pinned.
-- **Required change:** implement the approved D14 design: approval state, composite foreign keys, retrieval RPCs, revision semantics.
-- **Dependencies:** D14.
-- **Acceptance criteria:** pending, revoked or foreign content never reaches a prompt by either the keyword or the vector path (tests on a disposable DB). Each approved answer traces to an approver, date and source.
-- **Blocking decisions:** D14.
+- **Current implementation (2026-10-15, `0033`):** immutable document and FAQ revisions; owner/admin approval with provenance; atomic publication; governed keyword and vector retrieval with enforced collection scope; legacy content unserved until reviewed (census and dry-run backfill).
+- **Evidence:** `disposable DB` (128 real-role `check:rls` assertions; the production runtime path through `SupabaseKnowledgeProvider` in `tests/integration/knowledge-governance-db.test.ts`); `local test`. See [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-and-d14-database-verification--2026-10-15).
+- **Gap / risk:** not applied to any real database; existing knowledge stops serving when `0033` lands until it is backfilled, re-indexed and approved; the design defaults (no separation of duties, per-turn resolution, FAQs excluded from a nonempty scope) are unratified.
+- **Required change:** owner ratification of D14 items 1–6; then a planned rollout on an authorized target.
+- **Dependencies:** D14 ratification; R8, D19, D21 for any real database.
+- **Acceptance criteria:** **met on a disposable DB:** pending, rejected, withdrawn, superseded and foreign content never reaches a prompt by either path, and each approved answer traces to an approver, date and source. **Pending:** the same on an authorized target.
+- **Blocking decisions:** D14 (ratification), R8, D19.
 
 #### G2.3 — Consent, disclosure and DNC policy
 
@@ -626,19 +626,20 @@ See Outcome 4.
   - Executions are written as `started` before the executor runs and finalized once. Rejections are written as final rows.
   - Side-effecting tools fail closed when their record cannot be written.
   - Tool rows in `messages` and the partial event trails remain.
-- **Evidence:** `local test` (runtime boundary, store and static migration tests). See [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-tool-execution-audit--2026-10-15).
+- **Evidence:** `local test` (runtime boundary, store and static migration tests); `disposable DB` (32 real-role `check:rls` assertions, 2026-10-15). See [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-and-d14-database-verification--2026-10-15).
 - **Gap / risk:**
-  - Migration `0032` has not been applied to any database, so RLS, the triggers and the constraints are unverified in a real database.
+  - Migration `0032` is verified on a disposable database only; it has not been applied to any shared or hosted database.
   - Deterministic system actions (qualification, visit booking, negotiation) are not audited as tools (D5).
   - `audit_logs` does not exist.
 - **Required change:**
-  - Run `check:migrations` and `check:rls` (which now include `tool_executions` assertions) on a fresh disposable `halo_check_<suffix>` database.
+  - Done 2026-10-15: `check:migrations` and `check:rls` pass on a fresh disposable `halo_check_<suffix>` database.
   - Decide D5 for system actions.
   - Add `audit_logs` later (D7).
-- **Dependencies:** a disposable database run; D5; D7 (`audit_logs` part).
+- **Dependencies:** D5; D7 (`audit_logs` part); R8 and D19 for a real database.
 - **Acceptance criteria:**
   - **Met locally:** every allowed, denied and failed tool call has one audit row in the runtime tests.
-  - **Pending:** the `check:rls` `tool_executions` assertions pass on a disposable database.
+  - **Met on a disposable database:** the `check:rls` `tool_executions` assertions pass (2026-10-15).
+  - **Pending:** the same on an authorized target.
 - **Blocking decisions:** D5 (system actions); D7 (`audit_logs` part only).
 
 #### G7.10 — Idempotency of external effects
@@ -662,10 +663,10 @@ The principles are APPROVED under [G1](DECISIONS.md#g1--target-design-and-engine
 | 1. HALO is independent of OpsCorp | VERIFIED: an `OpsProvider` port with a log adapter only | — | — |
 | 2. Customers get agents, not codebases | VERIFIED for configuration; the Arunodhaya call assembly lives in app code, imported by the gateway | Leak (D2) | G4.2 |
 | 3. The runtime is shared | VERIFIED: one runtime for web and phone | The model is process-global | G5.6 |
-| 4. Tools execute actions | VERIFIED: closed registry, act-then-narrate; every model tool call audited (D7, `local test`) | No per-tool contract fields (D5); audit migration not yet applied to a database | G7.9 |
+| 4. Tools execute actions | VERIFIED: closed registry, act-then-narrate; every model tool call audited (D7, `local test`, `disposable DB`) | No per-tool contract fields (D5); audit migration not applied to a real database | G7.9 |
 | 5. Workflows control business processes | Partial: engines exist, process not declared | D13 | G7.8 |
 | 6. Providers are replaceable | VERIFIED: ports and adapters; `check:architecture` | Exotel absent; speech defaults differ | G6.5 |
-| 7. Knowledge is controlled | VERIFIED as fail-closed | No approval schema; English-only paths | G2.2, G5.4, G5.5 |
+| 7. Knowledge is controlled | VERIFIED: approval, revisions and governed retrieval (D14, `disposable DB`) | Not applied to a real database; design defaults unratified; English-only paths | G2.2, G5.4, G5.5 |
 | 8. Tenant isolation is mandatory | VERIFIED locally | Not verified when deployed | G1.1–G1.6 |
 | 9. Optimize context | VERIFIED: budgets, voice limits | No prompt caching; static lists sent every turn | G6.3 |
 | 10. Build simple first | VERIFIED: modular monolith plus one gateway process | — | — |

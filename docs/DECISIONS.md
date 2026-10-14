@@ -49,14 +49,14 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D4](#d4--pilot-call-direction-and-pre-carrier-harness) | Pilot call direction and pre-carrier harness | PENDING | — | Minimum set S1–S6 |
 | [D5](#d5--tool-invocation-model) | Tool invocation model | PENDING | — | Minimum set S1–S6; S4.4, S4.5 |
 | [D6](#d6--call-recording-in-the-pilot) | Call recording in the pilot | PENDING | — | External gate before S7; S10 |
-| [D7](#d7--new-migrations-tool-executions-and-audit-logs) | New migrations (tool executions, audit logs) | `tool_executions` APPROVED and implemented locally; `audit_logs` PENDING | Owner instruction, 2026-10-15 | Applying `0032` to a real database: R8, D19 |
+| [D7](#d7--new-migrations-tool-executions-and-audit-logs) | New migrations (tool executions, audit logs) | `tool_executions` APPROVED, implemented and verified on a disposable database; `audit_logs` PENDING | Owner instruction, 2026-10-15 | Applying `0032` to a real database: R8, D19 |
 | [D8](#d8--spend) | Spend | PENDING | — | Everything from S7 onward |
 | [D9](#d9--numeric-pilot-targets) | Numeric pilot targets (latency, recognition, extraction, cost) | PENDING | — | S11 acceptance |
 | [D10](#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit) | Dirty-tree commit grouping; uncommitted `0001` edit | APPROVED and executed | Owner instruction, 2026-10-15 | — (hosted follow-on: D21) |
 | [D11](#d11--arunodhaya-facts-disclosures-consent-and-escalation-contacts) | Arunodhaya facts, disclosures, consent, escalation contacts | PENDING | — | External gate before S7; pilot facts and handoff |
 | [D12](#d12--redis-sentry-object-storage) | Redis, Sentry, object storage | PENDING | — | — |
 | [D13](#d13--business-process-workflow-engine) | Business-process workflow engine (blueprint §17) | PENDING | — | S8 |
-| [D14](#d14--layer-1-activation-and-approved-knowledge) | Layer 1 activation and approved knowledge | PENDING (non-migration subset authorized 2026-10-14) | Partial: owner instruction, 2026-10-14 | Knowledge approval, legacy rollout, pilot knowledge |
+| [D14](#d14--layer-1-activation-and-approved-knowledge) | Layer 1 activation and approved knowledge | Implementation authorized and completed locally (migration `0033`, disposable-DB verified); design defaults for items 1–6 await owner ratification | Owner instructions, 2026-10-14 (non-migration subset) and 2026-10-15 (completion) | Ratifying items 1–6; applying `0033` to a real database: R8, D19, D21; pilot knowledge: D11 |
 | [D15](#d15--canonical-tracking-ids-eng-04-versus-eng-12) | Canonical tracking IDs: ENG-04 versus ENG-12 | PENDING | — | Backlog and record naming |
 | [D16](#d16--implementation-owner-naming-astra) | Implementation-owner naming ("Astra") | PENDING | — | Role clarity |
 | [D17](#d17--pilot-speech-and-llm-provider-route) | Pilot speech and LLM provider route | PENDING | — | Voice pilot; S7 |
@@ -215,7 +215,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - **Tool definitions** carry a name, description, argument schema, side-effect flag, confirmation flag and optional precondition. They have **no** per-tool output schema, timeout or retry policy: the turn deadline applies, and executor failures are never retried.
   - **Deterministic system actions:** qualification, visit booking/scheduling and negotiation run before the model as `SystemActionProvider`s.
   - **Enforcement:** the act-then-narrate validator checks replies against verified action records.
-  - **Records:** tool turns are stored as `messages.role = 'tool'` rows, and `tool.outcome` telemetry is emitted. Since 2026-10-15 every model tool call is also audited in `tool_executions` (D7; migration `0032`, not yet applied anywhere).
+  - **Records:** tool turns are stored as `messages.role = 'tool'` rows, and `tool.outcome` telemetry is emitted. Since 2026-10-15 every model tool call is also audited in `tool_executions` (D7; migration `0032`, verified on a disposable database, not applied to any shared or hosted database).
 - **Options:**
   1. All actions as LLM-callable tools: blueprint-literal, but more model authority, tokens and latency.
   2. Hybrid (below).
@@ -242,7 +242,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 ### D7 — New migrations: tool executions and audit logs
 
 - **State:** split on 2026-10-15.
-  - **`tool_executions`: APPROVED and implemented locally.** Decided by owner instruction ("HALO D7 — Autonomous Tool-Execution Audit Implementation Loop", given to Claude Code), which directed implementation with a new additive migration. Migration `0032_tool_executions.sql` was **written but not applied to any database**.
+  - **`tool_executions`: APPROVED, implemented, and verified on a disposable database.** Decided by owner instruction ("HALO D7 — Autonomous Tool-Execution Audit Implementation Loop", given to Claude Code), which directed implementation with a new additive migration. Migration `0032_tool_executions.sql` was applied and tested on 2026-10-15 **only** on fresh disposable `halo_check_*` databases (owner instruction "HALO Autonomous Engineering Loop — Complete D7 + D14"); it has not been applied to any shared, developer or hosted database.
   - **`audit_logs`: still PENDING.** The instruction did not ask for it, and the original recommendation defers it.
 - **Required approver:** owner. `AGENTS.md` requires owner approval for any new migration.
 - **Question:** approve the additive `tool_executions` migration (blueprint §22) now, and `audit_logs` later?
@@ -259,7 +259,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 - **Data model** (`0032_tool_executions.sql`): one row per model tool call that reaches the runtime tool boundary.
   - Columns: tenant, conversation, agent and version; channel; turn and correlation ID; round; intent ID; tool name (registry names only, `null` for invented names); idempotency key; side-effect flag; status (`started`/`succeeded`/`failed`/`rejected`); rejection reason; a bounded error code; requested/started/finished times.
   - There are no columns for arguments, results, summaries, error messages or contact data.
-- **Database rules** (as written; not yet executed anywhere):
+- **Database rules** (verified on a disposable database on 2026-10-15, as real roles; see below):
   - An ownership trigger rejects a conversation, agent or version from another tenant.
   - A lifecycle trigger allows inserts only as `started`/`rejected`, and exactly one update from `started` to `succeeded`/`failed` that changes nothing else.
   - A unique index allows one execution per idempotency key per turn.
@@ -273,6 +273,14 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - **Rejections:** recorded best-effort.
   - **A failed finalize** leaves the row `started` for an operator to reconcile. The action is never retried.
   - Every audit failure emits `tool.audit_failed`, carrying stage and tool name only.
+- **Database verification (2026-10-15, `disposable DB`).** Fresh `pgvector/pgvector:pg16` container started from the cached image (`--pull=never`) on `127.0.0.1:55451`, databases `halo_check_d7d14` and `halo_check_d7d14_final`, with the CI Supabase stubs; never a Supabase CLI port. Full chain `0001`–`0033` applied from a clean state by `check:migrations` (exit 0). `check:rls` (exit 0, 269 assertions in total) ran the D7 section — 32 assertions — as `authenticated` with a JWT subject, `authenticated` without one, the real `anon` role, `service_role`, and the table owner where stated:
+  - members read only their tenant's rows; no client UPDATE, DELETE or INSERT grant; `anon` has no access; no client privilege beyond SELECT; clients cannot execute the trigger functions; only the authenticated SELECT policy exists; the column set is exactly the accountability columns;
+  - the ownership trigger refuses another tenant's conversation, agent or version and a relabelled conversation, even for the service role;
+  - one execution per action and turn, while duplicate intents are still recorded as `rejected`; every runtime `ToolRejectionReason` is accepted and an unknown reason refused;
+  - inserts only as `started`/`rejected`; one finalize to `succeeded`/`failed` with an identifier-shaped error code (free text refused); final and rejected rows immutable; a finalize cannot move a row to another tenant or rewrite the tool name;
+  - `purge_expired_data()` removes an expired conversation's rows through the cascade and keeps current ones.
+  - **Harness defects found and fixed** (not migration defects): the member-update assertion expected 0 rows where Postgres correctly refuses the statement (no grant), which crashed the harness before its later sections ever ran; and the identity-change assertion "changed" tenant B's row to tenant B, proving nothing.
+  - Audit-write failure before a side-effecting tool, and a failed finalize after execution, are covered by `tests/integration/tool-execution-audit.test.ts` (`local test`); the Supabase store's column mapping matches the verified column set. The store was not run through PostgREST (none in the disposable stack).
 - **Out of D7 scope:**
   - Deterministic system actions (qualification, visit booking, negotiation) are not model tools. Whether they become audited tools is part of D5.
   - Per-tool timeouts do not exist (D5), so there is no `timed_out` status.
@@ -378,7 +386,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
 ### D14 — Layer 1 activation and approved knowledge
 
-- **State:** PENDING for database design and rollout. A non-migration subset was authorized on 2026-10-14 and implemented (local test). **Required approver:** owner.
+- **State:** implementation authorized and completed locally. The non-migration subset was authorized on 2026-10-14; the owner's instruction "HALO Autonomous Engineering Loop — Complete D7 + D14" (2026-10-15, given to Claude Code) directed completing D14 with additive migrations, choosing secure, backward-compatible defaults where this register is silent, and not marking owner decisions approved to unblock work. The design choices for items 1–6 below are therefore **implementer defaults awaiting owner ratification**, not approvals. Applying `0033` to any real database remains blocked (R8, D19, D21). **Required approver:** owner.
 - **Detailed evidence and the concrete migration proposal:** [HALO_LAYER_1_REVIEW.md](HALO_LAYER_1_REVIEW.md), "Current closure attempt — L1-CLOSE-20261014".
 - **History (verbatim from the 2026-10-14 register):**
 
@@ -399,7 +407,20 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   4. Retrieval RPCs that enforce allowed collections and approval, including the semantics of an empty versus a nonempty scope.
   5. Knowledge-revision pinning versus per-turn revocation.
   6. The legacy agent-version rollout.
-- **Current consequence (source, local test):** general documents cannot supply answers, and nonempty collection bindings deny retrieval. Legacy published versions without an objective refuse to serve. This is a safe denial, not feature completion.
+- **Consequence before 2026-10-15 (source, local test):** general documents could not supply answers, and nonempty collection bindings denied retrieval. Since `0033` (below), approved documents are served again, nonempty bindings are enforced, and legacy published versions without an objective still refuse to serve.
+
+**What was implemented (2026-10-15).** Migration `0033_knowledge_governance.sql`, application changes and tests; evidence in [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-and-d14-database-verification--2026-10-15). Defaults chosen for the six open items, each awaiting ratification:
+
+1. **Composite tenant keys (item 1):** reuse `0017`. Unique `(id, business_id)` on collections, documents and FAQs; composite FKs document→collection and chunk→document. They are added NOT VALID and validated in the same migration only when no legacy mismatch exists; otherwise they stay NOT VALID (new rows checked), the mismatched rows are quarantined from retrieval, and the census reports them. Mismatches are never silently repaired. New revision tables and chunk→revision use composite FKs from the start.
+2. **Approval separate from indexing (item 2):** immutable revision tables (`knowledge_document_revisions`, `faq_revisions`) carry review state, content hash, provenance (source type/reference; a file or URL source must name its reference), origin, and creator/submitter/reviewer/retirer with timestamps. Indexing state is a separate column. Edits never change an approved revision: they create a new one, and an open older draft or pending revision is withdrawn.
+3. **Roles (item 3):** any tenant member may create, index and submit; only owner/admin may approve, reject or withdraw, enforced in the app (`requireBusiness().role`) and in the database (`auth.uid()` membership; a trigger re-checks the approver's role for every writer). No separation of duties: an owner/admin may approve their own revision, because single-owner tenants exist and nothing in this register requires four-eyes review. Editing never approves.
+4. **Retrieval scope (item 4):** service-role RPCs `search_governed_knowledge` and `match_governed_knowledge_chunks` require an explicit scope array. Empty = all approved content of the tenant (bound and unbound documents, and FAQs); nonempty = only documents bound to those collections (FAQs, which have no binding, and unbound documents are excluded); an unknown, foreign or null scope raises and denies. The scope and every parent's tenant are applied inside the query on both paths. The pre-D14 RPCs keep their signatures and return governed content only. No FAQ collection binding was added.
+5. **Revision pinning (item 5):** per-turn resolution of the current publication; no per-conversation snapshot. Withdrawal and replacement take effect on the next turn. Snippets carry the served `revisionId` for traceability; it is not persisted per message.
+6. **Legacy rollout (item 6):**
+   - **Knowledge:** nothing pre-existing is served after `0033` and nothing is approved automatically. `knowledge_governance_census()` and `knowledge_backfill_legacy()` (service role, dry run by default, one tenant per call, idempotent, never approving) prepare legacy content for human review; backfilled document drafts must then be re-indexed and submitted. `faqs.is_published` now defaults to false and is a display mirror; retrieval ignores it.
+   - **Agent versions:** unchanged from 2026-10-14. Legacy published versions without an objective refuse to serve; a replacement version must be authored and published through the normal versioning path. No objective, language or approval is invented, and no agent data was changed.
+
+**Not done, by design:** no `audit_logs` table (D7 keeps it PENDING), no separation-of-duties rule, no conversation-level knowledge snapshot, no FAQ collection binding, no Telugu text-search configuration (W2.5), and no change to D5's tool model (no tool reads knowledge).
 
 ### D15 — Canonical tracking IDs: ENG-04 versus ENG-12
 
@@ -528,3 +549,4 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 | 2026-10-15 | **Consolidation** (requested 2026-10-14). The register was restructured into per-entry form and every original recommendation was preserved verbatim. The release register was merged in as R1–R10 (formerly D1–D10 in `HALO_V1_RELEASE_DECISIONS.md`). G1–G4 standing instructions were recorded. New PENDING questions D15–D20 were added, and the Astra question became D16. No state changed and nothing was approved. | Claude Code (consolidation task) |
 | 2026-10-15 | **D10 executed under owner instruction.** D10 marked APPROVED and executed. `0001` restored to its committed version, with the edit preserved and quoted. D21 added (PENDING). Candidate commits recorded in D10 and in the status register. | Owner instruction; Claude Code |
 | 2026-10-15 | **D7 `tool_executions` implemented under owner instruction.** D7 is split: `tool_executions` APPROVED and implemented locally (migration `0032` written, not applied); `audit_logs` PENDING. D5's evidence line updated. No other state changed. | Owner instruction; Claude Code |
+| 2026-10-15 | **D7 verified and D14 completed under owner instruction** ("HALO Autonomous Engineering Loop — Complete D7 + D14"). D7: `0032` verified as real roles on a disposable database; two harness defects fixed; state text updated, `audit_logs` still PENDING. D14: migration `0033` and application changes implemented and verified on a disposable database; the defaults for items 1–6 are recorded for owner ratification, not approved. D5's evidence line updated. No other state changed. | Owner instruction; Claude Code |

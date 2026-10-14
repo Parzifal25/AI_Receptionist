@@ -145,7 +145,7 @@ All of the following is **VERIFIED (`source`)** unless marked otherwise. No comp
 | Agent runtime | `packages/runtime` | Channel-independent turn orchestration, context, prompt composition, tool boundary, validation, memory, escalation, events | VERIFIED (`source`, `local test`) |
 | Agents | `packages/agents`, `packages/core/domain/agents.ts` | Versioned agent configuration, publish and rollback, tenant-scoped resolution, activation readiness | VERIFIED (`source`, `local test`, `disposable DB`) |
 | Tenancy | `packages/tenancy` | Membership and role resolution, Supabase clients (user, server, admin) | VERIFIED (`source`, `local test`) |
-| Knowledge | `packages/knowledge`, `packages/providers/knowledge` | Chunking, retrieval query preparation, playbooks, full-text and vector retrieval | VERIFIED (`source`, `local test`); approval model PENDING ([D14](DECISIONS.md#d14--layer-1-activation-and-approved-knowledge)) |
+| Knowledge | `packages/knowledge`, `packages/providers/knowledge` | Chunking, retrieval query preparation, playbooks, governed full-text and vector retrieval, revision indexing | VERIFIED (`source`, `local test`, `disposable DB`); D14 governance implemented locally 2026-10-15, design defaults await owner ratification ([D14](DECISIONS.md#d14--layer-1-activation-and-approved-knowledge)) |
 | Language | `packages/language` | Script and language detection, response-language choice, Telugu confirmation lexicon, parsers, token estimates | VERIFIED (`source`, `local test`) |
 | Qualification | `packages/qualification` | Schema-driven questions, required fields, read-back confirmation, disposition, voice visit-booking step | VERIFIED (`source`, `local test`); Arunodhaya criteria unapproved ([D11](DECISIONS.md#d11--arunodhaya-facts-disclosures-consent-and-escalation-contacts)) |
 | Negotiation | `packages/negotiation` | Commercial policy with no defaults, objections, concession authorization, `offer_concession` tool | VERIFIED mechanism; every value UNSET (D11) |
@@ -207,7 +207,7 @@ All of the following is **VERIFIED (`source`)** unless marked otherwise. No comp
 **Known isolation risks**
 
 - Service-role paths bypass RLS, so their correctness depends on code (STATUS risk register, P0).
-- Knowledge parent/child foreign keys are not tenant-composite (D14, item 1).
+- Knowledge parent/child foreign keys are tenant-composite since `0033` (D14). On a database with legacy tenant mismatches the two composite keys on pre-existing tables stay NOT VALID: new rows are checked, mismatched old rows are quarantined (never served) and reported by `knowledge_governance_census()`.
 - The widget origin allowlist protects browsers only.
 - Rate limits are in memory and per instance.
 - The deployed boundary is unverified: there is no staging target, and hosted Auth is BLOCKED (Gate 2).
@@ -237,14 +237,14 @@ All of the following is **VERIFIED (`source`)** unless marked otherwise. No comp
   - **Pinning:** conversations and calls pin `agent_id` and `agent_version_id`, and an existing conversation keeps its pinned version.
 - **Gaps:**
   - Legacy published versions without an objective now refuse to serve, and their rollout is PENDING (D14, item 6).
-  - Knowledge-revision pinning is PENDING (D14, item 5).
+  - Knowledge is **not** pinned per conversation: each turn uses the currently published revision, so a withdrawal or replacement takes effect on the next turn (D14 item 5 default, implemented 2026-10-15; awaits owner ratification).
   - **VERIFIED (`source`):** the LLM provider is a process-global singleton (`getLLMProvider()` in `ChatService` and the gateway). An agent version therefore cannot choose its own model or provider.
 
 ### 4.3 Tenant-specific knowledge, tools, integrations and workflows
 
 | Capability | How it is tenant-specific | Classification |
 |---|---|---|
-| Knowledge | Per-tenant documents, chunks, FAQs and collections (`0001`, `0017`). Approval rules are in §8.2. | VERIFIED (`source`, `local test`); approval PENDING (D14) |
+| Knowledge | Per-tenant documents, chunks, FAQs and collections (`0001`, `0017`), with immutable approved revisions (`0033`). Approval rules are in §8.2. | VERIFIED (`source`, `local test`, `disposable DB`); D14 implemented locally, not applied to a real database |
 | Tools | Closed code registry. Each agent version grants tools through `grantedToolIds`; there are no tenant-defined, HTTP or custom-code tools. | VERIFIED (`source`); blueprint §11 "tenant custom tools" not implemented and not proposed |
 | Phone numbers | `phone_numbers` maps a dialled number to tenant and agent, plus an E.164 `handoff_number` | VERIFIED (`source`) |
 | Calendars | `staff_members.calendar_provider` and `calendar_connections`, with credentials encrypted with AES-256-GCM in the application | VERIFIED (`source`, `local test`); the local backfill write is awaiting authorization ([CALENDAR_CREDENTIALS_RUNBOOK.md](CALENDAR_CREDENTIALS_RUNBOOK.md)) |
@@ -352,7 +352,7 @@ The three built-in tools are `offer_concession`, `request_human_handoff` and `sa
 - No tool has its own output schema, timeout or retry policy.
 - Whether `offer_concession` should stay callable by the model is open.
 
-**Tool-execution audit (D7; VERIFIED `local test`, database rules static-only).** Every model tool call that reaches the loop gets one `tool_executions` row. The audit is written in the loop itself, so no tool can opt out.
+**Tool-execution audit (D7; VERIFIED `local test`, `disposable DB`).** Every model tool call that reaches the loop gets one `tool_executions` row. The audit is written in the loop itself, so no tool can opt out.
 
 - **Rejections:** an unknown tool, invalid arguments, the budget limit or an authorization denial is recorded as a final `rejected` row.
 - **Executions:** a `started` row is written **before** the executor runs, then finalized once as `succeeded` or `failed`, with a bounded error code.
@@ -363,7 +363,7 @@ The three built-in tools are `offer_concession`, `request_human_handoff` and `sa
   - **Rejections** are recorded best-effort.
   - **A failed finalize** leaves `started` for an operator to reconcile. The action is never retried.
   - Every audit failure emits `tool.audit_failed`.
-- **Not applied anywhere:** migration `0032` has not run against any database ([HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-tool-execution-audit--2026-10-15)).
+- **Database rules verified on a disposable database (2026-10-15):** ownership, privileges, the members-read policy, the lifecycle, uniqueness, rejection reasons, the column set and retention cascade, as real `authenticated`, `anon` and `service_role` roles. Migration `0032` has not been applied to any shared, developer or hosted database ([HALO_V1_STATUS.md](HALO_V1_STATUS.md#d7-and-d14-database-verification--2026-10-15)).
 
 ### 5.4 Workflow and campaign integration
 
@@ -640,7 +640,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
   - Bookings are protected by the exclusion constraint and are idempotent per conversation on voice.
   - Calendar-credential updates use compare-and-swap.
   - A workflow timeout is quarantined rather than replayed.
-- **Audit (VERIFIED, partial):** `lead_state_events`, `campaign_events`, `call_events`, `workflow_events` and `workflow_run_logs`, `usage_events`, `learning_proposals`, and `messages.role='tool'`. Since 2026-10-15, model tool calls are audited in `tool_executions` (§5.3; migration `0032`, not yet applied to any database). There is no `audit_logs` table (PENDING, [D7](DECISIONS.md#d7--new-migrations-tool-executions-and-audit-logs)).
+- **Audit (VERIFIED, partial):** `lead_state_events`, `campaign_events`, `call_events`, `workflow_events` and `workflow_run_logs`, `usage_events`, `learning_proposals`, and `messages.role='tool'`. Since 2026-10-15, model tool calls are audited in `tool_executions` (§5.3; migration `0032`, verified on a disposable database only). Knowledge approval, rejection, publication, supersession and withdrawal are recorded on the revision rows themselves (§8.2; `0033`). There is no `audit_logs` table (PENDING, [D7](DECISIONS.md#d7--new-migrations-tool-executions-and-audit-logs)).
 - **Escalation (VERIFIED: `source`, `local test`):**
   - Escalations are typed: explicit human request, repeated misunderstanding, unsupported request, sensitive situation, action failed, low confidence. Each is recorded once per conversation.
   - On the phone, a live transfer is offered only when one is available; otherwise a callback is recorded.
@@ -660,7 +660,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 | Group | Tables (migration) | Write path |
 |---|---|---|
 | Tenancy and configuration | `businesses`, `business_members`, `business_settings`, `receptionists` (0001); `agents`, `agent_versions` (0013) | Dashboard (RLS); service role for runtime reads |
-| Knowledge | `knowledge_documents`, `knowledge_chunks`, `faqs` (0001); `knowledge_collections` (0017) | Dashboard; ingestion |
+| Knowledge | `knowledge_documents`, `knowledge_chunks`, `faqs` (0001); `knowledge_collections` (0017); `knowledge_document_revisions`, `faq_revisions` (0033) | Editor/review RPCs as the signed-in member (owner/admin approve); chunks by the service-role indexer only |
 | Conversations | `conversations`, `messages` (0001; `tool` role added in 0016); `conversation_state` (0019) | Service role, tenant-scoped |
 | Leads and CRM | `leads` (0001); `customers`, `customer_timeline` (0009); `lead_state_events` (0024) | Service role; `transition_lead()` |
 | Scheduling | `staff_members`, `scheduling_settings`, `appointments`, `appointment_reminders`, `calendar_connections` (0008); `booking_drafts` (0012); `appointment_feedback`, `intake_responses` (0010) | Service role; dashboard for settings |
@@ -669,40 +669,40 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 | Campaigns | `campaigns`, `campaign_contacts`, `campaign_events` (0025) | Service role |
 | Learning | `learning_proposals` (0027) | Tenant-admin review |
 | Usage | `usage_events` (0001) | Service role |
-| Tool audit | `tool_executions` (0032, written 2026-10-15, **not applied to any database**) | Runtime on the service role; members read through RLS; one-way lifecycle trigger |
+| Tool audit | `tool_executions` (0032; verified on a disposable database, **not applied to any shared or hosted database**) | Runtime on the service role; members read through RLS; one-way lifecycle trigger |
 
 **Compared with blueprint §22:**
 
 - `tenants` is `businesses` and `call_outcomes` is `conversation_outcomes`.
 - `analytics_events` is approximated by `usage_events` plus `call_events`.
-- `tool_executions` exists as migration `0032` (D7; not yet applied). There are no `audit_logs` (D7, PENDING), generic `integrations` or `billing` tables.
+- `tool_executions` exists as migration `0032` (D7; disposable-DB verified, not applied to a real database). There are no `audit_logs` (D7, PENDING), generic `integrations` or `billing` tables.
 - `campaigns`, `knowledge_documents` and `knowledge_chunks` already exist.
 
 ### 8.2 Knowledge retrieval and approval
 
-- **Retrieval (VERIFIED: `source`, `local test`):**
-  - Documents are chunked and indexed for PostgreSQL full-text search using the **`english`** dictionary.
-  - Optional pgvector embeddings are `vector(768)` (Ollama `nomic-embed-text`). With embeddings enabled, retrieval is a hybrid of full-text and vector search, merged with Reciprocal Rank Fusion.
-  - The default `EMBEDDING_PROVIDER=none` means full-text only.
-  - Retrieval functions are `SECURITY DEFINER`, scoped to the tenant by parameter, and executable by the service role only (`0005`).
-- **Approval (Layer 1, 2026-10-14; VERIFIED: `source`, `local test`):**
-  - Snippets from general documents are **withheld**, because the schema cannot express approval, and vector document search is not invoked.
-  - FAQs are re-read with tenant and published filters.
-  - FAQs created or edited through trusted actions stay unpublished until explicitly published.
-  - A non-empty collection binding fails closed.
-- **APPROVED (G1, blueprint §16; principle 7):** facts are approved before use. Unknown questions are deferred, never improvised. Restricted questions escalate. Actions go through tools.
-- **PROPOSED ([D14](DECISIONS.md#d14--layer-1-activation-and-approved-knowledge)):**
-  - approval and provenance state, separate from indexing;
-  - tenant-composite foreign keys;
-  - retrieval RPCs that enforce allowed collections and approval;
-  - knowledge-revision pinning;
-  - a legacy rollout plan.
+**D14 governance (migration `0033`; implemented 2026-10-15 under owner instruction; VERIFIED `source`, `local test`, `disposable DB`; not applied to any shared or hosted database).** The design choices for D14 items 1–6 were made under the instruction's default rule and await owner ratification ([D14](DECISIONS.md#d14--layer-1-activation-and-approved-knowledge)).
 
-  The concrete design is in [HALO_LAYER_1_REVIEW.md](HALO_LAYER_1_REVIEW.md).
+- **Model:** a document or FAQ row is the tenant-owned container and the editor's working copy. Content is served **only** from an immutable revision (`knowledge_document_revisions`, `faq_revisions`) that a tenant owner or admin approved, and only while the container's `published_revision_id` points at it.
+- **Lifecycle:**
+  - Document revision: `draft` → `pending_review` → `approved` → `superseded` or `withdrawn`; `pending_review` → `rejected`; an open `draft`/`pending_review` becomes `withdrawn` when a newer edit replaces it.
+  - FAQ revision: starts in `pending_review` (there is no indexing step).
+  - Indexing state (`pending`/`ready`/`failed`) is separate from review state. A document revision can be submitted and approved only when every chunk landed; its chunks are frozen once it leaves `draft`.
+- **Publication:** approval locks the container, refuses a revision older than the published one, supersedes the current revision and moves the pointer in one transaction. A deferred trigger guarantees at commit that "approved" and "pointed to" agree, for every role including the table owner.
+- **Provenance and audit:** each revision records its content hash, source type and reference, origin (`editor` or `legacy_backfill`), and who created, submitted, reviewed and retired it, with timestamps. The lifecycle is linear, so these columns are the complete transition record; no `audit_logs` table was added (D7 keeps it PENDING). Logs carry ids only, never content.
+- **Authorization:**
+  - Editing (create a revision, submit) needs membership of the row's tenant; approve, reject and withdraw need owner/admin. Authority comes from `auth.uid()` in the database and from `requireBusiness()` in the app; a caller-supplied tenant id is accepted only when the caller is a member of it.
+  - Members have no direct insert/update on documents, FAQs or revisions, and no chunk writes. Owners/admins may delete only unpublished containers.
+  - Indexing and retrieval RPCs are service-role only; every indexing call names the tenant, document and revision, and all three must agree.
+- **Retrieval:** `search_governed_knowledge` (full text, `english` dictionary) and `match_governed_knowledge_chunks` (pgvector `vector(768)`) return approved, published, fully indexed, tenant-consistent content only. The collection scope is applied inside the query, before ranking, on both paths. With embeddings enabled the two lists are merged with Reciprocal Rank Fusion; an embedding failure falls back to full text. The pre-D14 `search_knowledge`/`match_knowledge_chunks` keep their signatures but now return governed content only.
+- **Agent collection scope:** `knowledge.collectionIds` empty = all of the tenant's approved content (bound and unbound documents, and FAQs); nonempty = only documents bound to those collections, so FAQs and unbound documents are excluded. An unknown or foreign collection id denies retrieval (the turn degrades, `knowledge.retrieved.degraded = true`); it never widens. Activation accepts only well-formed collection ids.
+- **Pinning:** knowledge is resolved per turn against the current publication, not pinned per conversation, so withdrawal is immediate (D14 item 5 default).
+- **Legacy data:** documents, chunks and FAQs that existed before `0033` have no revision and are **not served**, whatever their `status` or `is_published`. Nothing is approved automatically. `knowledge_governance_census()` reports ungoverned, orphaned and tenant-mismatched rows. `knowledge_backfill_legacy(business, apply)` (service role, dry run by default, one tenant per call, idempotent) creates unapproved revisions for human review and quarantines empty, foreign-collection or source-less documents.
+- **APPROVED (G1, blueprint §16; principle 7):** facts are approved before use. Unknown questions are deferred, never improvised. Restricted questions escalate. Actions go through tools.
 - **Gaps (VERIFIED: `source`):**
-  - Full-text search with the English dictionary is weak for Telugu.
-  - `isSubstantiveQuestion` matches English only, so knowledge gaps are never recorded on Telugu turns. This conflicts with the `AGENTS.md` rule that safety checks must be language-configurable.
+  - Full-text search with the English dictionary is weak for Telugu (W2.5).
+  - `isSubstantiveQuestion` matches English only, so knowledge gaps are never recorded on Telugu turns. This conflicts with the `AGENTS.md` rule that safety checks must be language-configurable (W2.1).
   - The `openai` embedding provider needs a new dimension migration, which requires owner approval.
+  - Approval has no separation of duties: an owner/admin may approve a revision they wrote (D14 item 3 default).
 
 ### 8.3 Tenant-scoped access, RLS and server-side authorization
 
@@ -862,9 +862,10 @@ The authoritative list, with options, trade-offs, recommendations and required a
   - R8 pilot environment and data handling.
 - **Pending architecture choices:**
   - D1 stack and D2 layout. The recommendation is to keep both and fix the gateway import leak.
-  - D5 tool model, and the `audit_logs` part of D7. The `tool_executions` part was implemented locally on 2026-10-15.
+  - D5 tool model, and the `audit_logs` part of D7. The `tool_executions` part was implemented and verified on a disposable database on 2026-10-15.
   - D9 targets.
-  - D12 optional infrastructure, D13 workflow engine, D14 knowledge approval, D18 telemetry backend, D19 hosting, D20 phone speech streaming.
+  - D12 optional infrastructure, D13 workflow engine, D18 telemetry backend, D19 hosting, D20 phone speech streaming.
+  - D14: implemented locally on 2026-10-15; its design defaults (items 1–6) await owner ratification, and applying `0033` to a real database awaits R8, D19 and D21.
 - **Pending governance:** D15 tracking IDs; D16 the "Astra" role. D10 (commit grouping) was executed on 2026-10-15.
 - **Pending database operations:** D21, running `0001` on hosted Supabase.
 
@@ -885,8 +886,8 @@ Each item is VERIFIED unless stated otherwise. The full list of gaps is in [HALO
    - no human has reviewed the TTS output.
 5. The LLM provider is process-global, so an agent cannot pin a model.
 6. Voice sessions live in one process, with no failover. The rate limiter is per instance.
-7. Tool calls are audited only by the runtime tests: migration `0032` has not been applied to any database. There is no `audit_logs` table, and tools have no per-tool timeout or retry policy.
-8. General document knowledge is withheld until the D14 approval schema exists. A non-empty collection binding denies retrieval.
+7. Tool-call audit (`0032`) is verified on a disposable database only; it has not been applied to any shared or hosted database. There is no `audit_logs` table, and tools have no per-tool timeout or retry policy.
+8. Knowledge governance (`0033`) is verified on a disposable database only. Existing knowledge is not served until it is re-indexed and approved through the backfill, and approval has no separation of duties.
 9. No alert delivery, hosted backup, approved RPO/RTO or artifact rollback exists.
 10. Worker and gateway use different default speech models, and the worker ignores the minimum-speech settings for VAD and barge-in.
 11. The gateway imports application-layer code (D2).
@@ -910,9 +911,9 @@ Each item is VERIFIED unless stated otherwise. The full list of gaps is in [HALO
 | 6–7 | High-level system; call lifecycle | §3, §6 | Single process plus gateway and worker, not separate services — D1 |
 | 8 | Real-time voice loop | §6 | Aligned; LLM→TTS streaming not on the phone path |
 | 9–10, 35 | Agent runtime; context and token architecture | §5.3, §6.4 | Aligned; prompt caching not implemented |
-| 11–12 | Tool architecture and execution | §5.3 | Partial: no per-tool timeout, retry or output schema (D5). Audit implemented locally (D7, `tool_executions`). |
+| 11–12 | Tool architecture and execution | §5.3 | Partial: no per-tool timeout, retry or output schema (D5). Audit implemented and disposable-DB verified (D7, `tool_executions`). |
 | 13–14, 40 | Business adapter layer; OpsCorp | §10.5 | `OpsProvider` port, log adapter only; out of V1 scope |
-| 15–16, 30 | Knowledge architecture, guardrails, Arunodhaya knowledge | §8.2 | Partial: approval schema D14; facts D11 |
+| 15–16, 30 | Knowledge architecture, guardrails, Arunodhaya knowledge | §8.2 | Approval, revisions and governed retrieval implemented locally (D14, `0033`); facts D11 |
 | 17 | Workflow engine | §5.4 | PENDING D13 |
 | 18 | Call state machine | §6, §7.1 | Aligned (two machines plus a separate outcome) |
 | 19 | Lead qualification | §7.1 | Aligned; criteria D11 |
