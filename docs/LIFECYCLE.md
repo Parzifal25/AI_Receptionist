@@ -1,5 +1,7 @@
 # Customer Lifecycle
 
+> **Path note (2026-10-15):** `src/core/services/lifecycle/*` moved to `packages/lifecycle/*`, and `src/lib/ics.ts` moved to `packages/platform/ics.ts`. Messaging stays in `log` mode under [DECISIONS.md G2](DECISIONS.md#g2--operating-safety-constraints), so no customer currently receives confirmations or reminders.
+
 Everything that happens **before**, **during**, and **after** an appointment.
 The AI books the visit ([SCHEDULING.md](SCHEDULING.md)); this layer turns that
 one row into a complete customer journey — confirmations, reminders,
@@ -213,7 +215,7 @@ denominators render as "—", never fake zeros.
   ready for per-tenant templates and visitor-language matching.
 - Delivery is only as real as the configured providers: the default
   `log` messaging adapter tracks sends without a customer ever receiving
-  anything. Wiring Twilio/Resend is the top V2 item ([ROADMAP.md](ROADMAP.md)).
+  anything. Wiring Twilio/Resend is the top V2 item ([ROADMAP.md](archive/ROADMAP.md)).
 - Periodic rebooking fires one cadence timer per completed visit rather than
   looping indefinitely — a self-rescheduling loop would nest the event
   payload one level deeper each cycle and break `{{event.…}}` paths.

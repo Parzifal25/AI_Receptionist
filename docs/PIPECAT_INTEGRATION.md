@@ -3,7 +3,18 @@
 **Date:** 2026-09-21 · **Phase:** 4 · **Status:** MOCK-VERIFIED on the HALO side,
 UNVERIFIED on the worker side, BLOCKED for real calls.
 
-Status vocabulary follows `docs/PHASE3_REPORT.md`: **IMPLEMENTED** (code exists) ·
+> **Status update (2026-10-15, `source`):** the worker side has since been built
+> out. `services/pipecat-worker/worker.py` runs VAD, STT, TTS, the media gate
+> and the pacer. It is offline-tested over real WebSockets with fake speech, and
+> it ran browser-live against Sarvam on 2026-10-06 (self-reported). The
+> statements in §7 that "the worker side is unverified" and "no STT or TTS
+> vendor has been chosen" are superseded. Sarvam is the configured reference
+> path, and its pilot approval is PENDING
+> ([D17](DECISIONS.md#d17--pilot-speech-and-llm-provider-route)). Real calls
+> remain BLOCKED. Current architecture:
+> [HALO_Architecture.md §5.2 and §6](HALO_Architecture.md#52-voice-gateway-and-media-worker).
+
+Status vocabulary follows `docs/archive/PHASE3_REPORT.md`: **IMPLEMENTED** (code exists) ·
 **MOCK-VERIFIED** (tested against deterministic fakes) · **VERIFIED** (tested against
 the real thing) · **NOT VERIFIED** · **BLOCKED**.
 

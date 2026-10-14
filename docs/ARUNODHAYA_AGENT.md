@@ -205,6 +205,16 @@ There is no booking tool bound yet. A model that claims a booking anyway is
 caught by the validator, which `ap-01` and `ap-02` assert in Telugu and in
 transliterated Telugu.
 
+> **Correction (2026-10-15, `source`):** the statement above was true on
+> 2026-09-21 and is now stale. Booking is still not a model tool, but the
+> phone path books deterministically. After qualification completes,
+> `VisitBookingStepProvider` (`packages/qualification/booking-step.ts`) runs as
+> a system action. The gateway wires it in (`services/voice-gateway/index.ts` →
+> `src/core/services/voice/visit-booking.ts`), and it uses the real
+> `BookingService`. No real calendar booking has been made, and Arunodhaya's
+> visit rules are unapproved (D11). See
+> [HALO_Architecture.md §7.4](HALO_Architecture.md#74-calendar-booking-rescheduling-and-cancellation).
+
 ---
 
 ## 8. Escalation

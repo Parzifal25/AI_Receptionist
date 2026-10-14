@@ -1,5 +1,7 @@
 # Operations Runbook
 
+> **Path note (2026-10-15):** `src/lib/rate-limit.ts` is now `packages/platform/rate-limit.ts`. Current architecture and the document map: [HALO_Architecture.md](HALO_Architecture.md).
+
 Day-2 operations: the scheduled jobs, the queues, what to monitor, and what
 to do when something is stuck. Deployment itself is
 [DEPLOYMENT.md](DEPLOYMENT.md); diagnosis flows are

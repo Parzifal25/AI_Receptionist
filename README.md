@@ -48,7 +48,7 @@ n8n, Make, …), follow-ups, and CRM updates.
 git clone <repo> && cd ai-receptionist
 npm install
 cp .env.example .env.local          # fill in Supabase + LLM values
-# apply every file in supabase/migrations/ (0001 → 0009), in order
+# apply every file in supabase/migrations/ (0001 → 0031), in order
 ollama pull llama3.1                # dev-default LLM
 npm run dev
 ```
@@ -57,12 +57,20 @@ Full setup instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 
 ## Documentation
 
-HALO v1 status and release evidence: **[docs/HALO_V1_STATUS.md](docs/HALO_V1_STATUS.md)**.
+Start with the four canonical HALO documents:
+
+| Document | Contents |
+| --- | --- |
+| [docs/HALO_Architecture.md](docs/HALO_Architecture.md) | **Authoritative architecture.** What is verified, approved, proposed or blocked, plus the full document map |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | **Decision register.** Approved and pending owner decisions |
+| [docs/HALO_V1_GAP_ANALYSIS.md](docs/HALO_V1_GAP_ANALYSIS.md) | V1 outcomes mapped to gaps and acceptance criteria |
+| [docs/HALO_V1_IMPLEMENTATION_PLAN.md](docs/HALO_V1_IMPLEMENTATION_PLAN.md) | Dependency-ordered plan (a plan, not a completion claim) |
+
+HALO v1 status and release evidence: **[docs/HALO_V1_STATUS.md](docs/HALO_V1_STATUS.md)**. Superseded documents are in [docs/archive/](docs/archive/README.md).
 
 | Document | Contents |
 | --- | --- |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Local setup: Supabase, Ollama, env, migrations |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Clean architecture, provider system, data flow, diagram |
 | [docs/API.md](docs/API.md) | Public widget API reference |
 | [docs/COMPONENTS.md](docs/COMPONENTS.md) | Folder structure, features, UI components |
 | [docs/SECURITY.md](docs/SECURITY.md) | Tenancy model, RLS, widget token design, rate limits |
@@ -76,7 +84,6 @@ HALO v1 status and release evidence: **[docs/HALO_V1_STATUS.md](docs/HALO_V1_STA
 | [docs/TESTING.md](docs/TESTING.md) | Automated tests + manual testing checklist |
 | [docs/RUNTIME.md](docs/RUNTIME.md) | HALO Agent Runtime (Phase 2): pipeline, contracts, trust model, bounds |
 | [docs/PERFORMANCE_BASELINE.md](docs/PERFORMANCE_BASELINE.md) | Runtime latency baseline and largest levers |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Phase 2+, known limitations, technical debt |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Release history |
 
 ## Scripts

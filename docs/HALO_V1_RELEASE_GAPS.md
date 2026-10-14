@@ -1,5 +1,9 @@
 # HALO v1 release gap audit
 
+> **Consolidation note (2026-10-15).** This dated audit is retained as evidence, and `POA` cites it. Current gaps and acceptance criteria are in [HALO_V1_GAP_ANALYSIS.md](HALO_V1_GAP_ANALYSIS.md), and decisions in [DECISIONS.md](DECISIONS.md).
+>
+> **Source correction:** the statements below that no booking tool or action is bound on the Arunodhaya voice path are stale. The gateway wires a deterministic visit-booking step to the real `BookingService` ([HALO_Architecture.md §7.4](HALO_Architecture.md#74-calendar-booking-rescheduling-and-cancellation)). No real calendar booking exists. The ten-row mapping is unchanged.
+
 > **Phase Beta update (2026-10-12):** no staging target or target-bound authorization was available; staging verification is **BLOCKED**, not passed. Local/disposable results remain distinct from staging and real-provider evidence. See [HALO Phase Beta readiness](HALO_PHASE_BETA_READINESS.md). ENG-04/ENG-12 naming remains **PENDING OWNER APPROVAL**; prior ENG-12 wording is a proposal only. Charlie pilot acceptance and final production gates remain open.
 
 **Audit date:** 2026-10-09
@@ -65,7 +69,7 @@ Status has two parts: **automated evidence** describes repository tests; **pilot
 
 ## Files and evidence inspected
 
-- Release/status: `docs/HALO_IMPLEMENTATION_VERIFICATION.md`, `docs/HALO_IMPLEMENTATION_PLAN.md` (especially P12), `docs/PHASE4_REPORT.md`, `docs/PHASE3_PHASE4_EXECUTION_PLAN.md`.
+- Release/status: `docs/HALO_IMPLEMENTATION_VERIFICATION.md`, `docs/archive/HALO_IMPLEMENTATION_PLAN.md` (especially P12), `docs/PHASE4_REPORT.md`, `docs/archive/PHASE3_PHASE4_EXECUTION_PLAN.md`.
 - Pilot: `docs/ARUNODHAYA_AGENT.md`, `docs/ARUNODHAYA_NEGOTIATION_POLICY.md`, `tests/golden/arunodhaya/{conversations,runner,types}.ts`, `tests/integration/arunodhaya-golden.test.ts`, `tests/unit/tenants/arunodhaya-config.test.ts`.
 - Integration contracts/adapters: `packages/ports/{telephony-provider,outbound-dialer,calendar-provider,messaging-provider}.ts`, `packages/providers/telephony/`, `packages/providers/calendar/`, `packages/providers/messaging/`, `packages/workflows/action-registry.ts`.
 - Integration/workflow/voice evidence: `tests/contracts/twilio-media-stream.contract.test.ts`, `tests/integration/{whatsapp-delivery,booking-service,booking-conversation,workflow-engine,voice-gateway,pipecat-gateway}.test.ts`, `tests/unit/workflow-actions.test.ts`.

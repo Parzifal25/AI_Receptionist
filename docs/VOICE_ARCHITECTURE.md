@@ -7,7 +7,18 @@ code disagree, fix the document.
 **Status:** MOCK-VERIFIED. Every layer is implemented and tested against deterministic fakes and
 one real provider *protocol* (Twilio Media Streams, fixtures only). No telephony, STT or TTS
 vendor has been contacted from this repository — there are no credentials. See
-[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) and [`PHASE3_REPORT.md`](PHASE3_REPORT.md).
+[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) and [`PHASE3_REPORT.md`](archive/PHASE3_REPORT.md).
+
+> **Status update (2026-10-15):** this Phase 3 status is historical. Since then:
+>
+> - The Pipecat media engine was added ([PIPECAT_INTEGRATION.md](PIPECAT_INTEGRATION.md)).
+> - Sarvam STT/TTS ran browser-live through the worker (2026-10-06, self-reported).
+> - No telephony vendor has carried a call.
+>
+> Note also that §8's "the validator must see the whole reply before it is
+> spoken" is still current behaviour on the phone path. Changing it is
+> PENDING ([D20](DECISIONS.md#d20--validated-speech-streaming-on-the-phone-path)).
+> Current architecture: [HALO_Architecture.md §6](HALO_Architecture.md#6-conversation-and-voice-pipeline).
 
 ## 1. Boundary
 

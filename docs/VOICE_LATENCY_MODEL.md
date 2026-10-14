@@ -116,5 +116,5 @@ unmeasured, not estimated:
 - p50/p95 over real calls
 
 The validation procedure that would produce these numbers is in
-`docs/PHASE3_REPORT.md` §Real-provider validation. Until it runs, live latency is
+`docs/archive/PHASE3_REPORT.md` §Real-provider validation. Until it runs, live latency is
 **BLOCKED**, not "unknown but probably fine".

@@ -13,7 +13,7 @@ made at all.
 
 Read alongside [`PHASE4_5_FEASIBILITY.md`](PHASE4_5_FEASIBILITY.md) (the audit
 this implements), [`PHASE4_5_SPRINT1_REPORT.md`](PHASE4_5_SPRINT1_REPORT.md)
-(the sprint this builds on) and [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md).
+(the sprint this builds on) and [`KNOWN_LIMITATIONS.md`](../KNOWN_LIMITATIONS.md).
 
 Status vocabulary used throughout, exactly as Sprint 1 used it:
 

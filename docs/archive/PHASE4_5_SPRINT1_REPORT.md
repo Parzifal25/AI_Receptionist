@@ -11,8 +11,8 @@ configuration decision. It is not a quality claim, and nothing below should be
 read as one.
 
 Read alongside [`PHASE4_5_FEASIBILITY.md`](PHASE4_5_FEASIBILITY.md) (the audit
-this implements), [`LOCAL_VOICE_LOOP.md`](LOCAL_VOICE_LOOP.md) (how to run it)
-and [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) (what is still unearned).
+this implements), [`LOCAL_VOICE_LOOP.md`](../LOCAL_VOICE_LOOP.md) (how to run it)
+and [`KNOWN_LIMITATIONS.md`](../KNOWN_LIMITATIONS.md) (what is still unearned).
 
 ---
 
@@ -172,7 +172,7 @@ design that cannot leak one call's audio into another's — Sprint 2/3.
 | **Input** | PCM16LE mono at `--capture-rate` (default 48000) on the recorder's stdout |
 | **Output** | PCM16LE mono 8 kHz to the player's stdin |
 | **On the wire** | base64 μ-law 8 kHz, JSON lines, 20 ms frames — verified against `FakeMediaCodec`, not assumed |
-| **How to run** | [`LOCAL_VOICE_LOOP.md`](LOCAL_VOICE_LOOP.md) |
+| **How to run** | [`LOCAL_VOICE_LOOP.md`](../LOCAL_VOICE_LOOP.md) |
 
 Resampling happens in the client, never in `packages/voice/audio.ts`: the
 media contract is not negotiable because the hardware on one desk produces

@@ -1,5 +1,7 @@
 # Folder Structure & Component Documentation
 
+> **Layout note (2026-10-15):** the repository layout below predates the HALO extraction. It omits `packages/*` (the industry-neutral core), `services/voice-gateway` and `services/pipecat-worker`, and lists only the first migration (there are 31). The current component map is in [HALO_Architecture.md §3.2–3.3](HALO_Architecture.md#32-component-map). The feature-module and UI sections remain a useful reference.
+
 ## Repository layout
 
 ```

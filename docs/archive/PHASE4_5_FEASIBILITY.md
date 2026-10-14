@@ -5,7 +5,7 @@ in this repository (and labelled *measured*, with the command that produced it)
 or an explicit estimate (labelled *estimated*). Nothing here claims a real
 provider was exercised, because none was.
 
-Read alongside `docs/PHASE3_REPORT.md`, `docs/PHASE4_REPORT.md`,
+Read alongside `docs/archive/PHASE3_REPORT.md`, `docs/PHASE4_REPORT.md`,
 `docs/VOICE_LATENCY_MODEL.md` and `docs/VOICE_TOKEN_BUDGET.md`. This document
 corrects two figures in the last of those and adds one structural finding that
 invalidates the caching assumption it makes.

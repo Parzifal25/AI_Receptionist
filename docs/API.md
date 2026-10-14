@@ -1,5 +1,7 @@
 # API Reference
 
+> **Coverage note (2026-10-15):** this reference covers the original widget, cron, workflow and lifecycle endpoints. It does not cover routes added later: `/api/v1/widget/{voice-call,speech,synthesis}`, `/api/campaigns`, `/api/learning`, `/api/admin/system-status`, `/api/analytics/operations` and `/api/cron/campaigns`. Updating it is plan task W0.8 ([HALO_V1_IMPLEMENTATION_PLAN.md](HALO_V1_IMPLEMENTATION_PLAN.md)).
+
 All application data access for the dashboard happens through Server Components and Server
 Actions under RLS — there is no private REST API. The endpoints below are the **public widget
 API** consumed by `widget.js`, plus health.

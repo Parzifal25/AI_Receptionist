@@ -5,7 +5,15 @@
 **Purpose:** authoritative repository-backed entry point for HALO v1. Specialist documents remain detailed subject records.
 **Evidence boundary:** repository files, existing reports, and the current dirty candidate were inspected. Fresh full and focused tests, lint, type checking, production build, migration validation, and the disposable real-role RLS harness were run on 2026-10-12. No provider request, target-environment query, deployment check, inference, or live call was performed. The working tree had pre-existing changes and is treated as user-owned.
 
-Detailed references: [current-state audit](CURRENT_STATE_AUDIT.md), [implementation plan](HALO_IMPLEMENTATION_PLAN.md), [release-gap audit](HALO_V1_RELEASE_GAPS.md), [release-decision proposal](HALO_V1_RELEASE_DECISIONS.md), [engineering baseline and dependency-ordered backlog](HALO_V1_ENGINEERING_BACKLOG.md), [implementation verification](HALO_IMPLEMENTATION_VERIFICATION.md), [local speech guide](LOCAL_SPEECH.md), [speech benchmark](LOCAL_SPEECH_BENCHMARK.md), and [Telugu human-review worksheet](LOCAL_TELUGU_STT_HUMAN_REVIEW.md).
+> **Consolidation note (2026-10-15).** This register remains the authority for the **current status of the ten release criteria** ([DECISIONS.md R2](DECISIONS.md#r-series--release-owner-decisions)). No criterion, status or evidence row was changed. Since this date:
+>
+> - **Architecture** lives in [HALO_Architecture.md](HALO_Architecture.md).
+> - **Decisions** live in [DECISIONS.md](DECISIONS.md). The release decisions are now R1–R10.
+> - **Gaps** live in [HALO_V1_GAP_ANALYSIS.md](HALO_V1_GAP_ANALYSIS.md).
+> - **The plan of record** is [HALO_V1_IMPLEMENTATION_PLAN.md](HALO_V1_IMPLEMENTATION_PLAN.md). It supersedes §H below and the archived implementation plan and engineering backlog as plans; their IDs are mapped in its §9.
+> - **Source correction:** the statements below that the "voice booking tool/action [is] not bound on the pilot path" (§B and §E, Google Calendar rows) are stale. `services/voice-gateway/index.ts` wires `visitBookingForCall` (`src/core/services/voice/visit-booking.ts`) into the sales-call assembly. That adapter uses the real `BookingService`. This is `source` evidence only: no real calendar booking exists. See [HALO_Architecture.md §7.4](HALO_Architecture.md#74-calendar-booking-rescheduling-and-cancellation).
+
+Detailed references: [current-state audit](archive/CURRENT_STATE_AUDIT.md), [implementation plan](archive/HALO_IMPLEMENTATION_PLAN.md), [release-gap audit](HALO_V1_RELEASE_GAPS.md), [release-decision proposal](HALO_V1_RELEASE_DECISIONS.md), [engineering baseline and dependency-ordered backlog](archive/HALO_V1_ENGINEERING_BACKLOG.md), [implementation verification](HALO_IMPLEMENTATION_VERIFICATION.md), [local speech guide](LOCAL_SPEECH.md), [speech benchmark](LOCAL_SPEECH_BENCHMARK.md), and [Telugu human-review worksheet](LOCAL_TELUGU_STT_HUMAN_REVIEW.md).
 
 Phase Alpha checkpoint: branch `main`, HEAD `c5fd940662fc497960e6c152614fa92cf0fa97ab`, initially 49 commits ahead of `halo/main`; the initial candidate already had 49 modified/untracked paths, all preserved. Remediation added the exact-receptionist legacy backfill, a database identity guard, and regressions without rewriting any existing database. On this final dirty candidate, 128 JavaScript test files passed (1,257 passed, 5 skipped), plus ESLint, typecheck, production build, config preflight, architecture check, and 54 worker tests (1 skipped). All 31 migrations and schema assertions passed on a disposable database, including two-receptionist and unmapped-legacy fixtures and idempotent backfill replay; the disposable real-role RLS/privilege harness passed 109 assertions; final `git diff --check` passed. No target environment, provider, deployment, inference, or live call was exercised. Local Phase Alpha is **COMPLETE** under the [preflight boundary](HALO_PHASE_ALPHA_AUDIT_PREFLIGHT.md). Staging, pilot, and production evidence remains deferred to Beta, Charlie, and final release. The former “ENG-04 Phase 2” database audit label is locally separated as proposed ENG-12; ENG-04 remains the voice/speech pilot item. ENG-12 is not owner-approved naming.
 
@@ -98,7 +106,7 @@ Evidence: src/app/api/v1/widget/*; src/core/services/*; packages/runtime/*; pack
 
 ### Intended architecture (plan, not completion evidence)
 
-docs/HALO_IMPLEMENTATION_PLAN.md describes target customer-ready phone runtime, reviewed Arunodhaya agent, pilot integrations, control plane and production hardening. The plan is not implementation evidence. Current code and docs/HALO_IMPLEMENTATION_VERIFICATION.md show substantial phases landed, while deployment, real-provider, pilot and operations gates remain open.
+docs/archive/HALO_IMPLEMENTATION_PLAN.md describes target customer-ready phone runtime, reviewed Arunodhaya agent, pilot integrations, control plane and production hardening. The plan is not implementation evidence. Current code and docs/HALO_IMPLEMENTATION_VERIFICATION.md show substantial phases landed, while deployment, real-provider, pilot and operations gates remain open.
 
 Dependency order: approved facts/policies and identity -> published agent/runtime/tool grants -> persistence and tenant security -> provider credentials and gateway/worker deployment -> real calls/integration outcomes -> observability/recovery -> pilot review/sign-off -> commercial operations.
 
@@ -159,6 +167,8 @@ Priority labels below describe release/pilot risk. A P0 label is not an Alpha bl
 
 ## H. Dependency-ordered backlog
 
+> **Superseded as the plan of record on 2026-10-15** by [HALO_V1_IMPLEMENTATION_PLAN.md](HALO_V1_IMPLEMENTATION_PLAN.md). The RB, BP, CL and PV IDs below are mapped in its §9. This section is kept as the 2026-10-09 record.
+
 Priority labels describe work needed for safe pilot/release evidence, not changes made by this documentation task.
 
 ### Release blockers
@@ -201,10 +211,12 @@ Priority labels describe work needed for safe pilot/release evidence, not change
 
 ## I. Source-of-truth and discrepancy register
 
+> **Updated authority, 2026-10-15:** the architecture, decision, gap and plan roles described in this table moved to the canonical documents named at the top of this register. The archived [implementation plan](archive/HALO_IMPLEMENTATION_PLAN.md) is no longer the plan authority. The document-by-document map is in [HALO_Architecture.md §15](HALO_Architecture.md#15-document-map), and archived files are listed in [archive/README.md](archive/README.md). The rows below are kept as the 2026-10-09 record.
+
 | Document | Role and authority | Relevant claim/discrepancy | Reconciliation |
 |---|---|---|---|
-| docs/CURRENT_STATE_AUDIT.md (2026-09-02) | Historical architecture/current state for snapshot | Says no server speech/telephony or HALO runtime/tool calling; older paths | Retained as history. Current source and Oct 1 verification report supersede old status, not history. |
-| docs/HALO_IMPLEMENTATION_PLAN.md (2026-09-04) | Intended plan, dependencies and acceptance specs | Header says nothing is implemented, contradicted by source and verification report | Remains plan authority, not status. Header is historical; this register gives current status. |
+| docs/archive/CURRENT_STATE_AUDIT.md (2026-09-02) | Historical architecture/current state for snapshot | Says no server speech/telephony or HALO runtime/tool calling; older paths | Retained as history. Current source and Oct 1 verification report supersede old status, not history. |
+| docs/archive/HALO_IMPLEMENTATION_PLAN.md (2026-09-04) | Intended plan, dependencies and acceptance specs | Header says nothing is implemented, contradicted by source and verification report | Remains plan authority, not status. Header is historical; this register gives current status. |
 | docs/HALO_V1_RELEASE_GAPS.md (2026-10-09) | Ten-item audit mapping and pilot matrix | Explicitly says mapping is not canonical; rows cite prior/mock evidence | Remains detailed pilot/integration analysis. Canonical checklist unknown pending owner. |
 | docs/HALO_IMPLEMENTATION_VERIFICATION.md (2026-10-01) | Dated implementation/test evidence and limitations | Reports local checks but no production activation/real calls | Authoritative for checks it says ran on that date, not current uncommitted revision or production. |
 | docs/LOCAL_SPEECH.md | Setup, wiring, limits, benchmark and audition runbook | Recommendation qualified by later benchmark reviews | Remains specialist reference; later benchmark sections supersede earlier recommendation where stated. |

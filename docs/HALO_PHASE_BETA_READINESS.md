@@ -14,7 +14,7 @@ The current repository candidate is dirty and contains extensive pre-existing ch
 
 **Decision state: PENDING OWNER APPROVAL.** Evidence found:
 
-- `docs/HALO_V1_ENGINEERING_BACKLOG.md` defines **ENG-04** as authorization and validation of the pilot voice/speech route.
+- `docs/archive/HALO_V1_ENGINEERING_BACKLOG.md` defines **ENG-04** as authorization and validation of the pilot voice/speech route.
 - `docs/ENG_01_SECURITY_IDENTITY_REVIEW.md` preserves an earlier “ENG-04 Phase 2” label for the migration-ledger and conversation identity/linkage audit (SEC-04 scope).
 - `docs/HALO_PHASE_ALPHA_AUDIT_PREFLIGHT.md`, `docs/HALO_V1_RELEASE_DECISIONS.md`, and the engineering backlog proposed **ENG-12** for that database audit. They also record ENG-11 as local Telugu speech review and say that no owner decision was found.
 - Repository-wide references and searched Git history contain no owner-approved canonical renumbering. The historical “ENG-04 Phase 2” wording remains evidence of the conflict; it is not authority to reassign either workstream.

@@ -1,5 +1,7 @@
 # AI System — Intelligence Report
 
+> **Path note (2026-10-15):** `src/core/services/industry-playbooks.ts` has moved. Playbook content is now in `src/content/industry-playbooks.ts`, and the generic mechanism is in `packages/knowledge/playbooks.ts`. The prompt is composed by `packages/runtime/prompt-composer.ts`. Current architecture: [HALO_Architecture.md](HALO_Architecture.md).
+
 How the receptionist thinks, what was improved in the 2026-07-13 intelligence
 overhaul (`PROMPT_VERSION 2026-07-28.1`), and what remains.
 

@@ -957,7 +957,7 @@ All commands run against the working tree on 2026-09-02.
 | **Lint** | `npx eslint` | ❌ **FAIL** — 49 problems (31 errors, 18 warnings) |
 | **Unit + integration tests** | `npx vitest run` | ❌ **FAIL** — 14 of 48 files failed; 3 of 319 tests failed; 316 passed |
 | **Build** | `npx next build` | ❌ **FAIL** — `Module not found: Can't resolve '@/lib/errors'` |
-| **E2E** | — | **NOT CONFIGURED** — no Playwright/Cypress; `docs/ROADMAP.md:122` lists it as debt |
+| **E2E** | — | **NOT CONFIGURED** — no Playwright/Cypress; `docs/archive/ROADMAP.md:122` lists it as debt |
 | **Database tests** | — | **NOT CONFIGURED** — no `supabase start` harness; RLS policies are never executed by a test |
 | **AI / eval tests** | — | **NOT CONFIGURED** — `docs/AI.md` limitation #6 admits *"no LLM-judged conversation-quality benchmark yet"* |
 | **Security tests** | `tests/unit/{ssrf,cors,crypto,oauth-state,safe-redirect,rate-limit}.test.ts` | ✅ **PASS** — 6 files covering the security primitives |

@@ -8,6 +8,22 @@ unchanged through a `ChannelProfile` and a channel adapter.
 This document describes what is implemented as of Phase 2 — the code is the
 source of truth; where the two disagree, fix the document.
 
+> **Corrections (2026-10-15, `source`):**
+>
+> - **Three built-in tools, not two.** The registry now includes
+>   `offer_concession` (packages/negotiation), alongside `request_human_handoff`
+>   and `save_contact_details`.
+> - **Collection bindings fail closed.** A non-empty `collectionIds` makes
+>   retrieval fail closed (Layer 1, 2026-10-14) rather than being ignored.
+> - **Readiness and pinning are enforced.** Activation readiness and pinned
+>   identity and instructions are enforced at publication, rollback and runtime
+>   entry. There is no fallback to mutable receptionist settings.
+> - **Phone settings differ.** The phone channel runs 1 tool round, a 12 s turn
+>   deadline and 900 max tokens.
+>
+> Current architecture:
+> [HALO_Architecture.md §5.3](HALO_Architecture.md#53-agent-orchestration-and-tool-execution).
+
 ## Pipeline
 
 ```

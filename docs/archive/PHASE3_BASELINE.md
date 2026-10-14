@@ -15,7 +15,7 @@ Purpose: separate pre-existing conditions from Phase 3 regressions.
   - `a57fbb6 feat(language): Telugu/Tenglish language packs and deterministic parsers`
 
 This is important: **Phase 3 was substantially implemented in prior sessions.** The
-checklist in `docs/PHASE3_PHASE4_EXECUTION_PLAN.md` still reads `TODO` for P3-01..P3-12,
+checklist in `docs/archive/PHASE3_PHASE4_EXECUTION_PLAN.md` still reads `TODO` for P3-01..P3-12,
 which is *stale documentation*, not missing code. Work in this session is therefore
 verification and hardening, not greenfield construction.
 

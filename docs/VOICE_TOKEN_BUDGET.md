@@ -77,6 +77,11 @@ silently drift back.
 - **Duplicate knowledge.** Retrieval is per-question, capped by count *and*
   characters, and skipped entirely when the turn is not a substantive question
   (`isSubstantiveQuestion`).
+  **Corrected 2026-10-15 (`source`):** retrieval is **not** skipped.
+  `AgentRuntime` resolves knowledge on every turn with a non-empty query,
+  including "ok" and "haan". `isSubstantiveQuestion` only decides whether an
+  empty result is recorded as a knowledge gap, and it recognizes English
+  only (see [HALO_V1_GAP_ANALYSIS.md](HALO_V1_GAP_ANALYSIS.md) G5.4).
 - **Unbounded memory.** The summary has a hard character cap.
 - **Raw client metadata** in the prompt.
 
@@ -92,4 +97,4 @@ silently drift back.
   or configuration surface exposes them.
 - The limits are **reasoned defaults, not empirically tuned** against call
   quality. Tuning them needs real calls, which needs provider credentials
-  (see `docs/PHASE3_REPORT.md`, blockers).
+  (see `docs/archive/PHASE3_REPORT.md`, blockers).

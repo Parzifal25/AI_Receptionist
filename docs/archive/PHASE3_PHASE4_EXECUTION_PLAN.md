@@ -11,7 +11,7 @@ This file is the live checklist. Every row is updated with files, tests and resu
 
 The brief for this work names **Phase 3 = Voice Foundation / Real-time Voice Gateway** and
 **Phase 4 = Telugu-first Arunodhaya demo**. The authoritative plan
-(`docs/HALO_IMPLEMENTATION_PLAN.md`) numbers the same work differently:
+(`docs/archive/HALO_IMPLEMENTATION_PLAN.md`) numbers the same work differently:
 
 | Brief | Plan sections it maps to | Plan's own gate / dependency | How it is handled here |
 | --- | --- | --- | --- |
@@ -68,7 +68,7 @@ Columns: **ID · Objective · Files/packages · Depends · Validation · Status 
 
 | ID | Objective | Files / packages | Depends | Validation | Status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| P3-00 | Recon, baseline gates, scope reconciliation, this plan | `docs/PHASE3_PHASE4_EXECUTION_PLAN.md` | — | gates in §1 | COMPLETE | §0, §1 |
+| P3-00 | Recon, baseline gates, scope reconciliation, this plan | `docs/archive/PHASE3_PHASE4_EXECUTION_PLAN.md` | — | gates in §1 | COMPLETE | §0, §1 |
 | P3-01 | Provider-neutral voice contracts: telephony (control + media codec + `verifyWebhook` mandatory), streaming STT, streaming TTS (cancellable); voice domain types (direction, call state, dispositions, call event types) | `packages/ports/{telephony,streaming-stt,streaming-tts}-provider.ts`, `packages/core/domain/voice.ts` | P3-00 | tsc, eslint, check:architecture | MOCK-VERIFIED | `packages/ports/{telephony,streaming-stt,streaming-tts}-provider.ts`, `core/domain/voice.ts`; tsc + lint + check:architecture green |
 | P3-02 | Technical call state machine with explicit `assertCallTransition`, terminal protection, inbound skips dial states | `packages/voice/call-state.ts`, `tests/unit/voice/call-state.test.ts` | P3-01 | vitest | MOCK-VERIFIED | `call-state.ts`; `call-state.test.ts` + `call-state-sql-parity.test.ts` |
 | P3-03 | Audio primitives: G.711 μ-law ↔ PCM16, frame chunking, bounded audio queue (drop-oldest + counter), energy VAD/endpointer (speech start, end-of-speech hangover, min speech) | `packages/voice/audio.ts`, `packages/voice/endpointer.ts`, tests | P3-01 | vitest (golden codec vectors, synthetic frames) | MOCK-VERIFIED | `audio.ts`, `endpointer.ts`; golden μ-law vectors, bounded-queue and VAD tests |
@@ -80,7 +80,7 @@ Columns: **ID · Objective · Files/packages · Depends · Validation · Status 
 | P3-09 | `VoiceGateway`: `startSession / receiveAudio / receiveEvent / sendAudio / interrupt / endSession / handleProviderEvent`; bounded session registry; correlation ids; per-stage latency marks; usage; outcome finalization on every terminal path; human-handoff boundary (transfer only to tenant-configured target) | `packages/voice/gateway.ts`, tests | P3-04..P3-08 | vitest integration (connect → turns → hangup; failures) | MOCK-VERIFIED | `gateway.ts`; 14 integration tests. Single-flight fix 2026-09-21 — `PHASE3_REPORT.md` §5.3 |
 | P3-10 | Reference media-stream telephony adapter (Twilio-Media-Streams-compatible JSON/base64 μ-law protocol; HMAC-SHA1 webhook signature, fail closed) — vendor choice remains open (§P4) | `packages/providers/telephony/media-stream-*.ts`, tests with documented fixtures | P3-05 | contract kit + signature tests | MOCK-VERIFIED | `providers/telephony/twilio-media-stream-provider.ts`; `twilio-media-stream.contract.test.ts` |
 | P3-11 | `services/voice-gateway` long-lived process: HTTP inbound webhook → connect instructions with signed short-lived stream token; WS media endpoint; token verification; graceful shutdown; health; config fails closed | `services/voice-gateway/*`, `package.json` (`ws`) | P3-09, P3-10 | integration test over a real local WebSocket with fakes | MOCK-VERIFIED | `services/voice-gateway/*`; `voice-gateway-service.test.ts` over a real local WebSocket |
-| P3-12 | Failure/disconnect suite (STT drop, TTS drop, LLM timeout, provider disconnect, hangup mid-tool); latency harness with mock timings; docs | `tests/integration/voice-*.test.ts`, `scripts/voice-latency-harness.ts`, `docs/VOICE_ARCHITECTURE.md`, `docs/PHASE3_REPORT.md` | P3-11 | vitest; harness output recorded | MOCK-VERIFIED | `tests/integration/voice-*.test.ts`; `npm run voice:latency` in `VOICE_LATENCY_MODEL.md` |
+| P3-12 | Failure/disconnect suite (STT drop, TTS drop, LLM timeout, provider disconnect, hangup mid-tool); latency harness with mock timings; docs | `tests/integration/voice-*.test.ts`, `scripts/voice-latency-harness.ts`, `docs/VOICE_ARCHITECTURE.md`, `docs/archive/PHASE3_REPORT.md` | P3-11 | vitest; harness output recorded | MOCK-VERIFIED | `tests/integration/voice-*.test.ts`; `npm run voice:latency` in `VOICE_LATENCY_MODEL.md` |
 | P3-13 | Live provider smoke test (real PSTN inbound, STT, TTS, barge-in, termination; latency p50/p95) | runbook procedure only | credentials | manual procedure in runbook | BLOCKED | no telephony/STT/TTS credentials |
 
 ### Phase 4 — Telugu-first Arunodhaya demo
@@ -147,7 +147,7 @@ commits `df5f7b9`..`45ab83e`. Corrected to MOCK-VERIFIED after auditing each
 against source and tests. **Documentation was stale, not the code.**
 
 Three real defects were found by probe tests during that audit, each reproduced
-before being fixed (detail in `docs/PHASE3_REPORT.md` §5):
+before being fixed (detail in `docs/archive/PHASE3_REPORT.md` §5):
 
 1. the human-handoff window was not serialized, so caller speech during a bridge
    started a new runtime turn — able to commit a business action for a caller
@@ -162,7 +162,7 @@ its own, measured at a 47.8% context reduction (`adc1089`).
 
 Risk noted, deliberately not changed: a stream token replayed inside its TTL can
 reattach and redirect call audio. Restricting it needs evidence about real
-provider reconnect behavior. See `docs/PHASE3_REPORT.md` §10.
+provider reconnect behavior. See `docs/archive/PHASE3_REPORT.md` §10.
 
 ### 2026-09-21 — Phase 4: Pipecat boundary and the Arunodhaya agent
 

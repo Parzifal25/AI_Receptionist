@@ -1,5 +1,7 @@
 # Appointment Intelligence
 
+> **Path note (2026-10-15):** the scheduling code described here moved from `src/core/{domain,ports,services/scheduling}` to `packages/core/domain/scheduling.ts`, `packages/ports/*` and `packages/scheduling/*`. On the phone path, booking runs through `VisitBookingStepProvider`, which can only offer slots and book; rescheduling and cancelling by voice are not implemented. See [HALO_Architecture.md §7.4](HALO_Architecture.md#74-calendar-booking-rescheduling-and-cancellation).
+
 How the receptionist goes from answering questions to completing work: it
 qualifies, checks real availability, offers slots, books, confirms, and
 triggers reminders — inside a normal conversation.

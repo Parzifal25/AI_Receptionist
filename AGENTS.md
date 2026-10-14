@@ -1,6 +1,6 @@
 # AGENTS.md — rules for coding agents working on HALO
 
-Read before every task. The target design is `docs/HALO_Architecture.md` (blueprint v0.1, referred to as "the blueprint", cited by §). Open and settled decisions are in `docs/DECISIONS.md`. Where the code and the blueprint disagree, do not silently change either one: record the gap and let the owner decide.
+Read before every task. The authoritative architecture is `docs/HALO_Architecture.md`, consolidated on 2026-10-15. The original target design, blueprint v0.1, is preserved verbatim at `docs/archive/HALO_BLUEPRINT_v0.1.md`; it is referred to as "the blueprint" and cited by §. Open and settled decisions are in `docs/DECISIONS.md`. Where the code and the architecture or blueprint disagree, do not silently change either one: record the gap and let the owner decide.
 
 ## Roles (blueprint §36)
 - The owner sets product and architecture. **Claude Code builds** and fixes; **Codex reviews and debugs** (architecture, bugs, security, races, realtime behaviour, unnecessary complexity) and edits code only when a task explicitly assigns it a fix.

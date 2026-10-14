@@ -3,7 +3,7 @@
 ## 2026-09-22 — HALO Phase 4.5 Sprint 2: tokens and Telugu reliability
 
 Three bounded repairs to the Agent Runtime. Full detail in
-[PHASE4_5_SPRINT2_REPORT.md](PHASE4_5_SPRINT2_REPORT.md).
+[PHASE4_5_SPRINT2_REPORT.md](archive/PHASE4_5_SPRINT2_REPORT.md).
 
 **No vendor, no model, no microphone was involved.** Every token figure below
 is an estimate and is named as one; no latency claim is made, because nothing
@@ -68,7 +68,7 @@ evaluation 50/50 with identical dispositions; 104 files / 1,056 tests pass
 ## 2026-09-22 — HALO Phase 4.5 Sprint 1: the real voice loop
 
 The first end-to-end path from a real microphone to a real speaker through
-HALO. Full detail in [PHASE4_5_SPRINT1_REPORT.md](PHASE4_5_SPRINT1_REPORT.md);
+HALO. Full detail in [PHASE4_5_SPRINT1_REPORT.md](archive/PHASE4_5_SPRINT1_REPORT.md);
 how to run it in [LOCAL_VOICE_LOOP.md](LOCAL_VOICE_LOOP.md).
 
 **Nothing here has been run against a live speech vendor.** No credentials

@@ -6,6 +6,8 @@
 
 **Phase Beta update (2026-10-12):** staging readiness is **PARTIAL; staging verification BLOCKED** pending an identified target, owner, authorization and access. See [HALO Phase Beta readiness](HALO_PHASE_BETA_READINESS.md). The release directions below do not authorize staging operations or imply pilot/final acceptance.
 
+**Consolidation note (2026-10-15):** the decision register at the end of this document moved to [DECISIONS.md](DECISIONS.md) as R1–R10. Architecture lives in [HALO_Architecture.md](HALO_Architecture.md), and sequencing in [HALO_V1_IMPLEMENTATION_PLAN.md](HALO_V1_IMPLEMENTATION_PLAN.md). This document remains the record of the ratification text, the GA acceptance conditions and the pilot plan.
+
 ## Decision summary — ratified release-owner direction
 
 | Decision | Release-owner direction | State |
@@ -38,7 +40,7 @@ This record does not imply a meeting date, attendance by other owners, approval 
 
 HALO v1 is a reusable, tenant-isolated agent runtime and control plane, with an Arunodaya Solar Systems pilot as the first customer-facing use. The release owner's ratified target is production-ready GA. The Arunodaya pilot direction covers voice, chat, workflows, and integrations, subject to owner-approved tasks and safe setup. Telugu is first; English and Tenglish are supported only for validated language variants. At least one actual provider-backed integration must be exercised in the authorized pilot. The ratified direction does not establish Arunodaya's policies, available operations, or sign-off.
 
-The current status register remains the repository-backed status entry point. Its ten rows are an audit mapping from the release-gap audit, not a confirmed historical canonical checklist. The release owner has directed that all ten existing criteria be retained; this does not validate any criterion as passed. This document supplies clarified proposed pass conditions and approval dependencies; it does not supersede the status register. See [HALO v1 status](HALO_V1_STATUS.md), [release-gap audit](HALO_V1_RELEASE_GAPS.md), [implementation verification](HALO_IMPLEMENTATION_VERIFICATION.md), [implementation plan](HALO_IMPLEMENTATION_PLAN.md), and [current-state audit](CURRENT_STATE_AUDIT.md).
+The current status register remains the repository-backed status entry point. Its ten rows are an audit mapping from the release-gap audit, not a confirmed historical canonical checklist. The release owner has directed that all ten existing criteria be retained; this does not validate any criterion as passed. This document supplies clarified proposed pass conditions and approval dependencies; it does not supersede the status register. See [HALO v1 status](HALO_V1_STATUS.md), [release-gap audit](HALO_V1_RELEASE_GAPS.md), [implementation verification](HALO_IMPLEMENTATION_VERIFICATION.md), [implementation plan](archive/HALO_IMPLEMENTATION_PLAN.md), and [current-state audit](archive/CURRENT_STATE_AUDIT.md).
 
 ## Release stages and evidence boundaries
 
@@ -224,23 +226,12 @@ The Arunodaya business owner (with designated privacy, operations and language r
 
 ## Decision register
 
-The states distinguish release-owner ratification from approvals or acceptance still required from other accountable owners. Ratification does not mark technical criteria as passed. Record any later approval with its approver role, date, scope/revision, and linked evidence.
+> **Moved, 2026-10-15.** This register now lives in the single authoritative decision register, [DECISIONS.md, R-series](DECISIONS.md#r-series--release-owner-decisions). Its rows were renumbered to remove an ID collision with the architecture decisions there. The mapping is D1→R1, D2→R2, … D10→R10. The decision text, states and directions were copied verbatim; no state changed. Record any later approval in DECISIONS.md, with approver role, date, scope or revision, and linked evidence.
 
-| ID | Decision | State | Release-owner direction / remaining owner decision |
-|---|---|---|---|
-| D1 | Release target: production-ready general availability. | **RATIFIED — RELEASE OWNER DIRECTION** | This target is not a GA authorization. Applicable owner approvals and all mandatory gates remain required. |
-| D2 | Retain all ten existing release criteria and clarify acceptance evidence. | **RATIFIED — RELEASE OWNER DIRECTION** | No criterion is marked passed by ratification; current evidence and closure remain tracked in the status register. |
-| D3 | Arunodaya pilot scope: voice, chat, workflows, and integrations. | **RATIFIED — RELEASE OWNER DIRECTION** | Product/business and Arunodaya owners must still approve tasks, exclusions, policies, and whether booking, campaigns, and follow-up are in scope. |
-| D4 | Language: Telugu-first; English/Tenglish only where validated. | **RATIFIED — RELEASE OWNER DIRECTION** | Telugu-capable reviewer and relevant language owner must validate Telugu acceptance and each English/Tenglish behavior claimed as supported. |
-| D5 | At least one real provider-backed integration must be exercised in the pilot. | **RATIFIED — RELEASE OWNER DIRECTION** | Integration/provider and business owners must select the provider, authorize credentials and permitted live transaction, and approve evidence requirements. The other supported-integration scope in criterion 9 remains subject to owner definition. |
-| D6 | Numeric acceptance thresholds remain provisional until baseline measurement and relevant owner review. | **RATIFIED — RELEASE OWNER DIRECTION** | Engineering and relevant business/release owners must review representative baselines and approve or replace thresholds before any numeric pass claim. |
-| D7 | Security, recovery, and operational readiness are mandatory gates before GA authorization. | **RATIFIED — RELEASE OWNER DIRECTION** | Security and deployment/operations owners must define and supply evidence for their gates; no gate is claimed passed. |
-| D8 | Authorize pilot environment, data/evidence handling, and provider setup. | **PENDING — OTHER OWNER APPROVAL REQUIRED** | Privacy/data, integration/provider, security, and deployment/operations owners must authorize their respective controls and evidence collection; no setup is authorized by this ratification. |
-| D9 | Accept Arunodaya pilot evidence against approved scenarios. | **PENDING — PILOT OWNER ACCEPTANCE** | Pilot owner must review the completed evidence packet and record dated acceptance and defect disposition. |
-| D10 | Make final GA go/no-go after all mandatory blockers pass. | **PENDING — RELEASE OWNER AND ACCOUNTABLE OWNERS** | Separate dated GA review against all ten criteria, applicable owner approvals, and evidence that security, recovery, and operational readiness gates passed. Final GA authorization is not approved. |
+The ratification record above (RB-01A), the measurable GA conditions, the threshold candidates and the pilot plan remain in this document.
 
 ## Evidence basis and validation boundary
 
-Primary evidence reviewed: the four RB-01 read-first documents; `docs/HALO_IMPLEMENTATION_VERIFICATION.md`; `docs/ARUNODAYA_AGENT.md`; `docs/ARUNODAYA_NEGOTIATION_POLICY.md`; `docs/SECURITY.md`; `docs/DEPLOYMENT.md`; `docs/OPERATIONS.md`; `docs/PHASE4_REPORT.md`; `docs/VOICE_LATENCY_MODEL.md`; and `docs/HALO_V1_RELEASE_GAPS.md` integration and pilot matrices. In particular, the repository reports 50/50 scripted Arunodhaya golden conversations, but explicitly says this does not score real-model naturalness or speech and that no real call, approved business facts or booking tool on the voice path is evidenced. Implementation verification reports prior local checks and no production deployment/migration. Provider, pilot and owner-approval evidence remain absent for the blockers above.
+Primary evidence reviewed: the four RB-01 read-first documents; `docs/HALO_IMPLEMENTATION_VERIFICATION.md`; `docs/ARUNODHAYA_AGENT.md`; `docs/ARUNODHAYA_NEGOTIATION_POLICY.md`; `docs/SECURITY.md`; `docs/DEPLOYMENT.md`; `docs/OPERATIONS.md`; `docs/PHASE4_REPORT.md`; `docs/VOICE_LATENCY_MODEL.md`; and `docs/HALO_V1_RELEASE_GAPS.md` integration and pilot matrices. In particular, the repository reports 50/50 scripted Arunodhaya golden conversations, but explicitly says this does not score real-model naturalness or speech and that no real call, approved business facts or booking tool on the voice path is evidenced. Implementation verification reports prior local checks and no production deployment/migration. Provider, pilot and owner-approval evidence remain absent for the blockers above.
 
 No runtime files, dependencies, environment/database/provider configuration or production resources were changed. No test, inference, external call or integration was run for this proposal. Validation is limited to documentation consistency and whitespace/link checks reported separately.

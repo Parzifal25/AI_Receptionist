@@ -1,5 +1,7 @@
 # Testing Guide
 
+> **Note (2026-10-15):** the suite counts below are historical. The latest reported run (2026-10-14) was 156 test files with 1,602 passed and 5 skipped, plus 70 worker tests with 1 skipped ([HALO_LAYER_1_REVIEW.md](HALO_LAYER_1_REVIEW.md)). `check:migrations` and `check:rls` are destructive. Run them only against a fresh disposable `halo_check_<suffix>` database ([DEPLOYMENT.md](DEPLOYMENT.md)).
+
 ## Automated tests
 
 ```bash

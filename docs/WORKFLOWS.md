@@ -1,5 +1,7 @@
 # Workflow Automation Platform
 
+> **Path note (2026-10-15):** the code described here moved from `src/core/{domain,ports,services/workflows,services/crm}` and `src/providers/ops` to `packages/core/domain/workflow.ts`, `packages/ports/ops-provider.ts`, `packages/workflows/*`, `packages/crm/*` and `packages/providers/ops/*`. Timeout handling changed on 2026-10-13: an uncertain step timeout is dead-lettered with no automatic retry (see [OPERATIONS.md](OPERATIONS.md)). Current architecture: [HALO_Architecture.md §5.4](HALO_Architecture.md#54-workflow-and-campaign-integration).
+
 How the receptionist becomes a business automation platform: every business
 event (a booking, a lead, a conversation) can trigger tenant-defined
 workflows — and always feeds the built-in CRM, with zero configuration.

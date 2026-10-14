@@ -1,11 +1,11 @@
 # HALO — Implementation Plan
 
-> **Release evidence note (2026-10-12):** this plan contains historical design and phase material. Current Phase Alpha/ Beta disposition is in [HALO_V1_STATUS.md](HALO_V1_STATUS.md) and [HALO_PHASE_BETA_READINESS.md](HALO_PHASE_BETA_READINESS.md). Beta staging checks are blocked pending an identified, authorized staging target. The ENG-04/ENG-12 naming conflict remains pending owner approval; use descriptive scopes until decided. No pilot or production gate is closed by this plan.
+> **Release evidence note (2026-10-12):** this plan contains historical design and phase material. Current Phase Alpha/ Beta disposition is in [HALO_V1_STATUS.md](../HALO_V1_STATUS.md) and [HALO_PHASE_BETA_READINESS.md](../HALO_PHASE_BETA_READINESS.md). Beta staging checks are blocked pending an identified, authorized staging target. The ENG-04/ENG-12 naming conflict remains pending owner approval; use descriptive scopes until decided. No pilot or production gate is closed by this plan.
 
 **Document status:** PLAN. Nothing in this document is implemented.
 **Plan date:** 2026-09-04
 **Repository:** `/home/parzifal/AI_Receptionist` — branch `main`, commit `1cd187d` + uncommitted working tree
-**Baseline:** [`docs/CURRENT_STATE_AUDIT.md`](CURRENT_STATE_AUDIT.md) (audit date 2026-09-02)
+**Baseline:** [`docs/archive/CURRENT_STATE_AUDIT.md`](CURRENT_STATE_AUDIT.md) (audit date 2026-09-02)
 **Strategy:** Strategy 4 — Extract AI Receptionist into HALO Core
 **First customer:** Arunodhaya Solar Systems
 **First flagship agent:** Telugu-first Solar Sales & Lead Qualification Agent
@@ -428,7 +428,7 @@ Three, all minor. None changes a conclusion; recorded because Critical Rule 18 r
 2. **`docs/TESTING.md` is stale.** It states "229 tests across 27 files"; the suite is 319 tests
    across 48 files. The audit correctly used the executed numbers; the doc was never updated.
    Add doc-freshness to the Phase 0 definition of done.
-3. **`docs/ROADMAP.md` predates the audit's findings** and still lists "Twilio MessagingProvider"
+3. **`docs/archive/ROADMAP.md` predates the audit's findings** and still lists "Twilio MessagingProvider"
    as item 1 while untracked Resend/WhatsApp adapters now exist in the working tree (broken).
    Not a contradiction of the audit — a stale doc. Reconciled in Phase 0.
 
@@ -756,7 +756,7 @@ did **not** survive validation are listed in §P0.2 with the reason.
 | 9 | `/api/health?deep=1` leaks readiness error strings anonymously | `src/app/api/health/route.ts:35-56` | Require `CRON_SECRET` (or a new `ADMIN_PROBE_SECRET`) for `deep=1`; unauthenticated callers get `{status}` only. Keep shallow liveness public | New route test |
 | 10 | `scripts/preflight.ts` wired into nothing | `package.json` | Add `"preflight": "tsx scripts/preflight.ts"` and call it in the CI deploy gate | CI job runs it |
 | 11 | No CI | `.github/workflows/ci.yml` (new) | See §P0.5 | Every push gated |
-| 12 | `docs/TESTING.md` and `docs/ROADMAP.md` are stale (§1.8) | `docs/` | Update counts and shipped/not-shipped status | Doc review |
+| 12 | `docs/TESTING.md` and `docs/archive/ROADMAP.md` are stale (§1.8) | `docs/` | Update counts and shipped/not-shipped status | Doc review |
 
 ## P0.2 Audit items deliberately NOT actioned in Phase 0
 
@@ -858,7 +858,7 @@ Additional gates specific to this repository:
 No route selects a column absent from supabase/migrations/          (schema-drift test)
 No webhook or cron route authenticates conditionally on a secret being present (fail closed)
 src/providers/voice/ and src/app/api/v1/voice/ removed              (grep returns nothing)
-docs/TESTING.md and docs/ROADMAP.md reconciled with reality         (§1.8)
+docs/TESTING.md and docs/archive/ROADMAP.md reconciled with reality         (§1.8)
 main is protected: no merge without a green CI run
 ```
 
@@ -2889,8 +2889,8 @@ is written.
 
 Both agents follow, in precedence order:
 ```text
-1. docs/HALO_IMPLEMENTATION_PLAN.md   (this document — the what and the order)
-2. docs/CURRENT_STATE_AUDIT.md        (the verified baseline)
+1. docs/archive/HALO_IMPLEMENTATION_PLAN.md   (this document — the what and the order)
+2. docs/archive/CURRENT_STATE_AUDIT.md        (the verified baseline)
 3. docs/ARCHITECTURE.md               (the existing conventions)
 ```
 
@@ -2921,7 +2921,7 @@ Next phase
 ## 21.3 Rules that this specific repository earns
 
 1. **Verify against source, never against docs.** `docs/TESTING.md` claims 229 tests; there are
-   319. `docs/ROADMAP.md` lists shipped work as pending. Implementation wins (Critical Rule 6).
+   319. `docs/archive/ROADMAP.md` lists shipped work as pending. Implementation wins (Critical Rule 6).
 2. **Never claim something is implemented when it is planned** (Critical Rule 17). PR descriptions
    state what is done, what is stubbed, and what is deferred, explicitly.
 3. **Never touch the two database invariants** (`EXCLUDE USING gist`, `unique(workflow_id,

@@ -1,5 +1,7 @@
 # Installation Guide
 
+> **Note (2026-10-15):** the repository now has 31 migrations, not the 0001–0009 listed below. Apply every file in `supabase/migrations/` in order. Run the local stack on ports 5532x only ([DECISIONS.md G2](DECISIONS.md#g2--operating-safety-constraints)). `src/lib/env.ts` is now `packages/platform/env.ts`.
+
 ## Prerequisites
 
 - Node.js ≥ 20 (developed on 22)
@@ -61,7 +63,7 @@ cp .env.example .env.local
 
 Fill in every value. All variables are documented inline in
 [`.env.example`](../.env.example) and validated at startup by
-[`src/lib/env.ts`](../src/lib/env.ts) — a missing variable produces a readable
+[`packages/platform/env.ts`](../packages/platform/env.ts) — a missing variable produces a readable
 error instead of a runtime failure.
 
 | Variable | Required | Description |

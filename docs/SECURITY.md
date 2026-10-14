@@ -1,5 +1,18 @@
 # Security Model
 
+> **Path and fact notes (2026-10-15, `source`):**
+>
+> - **Moved paths.** `src/lib/env.ts`, `src/lib/rate-limit.ts` and
+>   `src/lib/ssrf.ts` now live under `packages/platform/`, and
+>   `src/lib/supabase/admin.ts` is now `packages/tenancy/supabase/admin.ts`.
+> - **Three built-in tools.** The registry has three built-in tools, not two:
+>   `offer_concession` was added.
+> - **Not covered here.** Voice and telephony trust boundaries, and calendar
+>   credential encryption, are not covered in this document.
+>
+> The current security architecture is in
+> [HALO_Architecture.md §4.4, §8 and §11](HALO_Architecture.md#8-data-and-security).
+
 ## Tenancy isolation
 
 Two enforcement domains, both scoped by `business_id`:

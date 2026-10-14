@@ -10,7 +10,7 @@
 Repository references assign two different meanings to ENG-04:
 
 - `docs/ENG_01_SECURITY_IDENTITY_REVIEW.md` historically called the read-only migration-ledger and conversation agent/version linkage audit “ENG-04 Phase 2” (SEC-04).
-- `docs/HALO_V1_ENGINEERING_BACKLOG.md` consistently defines ENG-04 as authorization and validation of the pilot voice/speech route.
+- `docs/archive/HALO_V1_ENGINEERING_BACKLOG.md` consistently defines ENG-04 as authorization and validation of the pilot voice/speech route.
 - `ENG-11` is already assigned to local Telugu speech review. `ENG-12` is unused in the current repository and searched Git history.
 
 No owner-approved canonical naming decision was found in release records or searched Git history. As a **local engineering recommendation only**, reserve **ENG-12** for the bounded database migration/linkage identity audit described in SEC-04, and keep **ENG-04** for the pilot voice/speech route. This resolves the local tracking collision without representing an owner decision. Existing SEC-04 technical scope remains the audit definition. Target execution requires its separate target-specific authorization and effective read-only evidence; that target audit is not a local Alpha gate.
@@ -102,4 +102,4 @@ Fresh 2026-10-12 verification on the current dirty candidate passed: full JavaSc
 | Execute any required staging or production read-only checks only after all target-specific gates pass | Named operator |
 | Review findings and record criterion dispositions | Security/data owner and release owner |
 
-See [status register](HALO_V1_STATUS.md), [release decisions](HALO_V1_RELEASE_DECISIONS.md), [release gaps](HALO_V1_RELEASE_GAPS.md), [engineering backlog](HALO_V1_ENGINEERING_BACKLOG.md), and [security review](ENG_01_SECURITY_IDENTITY_REVIEW.md).
+See [status register](HALO_V1_STATUS.md), [release decisions](HALO_V1_RELEASE_DECISIONS.md), [release gaps](HALO_V1_RELEASE_GAPS.md), [engineering backlog](archive/HALO_V1_ENGINEERING_BACKLOG.md), and [security review](ENG_01_SECURITY_IDENTITY_REVIEW.md).

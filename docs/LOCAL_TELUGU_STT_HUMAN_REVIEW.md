@@ -59,7 +59,7 @@ provider; no candidate was adopted based on these results.
 
 Review the two preserved Telugu STT outputs against each reference. The first
 section is the human-read Telugu FLEURS set. The audio files are not present in
-the preserved workspace artifacts; see [Evidence gaps](#evidence-gaps). The
+the preserved workspace artifacts; see [Evidence gaps](#evidence-and-gaps). The
 second section is a separate synthetic receptionist set. Do not treat its
 synthetic audio as human speech.
 

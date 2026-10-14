@@ -1,28 +1,28 @@
 # Roadmap, Limitations & Technical Debt
 
-> HALO v1 release-stage evidence is tracked in [HALO_V1_STATUS.md](HALO_V1_STATUS.md). As of 2026-10-12, local Phase Alpha is complete and Phase Beta staging verification is blocked pending an identified, authorized staging target; see [HALO_PHASE_BETA_READINESS.md](HALO_PHASE_BETA_READINESS.md). ENG-04/ENG-12 canonical naming remains pending owner approval.
+> HALO v1 release-stage evidence is tracked in [HALO_V1_STATUS.md](../HALO_V1_STATUS.md). As of 2026-10-12, local Phase Alpha is complete and Phase Beta staging verification is blocked pending an identified, authorized staging target; see [HALO_PHASE_BETA_READINESS.md](../HALO_PHASE_BETA_READINESS.md). ENG-04/ENG-12 canonical naming remains pending owner approval.
 
 ## Shipped since Phase 1
 
 - **AI intelligence overhaul** — layered conversation-craft prompt, 14 industry playbooks,
   lead scorer v2 (classification + recommended next action), contextual RAG query rewriting,
-  unanswered-question knowledge-gap tracking. See [AI.md](AI.md).
+  unanswered-question knowledge-gap tracking. See [AI.md](../AI.md).
 - **Appointment booking + calendar integration** — availability engine, booking workflow
   (book/reschedule/cancel), state machine, race-safe double-booking prevention, Google/Outlook/
   CalDAV/internal calendar adapters, reminder queue + cron delivery, exact clock-time parsing,
   Google Calendar OAuth connect flow (Settings card with an operator setup wizard). The AI now
   completes bookings inside the conversation, not just talks about them. See
-  [SCHEDULING.md](SCHEDULING.md).
+  [SCHEDULING.md](../SCHEDULING.md).
 - **Workflow automation platform + built-in CRM** — business events trigger tenant-defined
   workflows (conditions, templated actions, retries, dead-letter queue, execution history,
   timers, inbound webhook + manual triggers) and an always-on CRM (customer dedupe/merge,
-  pipeline stages, timeline, revenue attribution). See [WORKFLOWS.md](WORKFLOWS.md).
+  pipeline stages, timeline, revenue attribution). See [WORKFLOWS.md](../WORKFLOWS.md).
 - **Customer lifecycle platform** — HTML/ICS/WhatsApp confirmations, self-service
   reschedule/cancel/check-in links, reminder analytics, intake forms, day-of status tracking
   (checked in / running late / in progress), thank-yous, satisfaction surveys, review &
   rebook journey templates, a visual workflow builder, searchable customers + timeline,
   appointments board, lifecycle analytics dashboard, and the OpsCorp-ready `OpsProvider`
-  port. See [LIFECYCLE.md](LIFECYCLE.md).
+  port. See [LIFECYCLE.md](../LIFECYCLE.md).
 - **Lifecycle automation & operability** — automatic no-show sweep (opt-in, grace measured
   from the appointment's end), the lifecycle settings editor (prep, intake builder, review
   link, reminder schedules), upsell and periodic-rebooking journeys, ops records on the
@@ -32,7 +32,7 @@
 
 ## HALO Phase 2 — Agent Runtime (shipped 2026-09-15)
 
-See [RUNTIME.md](RUNTIME.md). Web chat runs on the generic runtime; phone, WhatsApp and future
+See [RUNTIME.md](../RUNTIME.md). Web chat runs on the generic runtime; phone, WhatsApp and future
 agents reuse it through channel profiles. Deferred to later phases, with the dependency noted:
 
 | Deferred | Why not Phase 2 | Depends on |

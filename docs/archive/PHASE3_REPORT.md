@@ -1,6 +1,6 @@
 # HALO Phase 3 — Report
 
-**Date:** 2026-09-21 · **Branch:** `main` · **Baseline:** `docs/PHASE3_BASELINE.md`
+**Date:** 2026-09-21 · **Branch:** `main` · **Baseline:** `docs/archive/PHASE3_BASELINE.md`
 
 Status vocabulary: **IMPLEMENTED** (code exists) · **MOCK-VERIFIED** (tested against
 deterministic fakes) · **VERIFIED** (tested against the real thing) · **NOT VERIFIED** ·
@@ -18,7 +18,7 @@ telephony, STT or TTS provider.
 
 Important context: Phase 3 was **largely implemented in prior sessions**
 (commits `df5f7b9` → `45ab83e`). The checklist in
-`docs/PHASE3_PHASE4_EXECUTION_PLAN.md` still read `TODO` for P3-01..P3-12, which
+`docs/archive/PHASE3_PHASE4_EXECUTION_PLAN.md` still read `TODO` for P3-01..P3-12, which
 was stale documentation rather than missing code. This session's contribution was
 therefore **verification and hardening**, not construction: auditing the existing
 implementation against the Phase 3 requirements, finding and fixing real defects,
