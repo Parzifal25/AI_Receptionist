@@ -293,17 +293,83 @@ expectCount(asUser(uA, `select count(*) from tool_executions where business_id =
 expectCount(asUser(uA, `select count(*) from tool_executions where business_id = '${bizB}';`), 0, "member A cannot read tenant B tool_executions");
 expectCount(asAnon(`select count(*) from tool_executions;`), 0, "anonymous reads no tool_executions");
 expectError(asUser(uA, auditRow(bizA, "rls-a-member", "rejected")), "member cannot write tool_executions (service role only)");
+// Clients hold SELECT only, so a member UPDATE/DELETE is refused by the grant
+// itself (permission denied), before RLS is even consulted.
+expectError(
+  asUser(uA, `update tool_executions set status = 'failed', finished_at = now() where business_id = '${bizA}';`),
+  "member cannot update tool_executions (no client UPDATE grant)",
+);
+expectError(asUser(uA, `delete from tool_executions where business_id = '${bizA}';`), "member cannot delete tool_executions (no client DELETE grant)");
+expectError(`begin; set local role anon; select count(*) from tool_executions; commit;`, "real anon role has no tool_executions access");
 expectCount(
-  asUser(uA, `with u as (update tool_executions set status = 'failed', finished_at = now() where business_id = '${bizA}' returning 1) select count(*) from u;`),
+  `select count(*) from (values ('anon','select'),('anon','insert'),('authenticated','insert'),('authenticated','update'),('authenticated','delete'),('authenticated','truncate'),('authenticated','references'),('authenticated','trigger')) p(r, priv)
+   where has_table_privilege(p.r, 'public.tool_executions', p.priv);`,
   0,
-  "member cannot update tool_executions",
+  "no client role holds any tool_executions privilege beyond SELECT",
+);
+expectCount(
+  `select count(*) from (values ('anon'),('authenticated')) r(name), (values ('public.assert_tool_execution_ownership()'),('public.enforce_tool_execution_lifecycle()')) f(sig)
+   where has_function_privilege(r.name, f.sig, 'execute');`,
+  0,
+  "clients cannot execute the tool_executions trigger functions",
+);
+expectCount(
+  `select count(*) from pg_policies where schemaname = 'public' and tablename = 'tool_executions' and (cmd <> 'SELECT' or roles <> '{authenticated}');`,
+  0,
+  "tool_executions has only the authenticated SELECT policy",
+);
+expectCount(
+  `select string_agg(column_name, ',' order by column_name) = 'agent_id,agent_version_id,business_id,channel,conversation_id,correlation_id,created_at,error_code,finished_at,id,idempotency_key,intent_id,rejection_reason,requested_at,round,side_effecting,started_at,status,tool_name,turn_id'
+   from information_schema.columns where table_schema = 'public' and table_name = 'tool_executions';`,
+  "t",
+  "tool_executions has exactly the accountability columns (no payload, message or contact column)",
 );
 expectError(
   asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
     values ('${bizA}', ${auditConv(bizB)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-turn-x', 0, 'rls-cross', null, null, null, 'rejected', now(), 'unknown_tool', now());`),
   "service_role cannot audit tenant A against tenant B's conversation (ownership trigger)",
 );
+expectError(
+  asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+    values ('${bizA}', ${auditConv(bizA)}, ${agentOf(bizB)}, ${auditVersion(bizA)}, 'web-chat', 'rls-turn-x', 0, 'rls-cross-agent', null, null, null, 'rejected', now(), 'unknown_tool', now());`),
+  "service_role cannot audit tenant A against tenant B's agent (ownership trigger)",
+);
+expectError(
+  asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+    values ('${bizA}', ${auditConv(bizA)}, ${auditAgent(bizA)}, ${versionOf(bizB)}, 'web-chat', 'rls-turn-x', 0, 'rls-cross-version', null, null, null, 'rejected', now(), 'unknown_tool', now());`),
+  "service_role cannot audit tenant A against tenant B's agent version (ownership trigger)",
+);
+expectError(
+  asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+    values ('${bizB}', ${auditConv(bizA)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-turn-x', 0, 'rls-relabel', null, null, null, 'rejected', now(), 'unknown_tool', now());`),
+  "service_role cannot relabel tenant A's conversation as tenant B's audit row",
+);
 expectError(asService(auditRow(bizA, "rls-a-dup", "started")), "second execution for the same action and turn rejected (unique)");
+expectCount(
+  asService(`with i as (${auditRow(bizA, "rls-a-dup-rejected", "rejected").replace(/;\s*$/, "")} returning 1) select count(*) from i;`),
+  1,
+  "a duplicate intent is still recorded as a rejected row (unique index ignores rejections)",
+);
+for (const reason of ["unknown_tool", "not_granted", "channel_disallowed", "invalid_arguments", "duplicate", "confirmation_required", "precondition_failed", "budget_exhausted", "not_bound"]) {
+  psql(asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+    values ('${bizA}', ${auditConv(bizA)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-reasons', 0, 'rls-reason-${reason}', null, null, null, 'rejected', now(), '${reason}', now());`));
+}
+ok("every runtime ToolRejectionReason is accepted by the database");
+expectError(
+  asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+    values ('${bizA}', ${auditConv(bizA)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-reasons', 0, 'rls-reason-bogus', null, null, null, 'rejected', now(), 'made_up', now());`),
+  "an unknown rejection reason is refused",
+);
+expectError(
+  asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, started_at)
+    values ('${bizA}', ${auditConv(bizA)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-turn-3', 0, 'rls-no-key', 'save_contact_details', null, true, 'started', now(), now());`),
+  "a started row needs an idempotency key (lifecycle check)",
+);
+expectError(
+  asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+    values ('${bizA}', ${auditConv(bizA)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-turn-3', 0, 'rls-bad-name', 'Save Contact; drop', null, null, 'rejected', now(), 'unknown_tool', now());`),
+  "a tool name that is not an identifier is refused",
+);
 expectError(
   asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, started_at, finished_at)
     values ('${bizA}', ${auditConv(bizA)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-turn-2', 0, 'rls-direct', 'save_contact_details', '${"b".repeat(32)}', true, 'succeeded', now(), now(), now());`),
@@ -319,9 +385,42 @@ expectError(
   "final tool_executions rows are immutable (lifecycle trigger)",
 );
 expectError(
-  asService(`update tool_executions set status = 'failed', finished_at = now(), business_id = '${bizB}' where intent_id = 'rls-b-1';`),
-  "finalize cannot change identity columns (lifecycle trigger)",
+  asService(`update tool_executions set status = 'failed', finished_at = now(), business_id = '${bizA}' where intent_id = 'rls-b-1';`),
+  "finalize cannot move a row to another tenant (lifecycle trigger)",
 );
+expectError(
+  asService(`update tool_executions set status = 'failed', finished_at = now(), tool_name = 'offer_concession' where intent_id = 'rls-b-1';`),
+  "finalize cannot rewrite which tool ran (lifecycle trigger)",
+);
+expectError(
+  asService(`update tool_executions set status = 'started' where intent_id = 'rls-a-dup-rejected';`),
+  "rejected rows are final (lifecycle trigger)",
+);
+psql(asService(auditRow(bizA, "rls-a-2", "started").replace("'rls-turn'", "'rls-turn-2'")));
+expectCount(
+  asService(`with u as (update tool_executions set status = 'failed', error_code = 'EXECUTOR_TIMEOUT', finished_at = now() where intent_id = 'rls-a-2' and status = 'started' returning 1) select count(*) from u;`),
+  1,
+  "service_role finalizes a started row as failed with a bounded error code",
+);
+expectError(
+  asService(`update tool_executions set status = 'failed', error_code = 'a sentence with spaces', finished_at = now() where intent_id = 'rls-b-1';`),
+  "an error code that is not an identifier is refused (no messages stored)",
+);
+// Retention: rows cascade with their conversation, so purge_expired_data()
+// removes them for a tenant whose window has passed. A dedicated, backdated
+// conversation keeps the fixture independent of the rest of the harness.
+psql(asService(`
+insert into business_settings (business_id) values ('${bizA}') on conflict (business_id) do nothing;
+insert into conversations (business_id, receptionist_id, visitor_token, channel, agent_id, agent_version_id, started_at)
+select business_id, receptionist_id, 'rls-audit-expired', channel, agent_id, agent_version_id, now() - interval '4000 days'
+from conversations where visitor_token = 'rls-token-a';
+insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+select business_id, id, agent_id, agent_version_id, 'web-chat', 'rls-expired-turn', 0, 'rls-expired', null, null, null, 'rejected', now(), 'unknown_tool', now()
+from conversations where visitor_token = 'rls-audit-expired';
+`));
+psql(asService(`select * from purge_expired_data();`));
+expectCount(`select count(*) from tool_executions where intent_id = 'rls-expired';`, 0, "retention purge removes an expired conversation's tool_executions (cascade)");
+expectCount(`select count(*) from tool_executions where intent_id = 'rls-a-1';`, 1, "retention purge keeps current tool_executions");
 
 // ---------------------------------------------------------------------------
 // 4. Member vs admin: plain members cannot manage agents.
