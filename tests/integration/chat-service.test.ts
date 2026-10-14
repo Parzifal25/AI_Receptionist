@@ -8,6 +8,7 @@ import type { KnowledgeProvider } from "@halo/ports/knowledge-provider";
 import type { NotificationProvider } from "@halo/ports/notification-provider";
 import { DEFAULT_BRANDING, type Business, type ChatMessage, type Receptionist } from "@halo/core/domain/types";
 import { InMemoryConversationStateStore } from "@halo/runtime/conversation-state";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 /**
  * Integration test of the full conversational turn with in-memory fakes for
@@ -99,7 +100,7 @@ function buildFakes(options: { llmReplies: string[]; knowledgeEmpty?: boolean })
   } as unknown as WidgetRepository;
 
   const service = new ChatService(llm, knowledge, notifications, repository, null, async () => {}, {
-    stateStore: new InMemoryConversationStateStore(),
+    stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore(),
   });
   return { service, messages, leads, events, notifications, repository };
 }
@@ -200,7 +201,7 @@ describe("ChatService.respond", () => {
       repository,
       orchestrator,
       async () => {},
-      { stateStore: new InMemoryConversationStateStore() },
+      { stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore() },
     );
 
     const { reply } = await respondForTest(service, {

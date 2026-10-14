@@ -11,6 +11,7 @@ import type { QualificationSchema } from "@halo/qualification/schema";
 import { QualificationSystemActionProvider, qualificationSlots } from "@halo/qualification/system-action";
 import type { LLMProvider } from "@halo/ports/llm-provider";
 import type { ConversationStateStore } from "@halo/runtime/conversation-state";
+import type { ToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 import type { EscalationReason, RuntimeEventSink, RuntimeOutput } from "@halo/runtime/contracts";
 import type { KnowledgeResolver } from "@halo/runtime/knowledge-resolver";
 import type { ConversationStore, SystemActionProvider } from "@halo/runtime/system-actions";
@@ -64,6 +65,8 @@ export interface SalesCallDeps {
   knowledge: KnowledgeResolver;
   conversations: ConversationStore;
   stateStore: ConversationStateStore;
+  /** D7 tool-execution audit, passed to every turn handler. */
+  toolAudit?: ToolExecutionAuditStore;
   events?: RuntimeEventSink;
   /** Observes every completed runtime turn (telemetry, evaluation). */
   onTurnOutput?: (ctx: VoiceCallContext, output: RuntimeOutput) => void;
@@ -116,6 +119,7 @@ export class SalesCallAssembly {
       llm: this.deps.llm,
       knowledge: this.deps.knowledge,
       stateStore: this.deps.stateStore,
+      ...(this.deps.toolAudit ? { toolAudit: this.deps.toolAudit } : {}),
       liveHandoffAvailable: ctx.handoffNumber !== null,
       transferReasons: config.liveTransferReasons,
       ...(this.deps.events ? { events: this.deps.events } : {}),

@@ -10,6 +10,7 @@ import { TwilioMediaStreamProvider } from "@halo/providers/telephony/twilio-medi
 import type { TelephonyProvider } from "@halo/ports/telephony-provider";
 import { ProviderKnowledgeResolver } from "@halo/runtime/knowledge-resolver";
 import { SupabaseConversationStateStore } from "@halo/runtime/stores/supabase-conversation-state-store";
+import { SupabaseToolExecutionAuditStore } from "@halo/runtime/stores/supabase-tool-execution-audit-store";
 import { VoiceGateway } from "@halo/voice/gateway";
 import { PipecatBridge } from "@halo/voice/pipecat/bridge";
 import { PhoneTurnHandler, resolvedContextForCall } from "@halo/voice/phone-channel-adapter";
@@ -52,6 +53,7 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
   const callStore = new SupabaseCallStore();
   const conversations = new SupabasePhoneConversationStore();
   const stateStore = new SupabaseConversationStateStore();
+  const toolAudit = new SupabaseToolExecutionAuditStore();
   const knowledge = new ProviderKnowledgeResolver(getKnowledgeProvider());
   const llm = getLLMProvider();
   const crmStore = new SupabaseCrmStore();
@@ -120,7 +122,7 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
       const events = { emit: (event: import("@halo/runtime/contracts").RuntimeEvent) => gateway.recordRuntimeEvent(ctx.call.id, event) };
       const sales = salesConfigForVersion(ctx.route.version.config);
       if (sales) {
-        const assembly = new SalesCallAssembly({ config: sales, llm, knowledge, conversations, stateStore, events,
+        const assembly = new SalesCallAssembly({ config: sales, llm, knowledge, conversations, stateStore, toolAudit, events,
           booking: visitBookingForCall,
           loadKnownFields: async (call): Promise<Record<string, string>> => {
             const known = await crmStore.findByPhone(call.call.businessId, customerNumber(call));
@@ -142,6 +144,7 @@ export function buildGatewayFromEnv(env: Record<string, string | undefined> = pr
         llm,
         knowledge,
         stateStore,
+        toolAudit,
         liveHandoffAvailable: ctx.handoffNumber !== null,
       });
     },

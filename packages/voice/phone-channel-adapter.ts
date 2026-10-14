@@ -9,6 +9,7 @@ import { AgentRuntime, newTurnId, type DoctrineProvider, type RuntimePolicy } fr
 import { isRuntimeCancelled } from "@halo/runtime/cancellation";
 import { VOICE_CONTEXT_LIMITS } from "@halo/runtime/context-builder";
 import { PHONE_VOICE_PROFILE } from "@halo/runtime/channel-profile";
+import type { ToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 import type {
   EscalationReason,
   ResolvedAgentRuntimeContext,
@@ -112,6 +113,8 @@ export interface PhoneTurnHandlerOptions {
   llm: LLMProvider;
   knowledge: KnowledgeResolver;
   stateStore: ConversationStateStore;
+  /** D7 tool-execution audit. Without it, side-effecting tools fail closed. */
+  toolAudit?: ToolExecutionAuditStore;
   /** Built per call; receives the current turn's STT signals (trusted, server-side). */
   systemActions?: (signals: () => VoiceTurnSignals) => SystemActionProvider[];
   hooks?: TurnHook[];
@@ -225,6 +228,7 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
       knowledge: options.knowledge,
       conversations: this.store,
       stateStore: options.stateStore,
+      ...(options.toolAudit ? { toolAudit: options.toolAudit } : {}),
       registry: new ToolRegistry(BUILTIN_TOOLS, {
         ...(options.toolExecutors ?? {}),
         // Bound last: the phone handoff semantics are not the application's

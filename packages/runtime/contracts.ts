@@ -542,6 +542,8 @@ export type RuntimeEventType =
   | "tool.intent_proposed"
   | "tool.intent_rejected"
   | "tool.capability_downgraded"
+  /** D7: an audit write failed or no audit store is configured. Stage and tool name only. */
+  | "tool.audit_failed"
   | "action.executed"
   | "action.failed"
   | "response.validated"

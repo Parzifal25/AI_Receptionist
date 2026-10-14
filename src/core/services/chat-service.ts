@@ -17,6 +17,8 @@ import type { ResolvedAgentRuntimeContext, RuntimeEventSink, RuntimeOutput } fro
 import type { ConversationStateStore } from "@halo/runtime/conversation-state";
 import { ProviderKnowledgeResolver } from "@halo/runtime/knowledge-resolver";
 import { SupabaseConversationStateStore } from "@halo/runtime/stores/supabase-conversation-state-store";
+import { SupabaseToolExecutionAuditStore } from "@halo/runtime/stores/supabase-tool-execution-audit-store";
+import type { ToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 import type { ConversationStore } from "@halo/runtime/system-actions";
 import { BUILTIN_TOOLS, ToolRegistry } from "@halo/runtime/tools/registry";
 import { PROMPT_ASSEMBLER_VERSION } from "./prompt-builder";
@@ -46,6 +48,8 @@ export function resolvedContextFromReceptionist(_params: {
 export interface ChatServiceOptions {
   /** Defaults to the Postgres-backed store; tests inject an in-memory one. */
   stateStore?: ConversationStateStore;
+  /** D7 audit; defaults to the Postgres-backed store. Tests inject an in-memory one. */
+  toolAudit?: ToolExecutionAuditStore;
   events?: RuntimeEventSink;
   policy?: Partial<RuntimePolicy>;
 }
@@ -95,6 +99,7 @@ export class ChatService {
       knowledge: new ProviderKnowledgeResolver(this.knowledge),
       conversations,
       stateStore: this.options.stateStore ?? new SupabaseConversationStateStore(),
+      toolAudit: this.options.toolAudit ?? new SupabaseToolExecutionAuditStore(),
       registry: new ToolRegistry(BUILTIN_TOOLS, {
         request_human_handoff: requestHumanHandoffExecutor,
         save_contact_details: saveContactDetailsExecutor(leads),

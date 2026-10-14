@@ -57,6 +57,7 @@ import { SalesCallAssembly } from "@/core/services/voice/sales-call";
 import { loadGatewayConfig } from "../services/voice-gateway/config";
 import { createGatewayServer } from "../services/voice-gateway/server";
 import { BUSINESS_A, emptyKnowledgeProvider, FakeConversationStore, StreamingLLM, type StreamStep } from "../tests/mocks/runtime-fakes";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 // --- arguments ----------------------------------------------------------------
 
@@ -413,6 +414,7 @@ async function buildRig(workerPort: number): Promise<Rig> {
     knowledge: new ProviderKnowledgeResolver(emptyKnowledgeProvider()),
     conversations,
     stateStore,
+    toolAudit: new InMemoryToolExecutionAuditStore(),
     events: { emit: (event: RuntimeEvent) => runtimeEvents.push({ t: mono(), type: event.type, detail: event.data }) },
   });
 

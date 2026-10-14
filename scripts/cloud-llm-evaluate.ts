@@ -16,6 +16,7 @@ import { requireArunodhaya } from "../src/content/tenants/arunodhaya";
 import { FakeConversationStore, emptyKnowledgeProvider } from "../tests/mocks/runtime-fakes";
 import { cases, context } from "./cloud-llm-smoke";
 import { assessArunodhayaReply, FINANCIAL_CASES } from "./evaluation/arunodhaya-factuality";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 export const FACT_CASES = [
   ["savings_english", "How much will my electricity bill reduce?"],
@@ -108,7 +109,7 @@ async function main() {
       const outputs: RuntimeOutput[] = [];
       const assembly = new SalesCallAssembly({ config: arunodhayaSalesCallConfig(), llm,
         knowledge: new ProviderKnowledgeResolver(emptyKnowledgeProvider()), conversations: new FakeConversationStore(),
-        stateStore: new InMemoryConversationStateStore(), events: new CollectingEventSink(),
+        stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore(), events: new CollectingEventSink(),
         onTurnOutput: (_ctx, output) => outputs.push(output) });
       const handler = assembly.createTurnHandler(context(`evaluation-${candidate}-${name}`));
       try {

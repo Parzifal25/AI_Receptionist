@@ -13,6 +13,7 @@ import type { WidgetRepository } from "@/core/services/widget-repository";
 import { DEFAULT_BRANDING, type Business, type ChatMessage, type KnowledgeSnippet } from "@halo/core/domain/types";
 import type { BookingOrchestrator } from "@halo/scheduling/booking-orchestrator";
 import { InMemoryConversationStateStore } from "@halo/runtime/conversation-state";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 /**
  * HALO Phase 1 — multiple agent types on ONE runtime (plan §P1.3: "A second
@@ -177,7 +178,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
       repository,
       null as unknown as BookingOrchestrator,
       async () => {},
-      { stateStore: new InMemoryConversationStateStore() },
+      { stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore() },
     );
 
     const salesContext = await contextFor.sales();
@@ -230,7 +231,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
       repository,
       null as unknown as BookingOrchestrator,
       async () => {},
-      { stateStore: new InMemoryConversationStateStore() },
+      { stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore() },
     );
 
     await chat.respondForAgent(await contextFor.receptionist(), {
@@ -261,7 +262,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
       repository,
       null as unknown as BookingOrchestrator,
       async () => {},
-      { stateStore: new InMemoryConversationStateStore() },
+      { stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore() },
     );
 
     await chat.respondForAgent(await contextFor.sales(), {
@@ -306,7 +307,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
       repository,
       null as unknown as BookingOrchestrator,
       async () => {},
-      { stateStore: new InMemoryConversationStateStore() },
+      { stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore() },
     );
 
     const stored = await repo.getAgent(agent.id, "b1");
@@ -339,7 +340,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
       repository,
       null as unknown as BookingOrchestrator,
       async () => {},
-      { stateStore: new InMemoryConversationStateStore() },
+      { stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore() },
     );
 
     const templateV2 = "You are Riley v2 with completely different behaviour.";
@@ -380,7 +381,7 @@ describe("one runtime, many agent types (Phase 1)", () => {
       repository,
       null as unknown as BookingOrchestrator,
       async () => {},
-      { stateStore: new InMemoryConversationStateStore() },
+      { stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore() },
     );
 
     await chat.respondForAgent(await contextFor.receptionist(), {

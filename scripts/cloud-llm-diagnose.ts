@@ -9,6 +9,7 @@ import { SalesCallAssembly } from "../src/core/services/voice/sales-call";
 import { arunodhayaSalesCallConfig } from "../src/core/services/voice/arunodhaya-call";
 import { FakeConversationStore, emptyKnowledgeProvider } from "../tests/mocks/runtime-fakes";
 import { context } from "./cloud-llm-smoke";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 process.loadEnvFile(".env.local");
 
@@ -24,7 +25,7 @@ async function main() {
   };
   const assembly = new SalesCallAssembly({ config: arunodhayaSalesCallConfig(), llm: capture,
     knowledge: new ProviderKnowledgeResolver(emptyKnowledgeProvider()), conversations: new FakeConversationStore(),
-    stateStore: new InMemoryConversationStateStore(), events: new CollectingEventSink() });
+    stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore(), events: new CollectingEventSink() });
   const handler = assembly.createTurnHandler(context("diagnostic-synthetic"));
   await handler.handleTurn({ utterance: "Hello, I want to know about solar panels.", language: "te-IN",
     sttConfidence: 0.95, turnIndex: 0, signal: new AbortController().signal });

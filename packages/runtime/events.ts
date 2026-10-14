@@ -18,7 +18,8 @@ export class LoggerEventSink implements RuntimeEventSink {
   emit(event: RuntimeEvent): void {
     const { type, data, ...ids } = event;
     if (type === "runtime.failed" || type === "model.failed" || type === "llm.failed" ||
-        type === "llm.exhausted" || type === "action.failed" || type === "speech.invariant_violated") {
+        type === "llm.exhausted" || type === "action.failed" || type === "speech.invariant_violated" ||
+        type === "tool.audit_failed") {
       log.warn(type, { ...ids, ...data });
     } else {
       log.info(type, { ...ids, ...data });

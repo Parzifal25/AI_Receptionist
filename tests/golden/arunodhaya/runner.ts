@@ -18,6 +18,7 @@ import {
   type ScriptStep,
 } from "../../mocks/runtime-fakes";
 import type { GoldenConversation, GoldenResult, TurnFinding } from "./types";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 /**
  * Runs a golden conversation through the REAL pipeline: the Arunodhaya
@@ -144,6 +145,7 @@ export async function runGoldenConversation(
     knowledge: new ProviderKnowledgeResolver(emptyKnowledgeProvider()),
     conversations,
     stateStore: new InMemoryConversationStateStore(),
+    toolAudit: new InMemoryToolExecutionAuditStore(),
     onTurnOutput: (_ctx, output) => outputs.push(output),
   });
 

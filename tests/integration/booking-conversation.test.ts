@@ -15,6 +15,7 @@ import {
   type Receptionist,
 } from "@halo/core/domain/types";
 import { InMemoryConversationStateStore } from "@halo/runtime/conversation-state";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 /**
  * End-to-end booking conversations: real ChatService, real
@@ -143,7 +144,7 @@ function buildConversation() {
     widgetRepository,
     orchestrator,
     async () => {},
-    { stateStore: new InMemoryConversationStateStore() },
+    { stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore() },
   );
 
   /** One visitor turn, with the extraction the model would return for it. */

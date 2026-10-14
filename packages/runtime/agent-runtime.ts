@@ -1,4 +1,4 @@
-import { withTelemetryContext } from "@halo/platform/telemetry";
+import { telemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import { randomUUID } from "node:crypto";
 import { classifyTurn } from "./turn-complexity";
 import type { ChatMessage } from "@halo/core/domain/types";
@@ -59,6 +59,16 @@ import {
   toToolIntent,
 } from "./tools/boundary";
 import { ToolRegistry, type ToolExecutionContext } from "./tools/registry";
+import {
+  auditChannel,
+  auditIntentId,
+  auditToolName,
+  auditUnavailableResult,
+  boundedId,
+  TOOL_AUDIT_LIMITS,
+  ToolAuditTrail,
+  type ToolExecutionAuditStore,
+} from "./tools/audit";
 
 /**
  * HALO Phase 2 — the Agent Runtime (Workstream 9 and the pipeline).
@@ -134,6 +144,12 @@ export interface AgentRuntimeDeps {
   conversations: ConversationStore;
   stateStore: ConversationStateStore;
   registry?: ToolRegistry;
+  /**
+   * D7 tool-execution audit. Without it, rejections and non-side-effecting
+   * tools still run (and `tool.audit_failed` is emitted), but every
+   * side-effecting tool fails closed: no consequential action runs unaudited.
+   */
+  toolAudit?: ToolExecutionAuditStore;
   systemActions?: SystemActionProvider[];
   hooks?: TurnHook[];
   doctrine?: DoctrineProvider;
@@ -455,6 +471,24 @@ export class AgentRuntime {
       const messages: LLMMessage[] = [...context.recentMessages, { role: "user", content: userMessage }];
       const offeredNames = context.tools.map((t) => t.name);
       const executedKeys = new Set<string>();
+      const isRegistered = (name: string) => Boolean(this.registry.definition(name));
+      const audit = new ToolAuditTrail(
+        this.deps.toolAudit,
+        {
+          businessId: trusted.businessId,
+          conversationId: trusted.conversationId,
+          agentId: trusted.agentId!,
+          agentVersionId: trusted.agentVersionId!,
+          channelId: auditChannel(channel.id),
+          turnId: trusted.turnId.slice(0, TOOL_AUDIT_LIMITS.maxTurnIdChars),
+          correlationId: boundedId(telemetryId(), TOOL_AUDIT_LIMITS.maxCorrelationIdChars),
+        },
+        (stage, name, error) => {
+          events.emit("tool.audit_failed", { stage, name });
+          if (error) log.warn("tool audit write failed", { stage, tool: name, error: error instanceof Error ? error.message.slice(0, 200) : "unknown" });
+        },
+        () => this.clock().toISOString(),
+      );
       const toolIntents: ToolIntent[] = [];
       const toolResults: ToolResult[] = [];
       const toolRecords: ToolTranscriptRecord[] = [];
@@ -584,6 +618,11 @@ export class AgentRuntime {
           toolResults.push(result);
           roundResults.push(result);
           events.emit("tool.intent_rejected", { name: result.name, reason: "budget_exhausted", round });
+          const extraName = auditToolName(extra.name, isRegistered);
+          await audit.rejected(audit.entry({
+            round, intentId: auditIntentId(extra.id, `${trusted.turnId}-${round}-extra`), toolName: extraName,
+            idempotencyKey: null, sideEffecting: extraName ? (this.registry.definition(extraName)?.sideEffecting ?? null) : null,
+          }), "budget_exhausted");
         }
         for (const call of accepted) {
           const converted = toToolIntent({ call, registry: this.registry, turnId: trusted.turnId, round });
@@ -595,6 +634,11 @@ export class AgentRuntime {
               reason: converted.rejected.rejection ?? "unknown_tool",
               round,
             });
+            const rejectedName = auditToolName(call.name, isRegistered);
+            await audit.rejected(audit.entry({
+              round, intentId: auditIntentId(call.id, `${trusted.turnId}-${round}-call`), toolName: rejectedName,
+              idempotencyKey: null, sideEffecting: rejectedName ? (this.registry.definition(rejectedName)?.sideEffecting ?? null) : null,
+            }), converted.rejected.rejection ?? "unknown_tool");
             continue;
           }
           const intent = converted.intent;
@@ -611,9 +655,17 @@ export class AgentRuntime {
             execution: { ...execution, state },
           });
           let result: ToolResult;
+          const auditEntry = audit.entry({
+            round,
+            intentId: auditIntentId(intent.id, `${trusted.turnId}-${round}-${intent.name}`),
+            toolName: auditToolName(intent.name, isRegistered),
+            idempotencyKey: intent.idempotencyKey,
+            sideEffecting: this.registry.definition(intent.name)?.sideEffecting ?? null,
+          });
           if (!auth.allowed) {
             result = rejectionResult(intent, auth);
             events.emit("tool.intent_rejected", { name: intent.name, reason: auth.reason, round });
+            await audit.rejected(auditEntry, auth.reason);
             if (auth.reason === "confirmation_required") {
               state = applyStatePatch(state, {
                 pendingConfirmation: {
@@ -631,7 +683,16 @@ export class AgentRuntime {
             const definition = this.registry.definition(intent.name)!;
             const executor = this.registry.executor(intent.name)!;
             executedKeys.add(intent.idempotencyKey);
-            result = await executeIntent({ intent, definition, executor, execution: { ...execution, state } });
+            // D7: the record is durable BEFORE the executor runs. A
+            // side-effecting tool without it does not run at all; a failed
+            // finalize never re-runs an action that already happened.
+            const auditRef = await audit.started(auditEntry);
+            if (auditRef === null && definition.sideEffecting) {
+              result = auditUnavailableResult(intent.id, intent.name);
+            } else {
+              result = await executeIntent({ intent, definition, executor, execution: { ...execution, state } });
+              if (auditRef) await audit.finished(auditRef, intent.name, result);
+            }
             events.emit(result.status === "succeeded" ? "action.executed" : "action.failed", {
               source: "tool",
               name: intent.name,

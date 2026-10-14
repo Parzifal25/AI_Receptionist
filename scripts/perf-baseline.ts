@@ -20,6 +20,7 @@ import { WEB_CHAT_PROFILE } from "../packages/runtime/channel-profile";
 import { InMemoryConversationStateStore } from "../packages/runtime/conversation-state";
 import { ProviderKnowledgeResolver } from "../packages/runtime/knowledge-resolver";
 import { BUILTIN_TOOLS, ToolRegistry } from "../packages/runtime/tools/registry";
+import { InMemoryToolExecutionAuditStore } from "../packages/runtime/tools/audit";
 import type { RuntimeOutput } from "../packages/runtime/contracts";
 import {
   emptyKnowledgeProvider,
@@ -95,6 +96,7 @@ async function runScenario(scenario: Scenario) {
     knowledge: new ProviderKnowledgeResolver(knowledge),
     conversations,
     stateStore: new InMemoryConversationStateStore(),
+    toolAudit: new InMemoryToolExecutionAuditStore(),
     registry,
     events: { emit() {} },
   });

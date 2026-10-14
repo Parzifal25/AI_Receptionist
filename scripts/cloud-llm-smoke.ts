@@ -15,6 +15,7 @@ import { requireArunodhaya } from "../src/content/tenants/arunodhaya";
 import { arunodhayaSalesCallConfig } from "../src/core/services/voice/arunodhaya-call";
 import { SalesCallAssembly } from "../src/core/services/voice/sales-call";
 import { BUSINESS_A, FakeConversationStore, emptyKnowledgeProvider } from "../tests/mocks/runtime-fakes";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 export const cases = [
   ["english", "Hello, I want to know about solar panels."],
@@ -76,7 +77,7 @@ async function main(): Promise<void> {
     const outputs: RuntimeOutput[] = [];
     const assembly = new SalesCallAssembly({ config: arunodhayaSalesCallConfig(), llm,
       knowledge: new ProviderKnowledgeResolver(emptyKnowledgeProvider()),
-      conversations: new FakeConversationStore(), stateStore: new InMemoryConversationStateStore(),
+      conversations: new FakeConversationStore(), stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore(),
       onTurnOutput: (_ctx, output) => outputs.push(output) });
     const handler = assembly.createTurnHandler(context(`smoke-${name}`));
     try {

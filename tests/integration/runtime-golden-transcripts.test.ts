@@ -19,6 +19,7 @@ import {
   ScriptedLLM,
   type ScriptStep,
 } from "../mocks/runtime-fakes";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 /**
  * Phase 2 — golden transcripts. Ten representative scenarios run through
@@ -114,7 +115,7 @@ function harness(options: {
   const orchestrator = scheduling ? new BookingOrchestrator(scheduling.repository, scheduling.service, options.llm) : null;
   const sink = new CollectingEventSink();
   const chat = new ChatService(options.llm, emptyKnowledgeProvider(options.knowledge ?? []), notifications, repository, orchestrator, async () => {}, {
-    stateStore: new InMemoryConversationStateStore(),
+    stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore(),
     events: sink,
   });
   const agent =
@@ -272,7 +273,7 @@ describe("golden transcripts (Phase 2)", () => {
       llm: h.llm,
       knowledge: new ProviderKnowledgeResolver(emptyKnowledgeProvider()),
       conversations: { loadHistory: async () => [], appendMessages: async () => { persisted += 1; } },
-      stateStore: new InMemoryConversationStateStore(),
+      stateStore: new InMemoryConversationStateStore(), toolAudit: new InMemoryToolExecutionAuditStore(),
     });
     await expect(
       runtime.run({

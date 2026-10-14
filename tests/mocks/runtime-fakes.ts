@@ -20,6 +20,7 @@ import { InMemoryConversationStateStore } from "@halo/runtime/conversation-state
 import { CollectingEventSink } from "@halo/runtime/events";
 import { ProviderKnowledgeResolver } from "@halo/runtime/knowledge-resolver";
 import type { ConversationStore, ToolTranscriptRecord } from "@halo/runtime/system-actions";
+import { InMemoryToolExecutionAuditStore } from "@halo/runtime/tools/audit";
 
 /**
  * Shared fakes for Agent Runtime tests: a scripted model, an in-memory
@@ -298,6 +299,9 @@ export function makeRuntime(overrides: Partial<AgentRuntimeDeps> & { llm?: LLMPr
   const llm = overrides.llm ?? new ScriptedLLM([reply("Hello there.")]);
   const conversations = (overrides.conversations as FakeConversationStore) ?? new FakeConversationStore();
   const stateStore = (overrides.stateStore as InMemoryConversationStateStore) ?? new InMemoryConversationStateStore();
+  // D7: tests get an in-memory audit store, never the Postgres default. Pass
+  // `toolAudit: undefined` explicitly to exercise the not-configured path.
+  const toolAudit = "toolAudit" in overrides ? overrides.toolAudit : new InMemoryToolExecutionAuditStore();
   const sink = new CollectingEventSink();
   const runtime = new AgentRuntime({
     knowledge: new ProviderKnowledgeResolver(emptyKnowledgeProvider()),
@@ -306,8 +310,9 @@ export function makeRuntime(overrides: Partial<AgentRuntimeDeps> & { llm?: LLMPr
     llm,
     conversations,
     stateStore,
+    toolAudit,
   });
-  return { runtime, llm, conversations, stateStore, sink };
+  return { runtime, llm, conversations, stateStore, sink, toolAudit: toolAudit as InMemoryToolExecutionAuditStore | undefined };
 }
 
 export function makeInput(overrides: Partial<RuntimeInput> = {}): RuntimeInput {
