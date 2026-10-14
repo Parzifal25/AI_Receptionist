@@ -275,6 +275,55 @@ expectCount(
 );
 
 // ---------------------------------------------------------------------------
+// D7 — tool_executions (0032): members read only their tenant's audit rows;
+// only the service role writes; ownership trigger; one-way lifecycle;
+// one execution per action per turn.
+// ---------------------------------------------------------------------------
+const auditConv = (biz) => `(select id from conversations where business_id = '${biz}' and visitor_token like 'rls-token-%' limit 1)`;
+const auditAgent = (biz) => `(select agent_id from conversations where business_id = '${biz}' and visitor_token like 'rls-token-%' limit 1)`;
+const auditVersion = (biz) => `(select agent_version_id from conversations where business_id = '${biz}' and visitor_token like 'rls-token-%' limit 1)`;
+const auditRow = (biz, intent, status) => status === "started"
+  ? `insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, started_at)
+  values ('${biz}', ${auditConv(biz)}, ${auditAgent(biz)}, ${auditVersion(biz)}, 'web-chat', 'rls-turn', 0, '${intent}', 'save_contact_details', '${"a".repeat(32)}', true, 'started', now(), now());`
+  : `insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+  values ('${biz}', ${auditConv(biz)}, ${auditAgent(biz)}, ${auditVersion(biz)}, 'web-chat', 'rls-turn', 0, '${intent}', 'save_contact_details', '${"a".repeat(32)}', true, 'rejected', now(), 'not_granted', now());`;
+psql(asService(`${auditRow(bizA, "rls-a-1", "started")}\n${auditRow(bizB, "rls-b-1", "started")}`));
+ok("tool_executions rows seeded for both tenants (service role)");
+expectCount(asUser(uA, `select count(*) from tool_executions where business_id = '${bizA}';`), 1, "member A reads own tool_executions");
+expectCount(asUser(uA, `select count(*) from tool_executions where business_id = '${bizB}';`), 0, "member A cannot read tenant B tool_executions");
+expectCount(asAnon(`select count(*) from tool_executions;`), 0, "anonymous reads no tool_executions");
+expectError(asUser(uA, auditRow(bizA, "rls-a-member", "rejected")), "member cannot write tool_executions (service role only)");
+expectCount(
+  asUser(uA, `with u as (update tool_executions set status = 'failed', finished_at = now() where business_id = '${bizA}' returning 1) select count(*) from u;`),
+  0,
+  "member cannot update tool_executions",
+);
+expectError(
+  asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, rejection_reason, finished_at)
+    values ('${bizA}', ${auditConv(bizB)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-turn-x', 0, 'rls-cross', null, null, null, 'rejected', now(), 'unknown_tool', now());`),
+  "service_role cannot audit tenant A against tenant B's conversation (ownership trigger)",
+);
+expectError(asService(auditRow(bizA, "rls-a-dup", "started")), "second execution for the same action and turn rejected (unique)");
+expectError(
+  asService(`insert into tool_executions (business_id, conversation_id, agent_id, agent_version_id, channel, turn_id, round, intent_id, tool_name, idempotency_key, side_effecting, status, requested_at, started_at, finished_at)
+    values ('${bizA}', ${auditConv(bizA)}, ${auditAgent(bizA)}, ${auditVersion(bizA)}, 'web-chat', 'rls-turn-2', 0, 'rls-direct', 'save_contact_details', '${"b".repeat(32)}', true, 'succeeded', now(), now(), now());`),
+  "rows cannot be inserted already final (lifecycle trigger)",
+);
+expectCount(
+  asService(`with u as (update tool_executions set status = 'succeeded', finished_at = now() where intent_id = 'rls-a-1' returning 1) select count(*) from u;`),
+  1,
+  "service_role finalizes a started row once",
+);
+expectError(
+  asService(`update tool_executions set status = 'failed', error_code = 'X' where intent_id = 'rls-a-1';`),
+  "final tool_executions rows are immutable (lifecycle trigger)",
+);
+expectError(
+  asService(`update tool_executions set status = 'failed', finished_at = now(), business_id = '${bizB}' where intent_id = 'rls-b-1';`),
+  "finalize cannot change identity columns (lifecycle trigger)",
+);
+
+// ---------------------------------------------------------------------------
 // 4. Member vs admin: plain members cannot manage agents.
 // ---------------------------------------------------------------------------
 expectError(

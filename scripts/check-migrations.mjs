@@ -192,6 +192,8 @@ const assertions = [
   { table: "knowledge_documents", columns: ["id", "business_id", "title", "content", "source_type", "source_ref", "status", "created_at", "updated_at", "collection_id"] },
   // HALO Phase 2 — agent runtime conversation state (0019).
   { table: "conversation_state", columns: ["conversation_id", "business_id", "state", "state_version", "updated_at"] },
+  // D7 — tool-execution audit (0032). Mirrors packages/runtime/stores/supabase-tool-execution-audit-store.ts.
+  { table: "tool_executions", columns: ["id", "business_id", "conversation_id", "agent_id", "agent_version_id", "channel", "turn_id", "correlation_id", "round", "intent_id", "tool_name", "idempotency_key", "side_effecting", "status", "rejection_reason", "error_code", "requested_at", "started_at", "finished_at", "created_at"] },
   // HALO Phase 3 — voice / telephony (0020). Mirrors packages/voice/stores/supabase-call-store.ts.
   { table: "phone_numbers", columns: ["id", "business_id", "agent_id", "provider", "e164", "handoff_number", "status", "label"] },
   { table: "calls", columns: ["id", "business_id", "agent_id", "agent_version_id", "conversation_id", "phone_number_id", "direction", "provider", "provider_call_id", "from_number", "to_number", "state", "state_changed_at", "answered_at", "ended_at", "duration_seconds", "hangup_cause", "language", "usage", "cost_estimate", "recording_ref", "recording_consent_at", "correlation_id"] },
