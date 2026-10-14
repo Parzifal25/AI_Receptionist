@@ -730,7 +730,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 ### 8.6 Migrations, backups and recovery
 
 - **Migrations (APPROVED: `AGENTS.md`, G1):** migrations are additive and numbered (`0001`–`0031`). A migration that may have been applied is never edited, and a new one needs owner approval.
-- **The uncommitted edit to `0001`:** PENDING ([D10](DECISIONS.md#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit)).
+- **`0001`:** restored to its committed version on 2026-10-15, because it is applied locally ([D10](DECISIONS.md#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit)). How to run it on hosted Supabase is PENDING ([D21](DECISIONS.md#d21--running-migration-0001-on-hosted-supabase)).
 - **Validation (VERIFIED: `source`, `disposable DB`):** `check:migrations` and `check:rls` refuse non-disposable targets, through guards in `scripts/disposable-database.mjs`.
 - **Backups and recovery:**
   - A local synthetic dump and restore was VERIFIED (`disposable DB`): 44 table fingerprints across the `public` schema (41 tables) plus the CI-stub `auth` and `storage` schemas, and 6 identity checks, taking 17–26 s on a fixture.
@@ -852,7 +852,8 @@ The authoritative list, with options, trade-offs, recommendations and required a
   - D5 tool model and D7 audit migrations.
   - D9 targets.
   - D12 optional infrastructure, D13 workflow engine, D14 knowledge approval, D18 telemetry backend, D19 hosting, D20 phone speech streaming.
-- **Pending governance:** D10 commit grouping and the `0001` edit; D15 tracking IDs; D16 the "Astra" role.
+- **Pending governance:** D15 tracking IDs; D16 the "Astra" role. D10 (commit grouping) was executed on 2026-10-15.
+- **Pending database operations:** D21, running `0001` on hosted Supabase.
 
 ---
 

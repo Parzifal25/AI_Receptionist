@@ -21,7 +21,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 **Rules**
 
 - Agents never change a state. Only the owner's explicit decision does. Record who decided, the date and the decision text.
-- A new architectural question gets the next free ID (currently **D21**) and starts as PENDING.
+- A new architectural question gets the next free ID (currently **D22**) and starts as PENDING.
 - "Blueprint §N" means the original blueprint v0.1, preserved verbatim at [archive/HALO_BLUEPRINT_v0.1.md](archive/HALO_BLUEPRINT_v0.1.md). Architecture sections ("Arch §N") refer to [HALO_Architecture.md](HALO_Architecture.md).
 - The original D1–D13 came from **HALO Phase 1 plan §9 (2026-10-14)**. That plan is a proposal and is not stored in the repository. Its step identifiers (S0–S13) appear in the "Blocks" fields. Their meaning is only partly recoverable; [HALO_V1_IMPLEMENTATION_PLAN.md §9](HALO_V1_IMPLEMENTATION_PLAN.md#9-legacy-identifier-crosswalk) maps them where the context allows and flags the rest as unknown.
 
@@ -52,7 +52,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D7](#d7--new-migrations-tool-executions-and-audit-logs) | New migrations (tool executions, audit logs) | PENDING | — | Minimum set S1–S6; S4.4 |
 | [D8](#d8--spend) | Spend | PENDING | — | Everything from S7 onward |
 | [D9](#d9--numeric-pilot-targets) | Numeric pilot targets (latency, recognition, extraction, cost) | PENDING | — | S11 acceptance |
-| [D10](#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit) | Dirty-tree commit grouping; uncommitted `0001` edit | PENDING | — | Minimum set S1–S6; S0 (CL-0); worktree tasks |
+| [D10](#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit) | Dirty-tree commit grouping; uncommitted `0001` edit | APPROVED and executed | Owner instruction, 2026-10-15 | — (hosted follow-on: D21) |
 | [D11](#d11--arunodhaya-facts-disclosures-consent-and-escalation-contacts) | Arunodhaya facts, disclosures, consent, escalation contacts | PENDING | — | External gate before S7; pilot facts and handoff |
 | [D12](#d12--redis-sentry-object-storage) | Redis, Sentry, object storage | PENDING | — | — |
 | [D13](#d13--business-process-workflow-engine) | Business-process workflow engine (blueprint §17) | PENDING | — | S8 |
@@ -63,6 +63,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D18](#d18--telemetry-export-backend-and-cross-process-correlation) | Telemetry export backend and cross-process correlation | PENDING | — | Staging observability |
 | [D19](#d19--hosting-topology-and-region) | Hosting topology and region | PENDING | — | Staging (S9) |
 | [D20](#d20--validated-speech-streaming-on-the-phone-path) | Validated speech streaming on the phone path | PENDING | — | Voice latency task W4.10 |
+| [D21](#d21--running-migration-0001-on-hosted-supabase) | Running migration `0001` on hosted Supabase | PENDING | — | Any hosted migration (W1.6, W8.1) |
 
 ---
 
@@ -276,14 +277,41 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
 ### D10 — Dirty-tree commit grouping and the uncommitted `0001` edit
 
-- **State:** PENDING. **Required approver:** owner.
+- **State:** APPROVED and executed, 2026-10-15. **Decided by:** owner instruction ("HALO D10 — Autonomous Repository Baseline Completion", given to Claude Code). **Follow-on:** the hosted question that remains is [D21](#d21--running-migration-0001-on-hosted-supabase).
 - **Question:** how should the large uncommitted working tree be committed? What happens to the uncommitted edit to `supabase/migrations/0001_init.sql`?
-- **Evidence (source):**
-  - The worktree diff adds `set search_path = public, extensions;` to `0001`, for hosted Supabase where `pgcrypto` lives in `extensions`.
-  - Whether `0001` was applied to the hosted project is **unknown**. [HOSTED_SUPABASE_SETUP.md](HOSTED_SUPABASE_SETUP.md) records only a REST reachability check.
-  - `AGENTS.md` forbids editing a migration that may have been applied anywhere.
 - **Original recommendation (2026-10-14, verbatim):** "Commit the working tree in coherent groups. If `0001` was applied anywhere (for example a hosted project), move the edit into a new migration instead."
-- **Blocks:** minimum set for S1–S6; S0 (CL-0); worktree-based tasks.
+- **Decision text (owner instruction, summarized):**
+  - Commit the existing work in coherent local commits, with no push, on a candidate branch.
+  - Never keep an edit to a migration that may have been applied.
+  - If `0001` was applied anywhere relevant: preserve the edit, restore the committed `0001`, and move the change into an additive migration only if that is clear and safe.
+  - Otherwise, isolate and document the change.
+
+**Evidence for the `0001` disposition (2026-10-15)**
+
+- **The edit (verbatim, preserved):** five lines inserted after the header comment of `0001_init.sql`:
+
+  ```sql
+  -- Hosted Supabase installs pgcrypto in the `extensions` schema, and the CLI's
+  -- login role does not carry the `postgres` role's search_path. A schema that
+  -- does not exist (vanilla Postgres in CI) is ignored.
+  set search_path = public, extensions;
+  ```
+
+  The full edited file (SHA-256 `95e6a095…d4d3cb`) and its patch are kept outside the repository, in the operator's local backup folder `~/halo-backups/d10-preflight-20261014T194816Z/`. The patch still applies cleanly to the restored file.
+- **Applied locally (`source`, read-only query):** the local HALO Supabase database (port 55322) records `0001 init` as applied, with 89 statements. None of the stored statements contains the `search_path` line, so `0001` was applied there in its original committed form. The same ledger lists `0001`–`0030`; `0031` is not applied locally. This was recorded only, not acted on.
+- **Hosted status unknown:** `supabase/.temp` shows the CLI was linked to the hosted project `riwgdqogswoewfduajcl` at 17:39 on 2026-10-13. The edit was made at 18:34 the same day, and its comment describes a hosted failure. Whether any migration reached the hosted database is **unknown**: no record exists, and no hosted query was made.
+- **Why no additive migration was created:** the edit is a session setting that `0001` needs **while it runs**. Its own column defaults call `gen_random_bytes` (lines 142 and 284), which hosted Supabase installs in `extensions`. A later migration runs only after `0001` has succeeded, so it cannot achieve this intent. Creating one would be an ineffective, fabricated fix.
+
+**Outcome**
+
+- `0001_init.sql` was restored to its committed blob `a96bb646`.
+- Migration files `0001`–`0031` remain contiguous and unique. No migration was added, executed or edited.
+- **Candidate:** branch `d10/baseline-candidate`, based on `cb6b7549`.
+  - `8ea9fb20`: preserved code work.
+  - `0dee2570`: pre-consolidation documentation.
+  - `ce5816e4`: documentation consolidation.
+  - The D10 record commit itself.
+- Verification evidence is in [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d10-repository-baseline--2026-10-15).
 
 ### D11 — Arunodhaya facts, disclosures, consent and escalation contacts
 
@@ -443,6 +471,25 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 - **Recommendation (not approved):** decide after the mock-harness measurement in W4.10 and adversarial act-then-narrate tests. The latency audit ([VOICE_LATENCY_COST_AUDIT.md](VOICE_LATENCY_COST_AUDIT.md) §5.5) ranks this lever first.
 - **Depends on:** D9. Voice-invariant tests are required for any change.
 
+### D21 — Running migration `0001` on hosted Supabase
+
+- **State:** PENDING. Added 2026-10-15 during D10. **Required approvers:** owner and the database/deployment owner.
+- **Question:** how should migration `0001` be applied to a hosted Supabase database without editing a migration that has already been applied?
+  - Hosted Supabase installs `pgcrypto` in the `extensions` schema.
+  - According to the D10 edit's comment (unverified here), the CLI's login role does not have `extensions` on its `search_path`.
+  - `0001`'s column defaults call `gen_random_bytes`, so it may fail there.
+- **Evidence:**
+  - `0001` is applied locally in its committed form.
+  - The hosted ledger is unknown.
+  - The edit is preserved outside the repository and quoted verbatim in D10.
+  - An additive migration cannot help, because it would run only after `0001`.
+- **Options:**
+  1. **Operational (no repository change):** run the hosted migration with a connection or role whose `search_path` includes `extensions`. First prove it on a disposable database that has an `extensions` schema.
+  2. **Owner-approved exception:** restore the session-only `set search_path` line in `0001`. It has no persisted schema effect, and databases that already applied `0001` skip it by version. However, it breaks the `AGENTS.md` rule against editing applied migrations, so it needs an explicit exception.
+  3. **Baseline the hosted project another way:** for example, a reviewed one-off bootstrap. This needs its own design.
+- **Recommendation (not approved):** option 1. Before any hosted migration, read the hosted ledger read-only under an authorized target (plan task W1.6), so it is known whether `0001` was ever attempted or applied there.
+- **Depends on:** R8, D19 (target), D15 (audit naming). **Blocks:** any hosted migration or staging deployment (W8.1).
+
 ---
 
 ## Change history
@@ -451,3 +498,4 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 |---|---|---|
 | 2026-10-14 | D1–D13 table created from HALO Phase 1 plan §9 (a proposal). D14 and the Astra question added as open questions. D14 non-migration subset authorized and implemented. | Owner instruction; plan author |
 | 2026-10-15 | **Consolidation** (requested 2026-10-14). The register was restructured into per-entry form and every original recommendation was preserved verbatim. The release register was merged in as R1–R10 (formerly D1–D10 in `HALO_V1_RELEASE_DECISIONS.md`). G1–G4 standing instructions were recorded. New PENDING questions D15–D20 were added, and the Astra question became D16. No state changed and nothing was approved. | Claude Code (consolidation task) |
+| 2026-10-15 | **D10 executed under owner instruction.** D10 marked APPROVED and executed. `0001` restored to its committed version, with the edit preserved and quoted. D21 added (PENDING). Candidate commits recorded in D10 and in the status register. | Owner instruction; Claude Code |

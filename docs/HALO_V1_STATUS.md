@@ -337,3 +337,53 @@ observation freshness. No scheduler, persistent alert store or external
 destination is connected. Hosted alert delivery and application artifact
 rollback remain blocked; local restore evidence does not establish hosted
 recovery. Ten release criteria and Alpha/Beta/Charlie boundaries remain intact.
+
+## D10 repository baseline — 2026-10-15
+
+Executed under the owner's D10 instruction ([DECISIONS.md D10](DECISIONS.md#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit)). The ten criterion rows above are unchanged. This is **local** evidence only: no deployment, push, hosted query, migration execution, credential change or paid call occurred.
+
+**Candidate.** Branch `d10/baseline-candidate`, based on `cb6b75496755364cd288adb62b3492830b841288`. It has not been pushed.
+
+| Commit | Content |
+|---|---|
+| `8ea9fb2053f316a25efb9a8c125e2d89d510c93f` | 118 previously uncommitted code, test and script paths, exactly as found, excluding the `0001` edit |
+| `0dee257057cc43c04de9eddd795aeead096915bb` | 27 documentation and evidence paths as they stood before consolidation, reconstructed from SHA-256-verified copies |
+| `ce5816e4cd0e2bb72143f9e819b2a9d451df5ebf` | Documentation consolidation |
+| D10 record commit | This section and the D10/D21 entries in DECISIONS.md. Its SHA is reported with the candidate, because a commit cannot contain its own hash. |
+
+**Migration integrity.**
+
+- `supabase/migrations/0001_init.sql` was restored to its committed blob `a96bb646`.
+- The local HALO database ledger (read-only query) shows `0001` applied in its original form, so the uncommitted `search_path` edit could not be kept.
+- An additive migration cannot carry that edit's intent. The edit is preserved outside the repository and quoted in D10, and the open hosted question is [D21](DECISIONS.md#d21--running-migration-0001-on-hosted-supabase).
+- All 31 migration files are contiguous (`0001`–`0031`), uniquely numbered and correctly named.
+- The local ledger lists `0001`–`0030`, so `0031` is not applied locally. This was recorded and not acted on.
+
+**Preservation.** A recovery record was written before any change to `~/halo-backups/d10-preflight-20261014T194816Z/`. It holds:
+
+- the full working-tree patch;
+- a tarball of all 183 changed or untracked files;
+- a SHA-256 manifest.
+
+Of the 183 recorded files, 182 are byte-identical in the candidate; the only difference is the intentional `0001` restore. The 12 paths deleted at the start (archived documents) are present under `docs/archive/`. The archive index's 14 original hashes match the pre-consolidation commit, and the blueprint is byte-identical.
+
+**Checks on the candidate tree** (`ce5816e4`, before this record was added):
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npm test -- --maxWorkers=2` | 156 files; 1,602 passed, 5 skipped |
+| `npm run check:architecture` | exit 0 |
+| `npm run check:neutral` | exit 0 |
+| `npm run preflight:ci` (synthetic CI values) | exit 0; warns that `CRON_SECRET` is missing and the database check was skipped |
+| Worker `unittest` | 70 run, 1 skipped, OK |
+| `npx tsx scripts/check-local-tts-text-parity.ts --lines 2000 --seed 20261015` | 0 mismatches, 0 crashes |
+| `git diff --cached --check` per commit | Clean, except three intentional Markdown hard breaks in the byte-identical blueprint |
+| Link check | 560 relative links; only the documented intentional exceptions |
+
+**Not run:**
+
+- `npm run build`, because it fetches Google Fonts over the network.
+- `check:migrations` and `check:rls`, because they execute migrations, which this task does not permit.
+- Any hosted, staging or provider check.

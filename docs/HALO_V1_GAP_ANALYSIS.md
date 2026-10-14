@@ -176,13 +176,13 @@ The largest block of work that needs no owner decision is local-only engineering
 
 #### G2.6 — Migration integrity
 
-- **Current implementation:** 31 additive migrations, plus an uncommitted edit to `0001`.
+- **Current implementation:** 31 additive migrations. The uncommitted `0001` edit was preserved outside the repository, and `0001` was restored on 2026-10-15 (D10 executed).
 - **Evidence:** `source`, `disposable DB`.
 - **Gap / risk:** an edit to a migration that may already have been applied (hosted?), and an unknown hosted ledger.
-- **Required change:** decide D10. If `0001` was applied anywhere, move the edit into a new migration (owner approval).
+- **Required change:** decide D21 (how `0001` runs on hosted Supabase; an additive migration cannot carry the edit's intent). Read the hosted ledger before any hosted migration.
 - **Dependencies:** D10; G1.5.
 - **Acceptance criteria:** no applied migration is edited, and the target ledger equals the repository's set.
-- **Blocking decisions:** D10.
+- **Blocking decisions:** D21.
 
 #### G2.7 — Backup, restore, RPO and RTO
 

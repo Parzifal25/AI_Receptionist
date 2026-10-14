@@ -216,7 +216,8 @@ S-6  W10.1 GA packet ─▶ W10.2 (R10)
 | D7 Audit migrations | W3.2, W3.3 |
 | D8 Spend | Every S-4 task; W8.3 and W8.4 if costed; W9.x |
 | D9 Numeric targets | W9.2 acceptance (set after W5.3) |
-| D10 Commit grouping and `0001` | W0.2, and through it every S-3 task |
+| D10 Commit grouping and `0001` | Executed 2026-10-15 (W0.2; evidence in [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d10-repository-baseline--2026-10-15)) |
+| D21 Running `0001` on hosted Supabase | W1.6, W8.1 and any hosted migration |
 | D11 Arunodhaya inputs | W6.1, W6.2, W6.4, W6.5, W9.1 |
 | D12 Optional infrastructure | W6.3 (object storage), multi-instance gateway |
 | D13 Workflow engine | W6.2 |
