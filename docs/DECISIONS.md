@@ -21,7 +21,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 **Rules**
 
 - Agents never change a state. Only the owner's explicit decision does. Record who decided, the date and the decision text.
-- A new architectural question gets the next free ID (currently **D22**) and starts as PENDING.
+- A new architectural question gets the next free ID (currently **D23**) and starts as PENDING.
 - "Blueprint §N" means the original blueprint v0.1, preserved verbatim at [archive/HALO_BLUEPRINT_v0.1.md](archive/HALO_BLUEPRINT_v0.1.md). Architecture sections ("Arch §N") refer to [HALO_Architecture.md](HALO_Architecture.md).
 - The original D1–D13 came from **HALO Phase 1 plan §9 (2026-10-14)**. That plan is a proposal and is not stored in the repository. Its step identifiers (S0–S13) appear in the "Blocks" fields. Their meaning is only partly recoverable; [HALO_V1_IMPLEMENTATION_PLAN.md §9](HALO_V1_IMPLEMENTATION_PLAN.md#9-legacy-identifier-crosswalk) maps them where the context allows and flags the rest as unknown.
 
@@ -64,6 +64,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D19](#d19--hosting-topology-and-region) | Hosting topology and region | PENDING | — | Staging (S9) |
 | [D20](#d20--validated-speech-streaming-on-the-phone-path) | Validated speech streaming on the phone path | PENDING | — | Voice latency task W4.10 |
 | [D21](#d21--running-migration-0001-on-hosted-supabase) | Running migration `0001` on hosted Supabase | PENDING | — | Any hosted migration (W1.6, W8.1) |
+| [D22](#d22--migration-0034-tenant-reference-integrity) | Migration `0034`: tenant reference integrity and client privilege hardening | PENDING — implemented and verified on disposable databases under owner instruction; adoption needs owner approval | — | Applying `0034` to a real database: owner approval, R8, D19 |
 
 ---
 
@@ -539,6 +540,34 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 - **Recommendation (not approved):** option 1. Before any hosted migration, read the hosted ledger read-only under an authorized target (plan task W1.6), so it is known whether `0001` was ever attempted or applied there.
 - **Depends on:** R8, D19 (target), D15 (audit naming). **Blocks:** any hosted migration or staging deployment (W8.1).
 
+### D22 — Migration `0034`: tenant reference integrity
+
+- **State:** PENDING. Added 2026-10-15. **Required approver:** owner (`AGENTS.md`: a new migration needs owner approval).
+- **Context:** the owner's instruction "Branch Integration + Phase 2 Tenant-Isolation Hardening" (2026-10-15, given to Claude Code) directed Phase 2 Workstream 1: prove tenant isolation, reproduce each confirmed issue with a failing test, and fix it "at the appropriate authorization or data-access boundary" with additive migrations only. That instruction authorized the local implementation. It did not approve the migration for any real database, and this entry approves nothing.
+- **Question:** adopt `0034_tenant_reference_integrity.sql`?
+- **Confirmed gaps it closes** (`disposable DB`, reproduced as real roles before the fix; [TENANT_ISOLATION_EVIDENCE.md §3](TENANT_ISOLATION_EVIDENCE.md#3-confirmed-vulnerabilities-and-fixes)):
+  - a tenant admin could insert a version under another tenant's agent (squatting its version numbers);
+  - a tenant member could point its appointment at another tenant's staff member (blocking that tenant's slots through the cross-tenant no-overlap constraint), conversation or lead, and link its lead to another tenant's conversation;
+  - 15 further tenant-to-tenant references had no database ownership check;
+  - under Supabase's default grants, client roles held TRUNCATE (which ignores RLS), REFERENCES, TRIGGER, MAINTAIN and sequence privileges.
+- **What it does:**
+  - one generic same-tenant reference trigger, `assert_tenant_reference()`, on 18 columns;
+  - `tenant_reference_census()`, service role only, to report pre-existing mismatches (triggers check new writes only);
+  - revokes those client privileges, including default privileges for future objects;
+  - closes two `0029` trigger functions to clients.
+  It is additive: no table, column or existing function changed, and existing rows are not rewritten.
+- **Verification:**
+  - on fresh disposable databases: `check:migrations` exit 0 and `check:rls` 649 ok / 0 FAIL;
+  - over a disposable PostgREST;
+  - on the real `supabase/postgres` 17.6.1.155 image.
+  It is not applied to the shared local stack or any hosted project.
+- **Options:**
+  1. Adopt `0034` as is.
+  2. Adopt it with changes, for example also making `agents.business_id` immutable, or a generic error for `0018`.
+  3. Reject it and keep the gaps documented.
+- **Recommendation (not approved):** option 1. Before applying it to any real database, run `tenant_reference_census()` read-only on the target and disposition any mismatch. Never auto-repair.
+- **Depends on:** R8, D19 (target), D21 (hosted migration path).
+
 ---
 
 ## Change history
@@ -550,3 +579,4 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 | 2026-10-15 | **D10 executed under owner instruction.** D10 marked APPROVED and executed. `0001` restored to its committed version, with the edit preserved and quoted. D21 added (PENDING). Candidate commits recorded in D10 and in the status register. | Owner instruction; Claude Code |
 | 2026-10-15 | **D7 `tool_executions` implemented under owner instruction.** D7 is split: `tool_executions` APPROVED and implemented locally (migration `0032` written, not applied); `audit_logs` PENDING. D5's evidence line updated. No other state changed. | Owner instruction; Claude Code |
 | 2026-10-15 | **D7 verified and D14 completed under owner instruction** ("HALO Autonomous Engineering Loop — Complete D7 + D14"). D7: `0032` verified as real roles on a disposable database; two harness defects fixed; state text updated, `audit_logs` still PENDING. D14: migration `0033` and application changes implemented and verified on a disposable database; the defaults for items 1–6 are recorded for owner ratification, not approved. D5's evidence line updated. No other state changed. | Owner instruction; Claude Code |
+| 2026-10-15 | **Phase 2 Workstream 1 (tenant isolation) under owner instruction** ("Branch Integration + Phase 2 Tenant-Isolation Hardening"). D10, D7 and D14 work integrated into `main` by fast-forward; D22 added as PENDING for the new migration `0034` (implemented and verified on disposable databases only). No other state changed. | Owner instruction; Claude Code |

@@ -44,7 +44,7 @@ Verification levels: **source**, **automated test (reported)**, **mock**, **simu
 
 | Workstream | Capability | Status | Evidence | Verification level | Known limitations | Remaining work | Dependencies | Acceptance criteria | Priority |
 |---|---|---|---|---|---|---|---|---|---|
-| Tenant/security | Membership, roles, tenant isolation | Verified | packages/tenancy/auth.ts; packages/tenancy/supabase/*; migrations 0001–0002; tests/integration/multi-tenant-isolation.test.ts, phase4-security.test.ts; implementation verification §§B–C | Source; prior automated/local DB checks reported | Public/service-role paths bypass RLS and depend on scoped queries; deployed Supabase Auth not tested per report | Reconfirm current boundary tests and deployed auth/RLS config | Release environment; DB/security owner | Cross-tenant attempts fail across public/dashboard/runtime/worker; deployed auth/grants recorded | P0 — data isolation |
+| Tenant/security | Membership, roles, tenant isolation | Verified (local); deployed: not verified | packages/tenancy/auth.ts; packages/tenancy/supabase/*; migrations 0001–0002, 0034 (D22, PENDING); scripts/check-rls.mjs Phase 2 section; tests/integration/tenant-isolation-{postgrest,routes}.test.ts, multi-tenant-isolation.test.ts, phase4-security.test.ts; [TENANT_ISOLATION_EVIDENCE.md](TENANT_ISOLATION_EVIDENCE.md) | Source; local test; disposable DB (649 real-role assertions, real PostgREST), 2026-10-15 | Public/service-role paths bypass RLS and depend on scoped queries; deployed Supabase Auth not tested per report | Reconfirm current boundary tests and deployed auth/RLS config | Release environment; DB/security owner | Cross-tenant attempts fail across public/dashboard/runtime/worker; deployed auth/grants recorded | P0 — data isolation |
 | Tenant/security | Widget/session identity and authorization | Partial | src/app/api/v1/widget/*; src/core/services/widget-repository.ts; tests/integration/widget-messages-security.test.ts | Source; tests reported | Service-role public API; no production abuse/load evidence | Verify expiry, replay, tenant mismatch, limits and deployment settings | Deployed config; security review | Caller cannot select another tenant/agent; cases pass against deployed-like DB | P0 — public attack surface |
 | Agent lifecycle | Config, publication, immutable versions and rollback | Verified | packages/agents/*; migrations 0013–0018, 0030; tests/unit/agent-config.test.ts, agent-resolver.test.ts, agent-versioning.test.ts; tests/integration/agent-linkage.test.ts | Source; prior tests reported | Rollback via immutable version selection; no production drill found | Capture deployed publish/rollback drill and verify channel binding | Tenant security; deployment | New sessions bind selected version; active call identity does not mutate; prior version restored | P1 — change control |
 | Runtime/tools | Context, state, bounded turn loop, response validation, permissions | Verified | packages/runtime/{agent-runtime,context-builder,conversation-state,prompt-composer,response-validator,token-budget}.ts; runtime/tools/*; tests/integration/runtime-orchestration.test.ts, runtime-golden-transcripts.test.ts; tests/unit/runtime/tool-boundary.test.ts, response-validator.test.ts; docs/RUNTIME.md | Source; prior mock/golden tests reported | Golden corpus is not customer acceptance; context budget is not billing guarantee; production tool binding unproved | Run release CI and pilot corpus; review each tool scope/confirmation/failure | LLM; approved corpus/tool inventory | Bounded runtime passes scenarios; strict schemas, tenant-bound executors; false success rejected | P0 — business action safety |
@@ -464,3 +464,44 @@ Under the owner's instruction "HALO Autonomous Engineering Loop — Complete D7 
 - Applying `0032` and `0033` to any real database needs R8, D19 and D21. Before applying `0033`, run `knowledge_governance_census()` read-only on the target, and plan the legacy backfill, re-indexing and human approval: existing knowledge stops being served the moment `0033` lands.
 - `audit_logs` stays PENDING (D7). Telugu text search (W2.5) and the language-configurable knowledge-gap gate (W2.1) are unchanged.
 - Rollback: the migration is additive, but dropping its objects would discard approvals and revision history. Prefer a forward correction. An older application build still retrieves safely after `0033` (the old RPC names return governed content only), but it cannot edit knowledge, because members lost direct write access.
+
+## Branch integration and Phase 2 tenant isolation — 2026-10-15
+
+Under the owner's instruction "HALO — Branch Integration + Phase 2 Tenant-Isolation Hardening".
+
+**Integration (`source`).**
+- The D10 (`a1f2fd52`), D7 (`0770c723`) and D14 (`8fdaa12e`) work formed one linear chain on top of `main` (`cb6b7549`). No branch had diverged, and no commit needed merging twice.
+- Before integration, the chain's tip passed every gate:
+  - typecheck, lint, `npm test` (1,659 passed), `check:architecture`, `check:neutral`, `preflight:ci` and the worker suite;
+  - `check:migrations` and `check:rls` (269 ok) on a fresh disposable database.
+- `main` was then fast-forwarded to `8fdaa12e`, so every original SHA is preserved.
+- Branches:
+  - deleted: the local branches `d10/baseline-candidate`, `d7/tool-execution-audit` and `halo/d7-d14-completion`, all ancestors of `main`;
+  - kept: `backup-before-secret-cleanup` (also an ancestor of `main`, but a deliberate backup);
+  - remote branches were not touched, and nothing was pushed.
+- A recovery bundle with a git bundle, patches, inventories and a SHA-256 manifest is in the operator's local folder `~/halo-backups/phase2-integration-20261015T031528Z/`.
+- Work continues on `Phase-2-Security-Hardening`. Git rejects the requested name, which contains spaces.
+
+**Workstream 1 status: PARTIALLY VERIFIED.** Every tenant-owned table and access path found has an explicit enforcement mechanism, and cross-tenant negative tests pass at every local boundary. No deployed environment was tested. Full evidence is in [TENANT_ISOLATION_EVIDENCE.md](TENANT_ISOLATION_EVIDENCE.md).
+
+| Check | Result |
+|---|---|
+| `check:migrations` (fresh disposable DB, Supabase-faithful stubs) | Exit 0; `0001`–`0034` apply. |
+| `check:rls` | Exit 0; 649 ok, 0 FAIL (269 existing plus 380 Phase 2). Before the fixes: 591 ok, 36 FAIL. |
+| `tenant-isolation-postgrest.test.ts` plus `knowledge-governance-db.test.ts` (opt-in; disposable PostgREST v14.13) | 19 passed. |
+| `npm test` | Exit 0; 1,689 passed, 24 skipped (the two opt-in DB suites above). |
+| Typecheck, lint, `check:architecture`, `check:neutral`, `preflight:ci`, worker suite | Exit 0 each; worker suite 70 run, 1 skipped. |
+| `npm run build` | Exit 0. It downloads the Geist font from Google's public CDN (`next/font/google`): external contact, recorded in the evidence. |
+
+**Fixed (local).**
+- Migration `0034` (D22, PENDING):
+  - a same-tenant check on 18 references, including the agent-version squat and the appointment, lead and conversation relinks that clients could perform;
+  - client TRUNCATE, REFERENCES, TRIGGER, MAINTAIN and sequence privileges revoked.
+- Tenant-filtered history and lead queries in the web conversation store.
+- Tenant-consistency guards in the workflow-retry and reminder jobs.
+- Supabase-faithful CI stubs.
+
+**Not done.**
+- `0034` is not applied to any shared or hosted database.
+- No staging or hosted verification.
+- The findings in the evidence document's §8 are recorded, not fixed.

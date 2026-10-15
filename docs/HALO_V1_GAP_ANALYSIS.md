@@ -31,7 +31,7 @@ This document maps each owner-stated V1 outcome, and the architecture requiremen
 
 | # | V1 outcome | Current state | Most important gap | Blocking decisions | Local | Staging | Pilot |
 |---|---|---|---|---|---|---|---|
-| 1 | Tenant isolation | RLS on every table; service-role paths scoped in code; pinned agent identity; tenant-composite knowledge keys (`0033`, disposable DB) | Not verified in any deployed environment | D14 (ratification), D15, D19, R8 | VERIFIED | BLOCKED | BLOCKED |
+| 1 | Tenant isolation | RLS on every table; every tenant-to-tenant reference ownership-checked (`0034`, D22 PENDING); service-role paths inventoried; pinned agent identity; Phase 2 sweep over all tables at the database and HTTP boundary (disposable DB) | Not verified in any deployed environment; `0034` not adopted | D14 (ratification), D15, D19, D22, R8 | VERIFIED | BLOCKED | BLOCKED |
 | 2 | Secure data, privacy, reliable database access | Secrets server-side; calendar credentials encrypted; retention cron; disposable restore | Consent, retention and deletion policy; knowledge approval applied only on a disposable database; hosted backup and RPO/RTO; data residency | D6, D10, D11, D14, D19, R8 | Partial | BLOCKED | BLOCKED |
 | 3 | Telemetry and observability | Allowlisted stdout telemetry; call-stage events; tenant-scoped system status; local alert evaluator | No cross-process correlation, export backend, alert delivery or real latency baseline | D8, D18, D19 | Partial | BLOCKED | BLOCKED |
 | 4 | Calendar integration | Race-safe booking engine; Google, Outlook and CalDAV adapters; voice visit booking wired | No real calendar write; voice cannot reschedule or cancel; visit rules unset | D2, D11, D17, R5, R8 | Partial | BLOCKED | BLOCKED |
@@ -52,18 +52,21 @@ The largest block of work that needs no owner decision is local-only engineering
 #### G1.1 — Database-enforced tenant isolation
 
 - **Current implementation:** RLS on every migrated table (44 with `tool_executions` and the two D14 revision tables), via the `is_business_member` / `is_business_admin` helpers. Ownership triggers in `0020`; identity guards in `0030` and `0031`; tenant-composite knowledge keys and revision ownership in `0033` (2026-10-15).
-- **Evidence:** `disposable DB` (269 real-role assertions, 2026-10-15, including 128 for D14 and 32 for D7); `check:architecture` (`local test`).
-- **Gap / risk:** no hosted or staging verification. On a database with legacy knowledge mismatches the two composite keys on pre-existing tables stay NOT VALID until the owner dispositions the mismatched rows.
-- **Required change:** run the real-role isolation suite on an authorized staging target. Before applying `0033` there, run `knowledge_governance_census()` read-only.
+- **Evidence:** `disposable DB` (269 real-role assertions on 2026-10-15, including 128 for D14 and 32 for D7). The Phase 2 sweep added 380 more (649 in total) on the same day: a read, write and relabel sweep over every tenant table; 41 cross-tenant reference cases; and catalog gates for RLS, policies, foreign-key ownership, the SECURITY DEFINER surface and client privileges. A real PostgREST HTTP suite and a reference run on the `supabase/postgres` 17 image add to it ([TENANT_ISOLATION_EVIDENCE.md](TENANT_ISOLATION_EVIDENCE.md)). Also `check:architecture` (`local test`).
+- **Gap / risk:** no hosted or staging verification. `0034` (D22) closes the cross-tenant reference and client-privilege gaps found on 2026-10-15, but is adopted nowhere real. On a database with legacy knowledge mismatches the two composite keys on pre-existing tables stay NOT VALID until the owner dispositions the mismatched rows.
+- **Required change:** owner decision on D22. Then run the real-role isolation suite and the PostgREST suite on an authorized staging target. Before applying `0033` and `0034` there, run `knowledge_governance_census()` and `tenant_reference_census()` read-only.
 - **Dependencies:** staging target (D19, R8); D14 ratification.
 - **Acceptance criteria:** 100% of the versioned adversarial cross-tenant cases are denied on staging as `authenticated` and `service_role`. Composite foreign keys validate with zero mismatched rows, and any mismatch is dispositioned by the owner, never auto-repaired.
-- **Blocking decisions:** D14, D19, R8.
+- **Blocking decisions:** D14, D19, D22, R8.
 
 #### G1.2 — Service-role paths scoped
 
 - **Current implementation:** explicit `business_id` predicates in stores; tenant-scoped repositories; mutating routes check membership and role.
 - **Evidence:** `source` ([ENG_01_SECURITY_IDENTITY_REVIEW.md](ENG_01_SECURITY_IDENTITY_REVIEW.md)); `local test` (multi-tenant isolation, widget security and agent linkage suites).
-- **Gap / risk:** correctness depends on code (STATUS P0 risk). There is no inventory of service-role queries checked against a deployment (SEC-02).
+- **Local inventory (2026-10-15, W1.1):** [TENANT_ISOLATION_EVIDENCE.md §5](TENANT_ISOLATION_EVIDENCE.md#5-access-path-inventory) maps every service-role path to its trusted tenant source. Route tests aim tenant A at tenant B's workflows, hook, OAuth state and appointments; the production stores were run over a real PostgREST.
+  - Fixed: the web conversation store's history and lead queries (now tenant-filtered), and the workflow-retry and reminder jobs (they no longer combine rows of two tenants).
+  - Reviewed but not individually adversarial-tested: the by-id methods of `SchedulingRepository` and `SupabaseCrmStore`.
+- **Gap / risk:** correctness still depends on code (STATUS P0 risk). The inventory has not been checked against a deployment (SEC-02).
 - **Required change:** inventory every service-role read and write against its tenant predicate or capability, then add adversarial tests for any path without one.
 - **Dependencies:** none locally; staging for deployed proof.
 - **Acceptance criteria:** every service-role query is mapped to a tenant predicate or capability in a reviewed table, and the adversarial suite passes.

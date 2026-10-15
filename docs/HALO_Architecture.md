@@ -191,7 +191,7 @@ All of the following is **VERIFIED (`source`)** unless marked otherwise. No comp
   - The tenant root is `businesses`. `business_members` links Supabase Auth users to a tenant with role `owner`, `admin` or `member`.
   - Every tenant-owned row carries `business_id`.
   - RLS is enabled on every migrated table. Policies use the `SECURITY DEFINER` helpers `is_business_member()` and `is_business_admin()` (migration `0001`).
-  - Isolation was verified by 109 real-role RLS assertions on a disposable database (`disposable DB`, 2026-10-13).
+  - Isolation was verified by 109 real-role RLS assertions on a disposable database (`disposable DB`, 2026-10-13). Phase 2 Workstream 1 (2026-10-15) extended this to every table, through a catalog-driven sweep (`check:rls`, 649 assertions) and a real PostgREST API test. Its status is **PARTIALLY VERIFIED**: locally proven, deployed environments unverified ([TENANT_ISOLATION_EVIDENCE.md](TENANT_ISOLATION_EVIDENCE.md)).
 - **APPROVED (G1, blueprint §3):** no tenant may access another tenant's leads, calls, recordings, transcripts, knowledge, tools, credentials, agent configuration, analytics or customer data.
 
 **Access domains**
@@ -206,7 +206,8 @@ All of the following is **VERIFIED (`source`)** unless marked otherwise. No comp
 
 **Known isolation risks**
 
-- Service-role paths bypass RLS, so their correctness depends on code (STATUS risk register, P0).
+- Service-role paths bypass RLS, so their correctness depends on code (STATUS risk register, P0). The inventory is in [TENANT_ISOLATION_EVIDENCE.md §5](TENANT_ISOLATION_EVIDENCE.md#5-access-path-inventory). Some repository methods address rows by id and rely on their callers, which were reviewed (§7 of that document).
+- Same-tenant references: before `0034` (D22, PENDING), RLS and plain foreign keys let a tenant point its rows at another tenant's agent, staff member, conversation or lead. `0034` checks every tenant-to-tenant reference in the database; it is verified on disposable databases only.
 - Knowledge parent/child foreign keys are tenant-composite since `0033` (D14). On a database with legacy tenant mismatches the two composite keys on pre-existing tables stay NOT VALID: new rows are checked, mismatched old rows are quarantined (never served) and reported by `knowledge_governance_census()`.
 - The widget origin allowlist protects browsers only.
 - Rate limits are in memory and per instance.
@@ -707,8 +708,14 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 ### 8.3 Tenant-scoped access, RLS and server-side authorization
 
 - **VERIFIED (`source`, `disposable DB`):** RLS covers every migrated table. Helper functions check membership and admin role. The tenant ownership triggers from `0020` re-check agent, version, conversation, phone number and call tenancy. Production guards (`0030`, `0031`) reject draft-version bindings and invalid identity tuples.
+- **Phase 2, Workstream 1 (VERIFIED: `disposable DB`, `local test`; PROPOSED for real databases: [D22](DECISIONS.md#d22--migration-0034-tenant-reference-integrity)):**
+  - `0034` adds a same-tenant check on every remaining tenant-to-tenant reference. A catalog gate in `check:rls` keeps all 43 references ownership-checked.
+  - `0034` revokes TRUNCATE, REFERENCES, TRIGGER, MAINTAIN and sequence privileges from client roles. Supabase grants them by default, and TRUNCATE ignores RLS.
+  - The CI stubs now reproduce Supabase's default privileges and the PostgREST JWT claim, so the disposable database grants what a hosted project grants.
+  - Evidence: [TENANT_ISOLATION_EVIDENCE.md](TENANT_ISOLATION_EVIDENCE.md).
 - **Server-side authorization (VERIFIED: `source`, `local test`):**
-  - Service-role code always filters by `business_id` explicitly.
+  - Service-role list and search queries filter by `business_id`. Some by-id repository methods (scheduling, CRM) rely on callers that load ids from a tenant-checked source. All callers were reviewed, and `0034` makes the database refuse cross-tenant references among those rows. The web conversation store now filters history and leads by the trusted tenant, as the voice store does.
+  - Background jobs never combine rows of two tenants: a mismatched workflow run is dead-lettered, and a mismatched reminder is not sent.
   - Mutating routes check membership and role.
   - Tool authorization is application policy, not model output.
   - Tenant-admin operational counts were fixed on 2026-10-13 so they no longer leak across tenants.

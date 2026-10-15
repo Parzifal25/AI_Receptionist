@@ -96,7 +96,7 @@
 | W4.7 | Gate barge-in during "thinking" on a minimum speech duration or a non-backchannel transcript | G6.3 | W4.1 | $0-local | Turn-cancellation invariant tests pass | Audit lever 9 |
 | W4.8 | Put the stable prompt prefix first (bump `PROMPT_COMPOSER_VERSION`; golden snapshot content unchanged, order only) | G6.3 | — | $0-local | Golden corpus passes; snapshot diff is ordering only | Audit lever 6; archived autonomous engine G7 |
 | W4.9 | Pre-connect speech sockets per call and cache fixed-line audio per tenant and voice; request μ-law TTS output | G6.3 | — | $0-local (fakes) | Worker tests; no cross-call audio leakage (test) | Audit levers 7–8 |
-| W1.1 | Inventory service-role queries against their tenant predicates; add adversarial tests for any gap | G1.2 | — | $0-local | Reviewed inventory table; tests pass | ENG-01 (SEC-02 residual) |
+| W1.1 | Inventory service-role queries against their tenant predicates; add adversarial tests for any gap | G1.2 | — | $0-local | Reviewed inventory table; tests pass. **Local work done 2026-10-15** (Phase 2 Workstream 1: [TENANT_ISOLATION_EVIDENCE.md](TENANT_ISOLATION_EVIDENCE.md)); awaiting Codex review; migration `0034` awaits the owner (D22) | ENG-01 (SEC-02 residual) |
 | W1.2 | Allow stream-token re-attach only while a session is waiting for a reconnect | G1.4 | — | $0-local | Replay test; voice invariants pass | PIPECAT_INTEGRATION §6 carry-forward |
 | W7.1 | Emit allowlisted telemetry for LLM router attempts, cooldowns and fallbacks | G3.3 | — | $0-local | Telemetry tests; no payload fields | TELEMETRY "Not covered" |
 | W7.2 | Log-leak sweep test: synthetic suite with no message text, phone number or email in logs | G3.5 | — | $0-local | Test passes | — |
