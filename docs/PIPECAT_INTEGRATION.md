@@ -299,6 +299,8 @@ throws at construction rather than answering calls it cannot serve.
 | Model never controls tenant identity | `TrustedRequestContext` is built by server code only | VERIFIED (source) |
 | Tenant isolation in the database | `check:rls` as real `authenticated` / `service_role` roles | VERIFIED |
 
+**Fixed locally by W1.2 (2026-10-15, [report](LOCAL_RELEASE_READINESS_REPORT.md)):** the gateway re-attaches a second socket only inside the reconnect window, and the Pipecat bridge refuses a second control attach before touching the live sink (`session_active`, close 1011). The original note follows.
+
 **Carried forward from Phase 3 §10, unchanged:** a valid stream token replayed
 inside its TTL re-attaches the session and redirects the call's audio to the
 presenting socket. The Pipecat path inherits this because it inherits the

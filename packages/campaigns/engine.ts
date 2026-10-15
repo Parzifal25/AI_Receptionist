@@ -1,3 +1,4 @@
+import { jobTelemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import { z } from "zod";
 
 export const campaignPolicySchema = z.object({
@@ -39,6 +40,7 @@ export class CampaignEngine {
     let accepted = 0, uncertain = 0;
     for (const contact of contacts) {
       if (contact.businessId !== businessId || contact.campaignId !== campaignId) throw new Error("Campaign scope mismatch");
+      await withTelemetryContext(async () => {
       let result: DialResult = { status: "rejected", retryable: false };
       if (await this.store.authorize(contact)) {
         try {
@@ -51,6 +53,7 @@ export class CampaignEngine {
       await this.store.settle(contact, result);
       if (result.status === "accepted") accepted++;
       if (result.status === "unknown") uncertain++;
+      }, jobTelemetryId("campaign_contact", contact.businessId, contact.id));
     }
     return { claimed: contacts.length, accepted, uncertain };
   }

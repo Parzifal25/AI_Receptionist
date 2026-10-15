@@ -1,3 +1,5 @@
+import { withSecurityAudit, finishSecurityAudit } from "@halo/platform/security-audit";
+import { securityAuditStore } from "@halo/tenancy/security-audit-store";
 import { observe, withTelemetryContext, telemetryId } from "@halo/platform/telemetry";
 import { handleWebTts } from "./web-tts";
 import { handleWebCall } from "./web-call";
@@ -89,6 +91,11 @@ export function createGatewayServer(deps: GatewayServerDeps): GatewayServer {
       const record = () => {
         if (recorded) return;
         recorded = true;
+        // Entry-level denials include carrier webhook authentication. No
+        // caller identity, URL, credentials or payload enters this record.
+        if (res.statusCode >= 400) void withTelemetryContext(() => withSecurityAudit(
+          securityAuditStore, false, () => finishSecurityAudit(res.statusCode), req.method ?? "OTHER", "other",
+        ), id);
         observe("http.request", { component: "gateway", status: res.statusCode, outcome: !res.writableFinished ? "cancelled" : res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "rejected" : "ok" }, performance.now() - started, id);
       };
       res.once("finish", record); res.once("close", record);

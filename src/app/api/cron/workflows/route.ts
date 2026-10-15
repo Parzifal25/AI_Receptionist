@@ -1,3 +1,4 @@
+import { beginSecurityAudit } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { AppError } from "@halo/core/errors/app-error";
 import { emitBusinessEvent, getWorkflowEngine } from "@halo/workflows/event-bus";
@@ -28,6 +29,7 @@ export const GET = withErrorHandling("cron.workflows", async (request: NextReque
     return fail(AppError.unauthorized());
   }
 
+  await beginSecurityAudit(true);
   const result = await getWorkflowEngine().processDue({
     emit: (event) =>
       emitBusinessEvent({

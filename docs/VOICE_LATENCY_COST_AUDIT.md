@@ -642,7 +642,7 @@ return {
 - Worker default models (`saarika:v2.5`, `bulbul:v2`) differ from gateway defaults (`saaras:v3-realtime`, `bulbul:v3`); `VOICE_TTS_DEFAULT_VOICE=shubh` is a v3 speaker — running the worker without the README's env overrides likely mismatches.
 - No STT confidence ⇒ misheard names/numbers are not read back automatically.
 - No phonetic normalization for Sarvam TTS (`enable_preprocessing=False`, raw digits/codes/`₹` passed through); normalization exists only for local TTS.
-- `vad.minSpeechMs` and `bargeIn.minSpeechMs` are sent to the worker and ignored.
+- `vad.minSpeechMs` and `bargeIn.minSpeechMs` are sent to the worker and ignored. *(Applied by W4.1 on 2026-10-15; `local test` only.)*
 - Python μ-law codec on the event loop shared with Silero — CPU scaling risk at concurrency (no load test exists).
 - Sessions are in gateway memory: one instance or sticky routing; no failover mid-call.
 - OpenRouter returned HTTP 402 on full prompts and Groq 429'd after ~5 rapid turns (CLOUD_LLM_REPORT §13) — fallback chain not production-capable on current accounts.
@@ -658,4 +658,4 @@ return {
 7. Pre-connect Sarvam sockets at worker start / on `start`; cache greeting & policy-line audio per tenant+voice.
 8. Request `output_audio_codec="mulaw"` from Sarvam (or numpy/`audioop` codec) to drop Python transcoding.
 9. Gate barge-in-while-thinking on a minimum speech duration / non-backchannel transcript before aborting a paid LLM call.
-10. Router: `maxWaitMs: 0` on the voice path (fail over immediately instead of sleeping).
+10. Router: `maxWaitMs: 0` on the voice path (fail over immediately instead of sleeping). *(Done by W4.6 on 2026-10-15 as a per-call `maxCooldownWaitMs: 0` for latency-sensitive channels; `local test` only, no harness delta measured.)*

@@ -1,3 +1,4 @@
+import { jobTelemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import "server-only";
 import type { MessagingProvider } from "@halo/ports/messaging-provider";
 import type { SchedulingSettings } from "@halo/core/domain/scheduling";
@@ -17,8 +18,8 @@ const RETRY_BACKOFF_MINUTES = 10;
  * Delivers due appointment reminders. Claiming is pessimistic (rows come
  * back already marked failed with attempts bumped — see
  * claim_due_reminders), so a crash mid-delivery can never double-send:
- * success flips the row to 'sent'; a delivery error requeues it with
- * backoff while attempts remain. Deliveries and failures land in
+ * success flips the row to 'sent'; only a failure before send starts
+ * requeues with backoff. An unknown send outcome is left failed for reconciliation. Deliveries and failures land in
  * usage_events so reminder success feeds lifecycle analytics.
  */
 export class ReminderService {
@@ -46,6 +47,7 @@ export class ReminderService {
     };
 
     for (const reminder of due) {
+      await withTelemetryContext(async () => {
       const appointment = await this.repository.getAppointment(reminder.appointmentId);
 
       // The reminder's tenant picks the settings; the appointment's supplies
@@ -54,7 +56,7 @@ export class ReminderService {
       if (appointment && appointment.businessId !== reminder.businessId) {
         await this.repository.recordReminderError(reminder.id, "reminder and appointment belong to different tenants");
         failed += 1;
-        continue;
+        return;
       }
 
       // Cancelled/completed appointments (or ones already started) don't
@@ -66,7 +68,7 @@ export class ReminderService {
       ) {
         await this.repository.markReminderSent(reminder.id);
         skipped += 1;
-        continue;
+        return;
       }
 
       const to =
@@ -75,11 +77,14 @@ export class ReminderService {
         await this.repository.recordReminderError(reminder.id, "no deliverable destination");
         await this.trackOutcome(reminder.businessId, "reminder_failed", reminder.appointmentId);
         failed += 1;
-        continue;
+        return;
       }
 
+      let sendStarted = false;
+      let delivered = false;
       try {
         const settings = await settingsFor(reminder.businessId);
+        sendStarted = true;
         await this.messaging.send({
           channel: reminder.channel,
           to,
@@ -93,13 +98,14 @@ export class ReminderService {
             settings,
           ),
         });
+        delivered = true;
         await this.repository.markReminderSent(reminder.id);
         await this.trackOutcome(reminder.businessId, "reminder_sent", reminder.appointmentId);
         sent += 1;
-      } catch (error) {
+      } catch {
         failed += 1;
-        const message = error instanceof Error ? error.message : String(error);
-        if (reminder.attempts < MAX_ATTEMPTS) {
+        const message = delivered ? "delivery_completed_history_unavailable" : sendStarted ? "delivery_outcome_unknown" : "reminder_delivery_failed";
+        if (!sendStarted && reminder.attempts < MAX_ATTEMPTS) {
           const retryAt = new Date(now.getTime() + RETRY_BACKOFF_MINUTES * 60_000).toISOString();
           await this.repository.requeueReminder(reminder.id, retryAt, message);
         } else {
@@ -108,6 +114,7 @@ export class ReminderService {
         }
         log.warn("reminder delivery failed", { reminderId: reminder.id, error: message });
       }
+      }, jobTelemetryId("reminder", reminder.businessId, String(reminder.id)));
     }
 
     return { sent, skipped, failed };

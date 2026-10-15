@@ -467,6 +467,9 @@ export class AgentRuntime {
         routingTier: classifyTurn(userMessage, state, agent.config.routing),
         temperature: agent.model?.temperature ?? this.policy.defaultTemperature,
         maxTokens: Math.min(agent.model?.maxTokens ?? this.policy.defaultMaxTokens, agent.config.budgets?.maxOutputTokens ?? Infinity),
+        // Voice turns never wait out a provider cooldown: a caller hears
+        // silence for every millisecond the router sleeps (W4.6).
+        ...(channel.latencySensitivity === "high" ? { maxCooldownWaitMs: 0 } : {}),
       };
       const messages: LLMMessage[] = [...context.recentMessages, { role: "user", content: userMessage }];
       const offeredNames = context.tools.map((t) => t.name);

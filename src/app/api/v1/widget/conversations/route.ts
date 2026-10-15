@@ -1,3 +1,4 @@
+import { bindSecurityIdentity } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { AppError } from "@halo/core/errors/app-error";
@@ -49,6 +50,7 @@ export const POST = withErrorHandling("widget.conversations", async (request: Ne
   const repository = new WidgetRepository();
   const { receptionist, business, allowedDomains } =
     await repository.getReceptionistByWidgetKey(body.widgetKey);
+  await bindSecurityIdentity({ actorId: null, businessId: business.id });
 
   if (!isOriginAllowed(origin, allowedDomains)) {
     return fail(AppError.forbidden("This domain is not allowed to embed this widget"), headers);

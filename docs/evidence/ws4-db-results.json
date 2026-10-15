@@ -1,0 +1,47 @@
+[
+  {
+    "name": "db-bootstrap",
+    "command": [
+      "psql",
+      "postgresql://postgres:ws4_synthetic@127.0.0.1:55459/halo_check_ws4_final_v4",
+      "-X",
+      "-v",
+      "ON_ERROR_STOP=1"
+    ],
+    "exit": 0,
+    "log": "/tmp/ws4-final-v4-db-bootstrap.log",
+    "sha256": "9b98e96d6f7727cd54382d934d91d256e3c18d2d3ab4a1b2089b812edcd224ab"
+  },
+  {
+    "name": "migrations",
+    "command": [
+      "npm",
+      "run",
+      "check:migrations"
+    ],
+    "exit": 0,
+    "log": "/tmp/ws4-final-v4-migrations.log",
+    "sha256": "3d8c69f464714d1add733d0635ad2874565f69bdf9994ff6658e97597d819917"
+  },
+  {
+    "name": "rls",
+    "command": [
+      "npm",
+      "run",
+      "check:rls"
+    ],
+    "exit": 0,
+    "log": "/tmp/ws4-final-v4-rls.log",
+    "sha256": "d97678e0bb08a2b527e19504311d015cd831d120974b71b5bc11aadcb3667070"
+  },
+  {
+    "name": "audit-concurrency",
+    "command": [
+      "node",
+      "scripts/check-security-audit.mjs"
+    ],
+    "exit": 0,
+    "log": "/tmp/ws4-final-v4-audit-concurrency.log",
+    "sha256": "631c7f06f5f543dfa72a1655bfe87a31d7a1dae77c2c338900154185a661cee1"
+  }
+]

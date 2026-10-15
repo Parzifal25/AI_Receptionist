@@ -1,5 +1,9 @@
 "use server";
 
+import { rejectSecurityAudit } from "@halo/platform/security-audit";
+import { failSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
+
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBusiness } from "@halo/tenancy/auth";
@@ -51,47 +55,67 @@ async function saveRevision(faqId: string | null, formData: FormData): Promise<A
 }
 
 export async function createFaq(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return saveRevision(null, formData);
+  return withAuditedAction(async () => {
+
+    return saveRevision(null, formData);
+
+  }, { action: "createFaq" });
 }
 
 export async function updateFaq(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const id = uuid.safeParse(formData.get("id"));
-  if (!id.success) return { error: "Invalid FAQ" };
-  return saveRevision(id.data, formData);
+  return withAuditedAction(async () => {
+
+    const id = uuid.safeParse(formData.get("id"));
+    if (!id.success) return { error: "Invalid FAQ" };
+    return saveRevision(id.data, formData);
+
+  }, { action: "updateFaq" });
 }
 
 /** Approve (publish) or reject a pending FAQ revision. Owner/admin only. */
 export async function reviewFaqRevision(formData: FormData): Promise<void> {
-  const { role } = await requireBusiness();
-  const revisionId = uuid.safeParse(formData.get("revisionId"));
-  if (!canApprove(role) || !revisionId.success) return;
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("faq_review_revision", {
-    p_revision_id: revisionId.data,
-    p_approve: formData.get("decision") === "approve",
+  return withAuditedAction(async () => {
+
+    const { role } = await requireBusiness();
+    const revisionId = uuid.safeParse(formData.get("revisionId"));
+    if (!canApprove(role) || !revisionId.success) { await rejectSecurityAudit(); return; }
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("faq_review_revision", {
+      p_revision_id: revisionId.data,
+      p_approve: formData.get("decision") === "approve",
   });
-  if (error) log.error("faq review failed", { revisionId: revisionId.data, error: error.message.slice(0, 200) });
+  if (error) { await failSecurityAudit(); log.error("faq review failed", { revisionId: revisionId.data, error: error.message.slice(0, 200) }); }
   revalidatePath("/dashboard/faqs");
+
+  }, { action: "reviewFaqRevision" });
 }
 
 /** Stop serving an FAQ. Owner/admin only. */
 export async function withdrawFaq(formData: FormData): Promise<void> {
-  const { role } = await requireBusiness();
-  const id = uuid.safeParse(formData.get("id"));
-  if (!canApprove(role) || !id.success) return;
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("faq_withdraw", { p_faq_id: id.data });
-  if (error) log.error("faq withdraw failed", { faqId: id.data, error: error.message.slice(0, 200) });
-  revalidatePath("/dashboard/faqs");
+  return withAuditedAction(async () => {
+
+    const { role } = await requireBusiness();
+    const id = uuid.safeParse(formData.get("id"));
+    if (!canApprove(role) || !id.success) { await rejectSecurityAudit(); return; }
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("faq_withdraw", { p_faq_id: id.data });
+    if (error) { await failSecurityAudit(); log.error("faq withdraw failed", { faqId: id.data, error: error.message.slice(0, 200) }); }
+    revalidatePath("/dashboard/faqs");
+
+  }, { action: "withdrawFaq" });
 }
 
 /** Delete an unpublished FAQ and its history. Owner/admin only. */
 export async function deleteFaq(formData: FormData): Promise<void> {
-  const { businessId, role } = await requireBusiness();
-  const id = uuid.safeParse(formData.get("id"));
-  if (!canApprove(role) || !id.success) return;
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("faqs").delete().eq("id", id.data).eq("business_id", businessId);
-  if (error) log.error("faq delete failed", { faqId: id.data, error: error.message.slice(0, 200) });
-  revalidatePath("/dashboard/faqs");
+  return withAuditedAction(async () => {
+
+    const { businessId, role } = await requireBusiness();
+    const id = uuid.safeParse(formData.get("id"));
+    if (!canApprove(role) || !id.success) { await rejectSecurityAudit(); return; }
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from("faqs").delete().eq("id", id.data).eq("business_id", businessId);
+    if (error) { await failSecurityAudit(); log.error("faq delete failed", { faqId: id.data, error: error.message.slice(0, 200) }); }
+    revalidatePath("/dashboard/faqs");
+
+  }, { action: "deleteFaq" });
 }

@@ -1,3 +1,5 @@
+import { bindSecurityIdentity } from "@halo/platform/security-audit";
+import { telemetryId } from "@halo/platform/telemetry";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { AppError } from "@halo/core/errors/app-error";
@@ -22,11 +24,12 @@ export const POST = withErrorHandling("widget.voice-call", async (request: NextR
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail(AppError.validation("Invalid voice call request"), headers);
   const { receptionist, business, allowedDomains } = await new WidgetRepository().getReceptionistByWidgetKey(parsed.data.widgetKey);
+  await bindSecurityIdentity({ actorId: null, businessId: business.id });
   if (!isOriginAllowed(origin, allowedDomains) || !receptionist.voiceEnabled) return fail(AppError.forbidden("Voice is not enabled for this widget"), headers);
   if (!(await widgetSessionLimiter.check(`call:tenant:${business.id}`)).allowed) return fail(AppError.rateLimited(), headers);
   const base = process.env.VOICE_GATEWAY_INTERNAL_URL, secret = process.env.VOICE_STREAM_TOKEN_SECRET;
   if (!base || !secret || secret.length < 32) return fail(AppError.serviceUnavailable("HALO voice gateway is not configured"), headers);
-  const body = JSON.stringify({ businessId: business.id, timestamp: Date.now() });
+  const body = JSON.stringify({ correlationId: telemetryId(), businessId: business.id, timestamp: Date.now() });
   try {
     const response = await fetch(new URL("/web/call", base), { method: "POST", redirect: "error", headers: { "content-type": "application/json", "x-halo-signature": signWebCall(secret, body) }, body,
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(10000)]) });

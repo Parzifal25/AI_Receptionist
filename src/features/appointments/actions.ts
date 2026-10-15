@@ -1,5 +1,8 @@
 "use server";
 
+import { rejectSecurityAudit, failSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
+
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBusiness } from "@halo/tenancy/auth";
@@ -24,25 +27,31 @@ const statusSchema = z.enum([
  * state machine from the dashboard board.
  */
 export async function updateAppointmentLifecycle(formData: FormData): Promise<void> {
-  const { businessId } = await requireBusiness();
-  const id = z.string().uuid().parse(formData.get("id"));
-  const status = statusSchema.parse(formData.get("status"));
+  return withAuditedAction(async () => {
 
-  const repository = new SchedulingRepository();
-  const appointment = await repository.getAppointment(id);
-  if (!appointment || appointment.businessId !== businessId) {
-    log.warn("appointment not found or foreign", { id });
-    return;
-  }
-  const business = await loadBusinessById(businessId);
-  if (!business) return;
+    const { businessId } = await requireBusiness();
+    const id = z.string().uuid().parse(formData.get("id"));
+    const status = statusSchema.parse(formData.get("status"));
 
-  try {
-    await new AppointmentLifecycleService(repository).transition(business, appointment, status);
-  } catch (error) {
-    // Illegal transition (stale board) — nothing to do but log.
-    log.warn("lifecycle transition rejected", { id, status, error });
-  }
+    const repository = new SchedulingRepository();
+    const appointment = await repository.getAppointment(id);
+    if (!appointment || appointment.businessId !== businessId) {
+      await rejectSecurityAudit();
+      log.warn("appointment not found or foreign", { id });
+      return;
+    }
+    const business = await loadBusinessById(businessId);
+    if (!business) { await failSecurityAudit(); return; }
 
-  revalidatePath("/dashboard/appointments");
+    try {
+      await new AppointmentLifecycleService(repository).transition(business, appointment, status);
+    } catch (error) {
+      await failSecurityAudit();
+      // Illegal transition (stale board) — nothing to do but log.
+      log.warn("lifecycle transition rejected", { id, status, error });
+    }
+
+    revalidatePath("/dashboard/appointments");
+
+  }, { action: "updateAppointmentLifecycle" });
 }

@@ -5,6 +5,7 @@ import { extractName, parseIndianMobile, parsePincode, type ParsedName, type Par
 import { parseNumber, type ParsedNumber } from "./parsers/numerals";
 import { parseCapacityKw, type ParsedCapacity } from "./parsers/quantity";
 import { hasTimeExpression, toEnglishTimeGloss } from "./parsers/time-expressions";
+import { ENGLISH_QUESTION_CUES, TELUGU_QUESTION_CUES, type QuestionCues } from "./question-cues";
 
 /**
  * HALO Phase 4 — the language pack (plan §P3.6).
@@ -21,6 +22,8 @@ export interface LanguagePack {
   /** BCP-47 tags this pack serves ("te", "te-IN", "te-en"). */
   tags: string[];
   lexicon: IntentLexicon;
+  /** Cues for the knowledge-gap question gate (question-cues.ts). */
+  questionCues: QuestionCues;
   detect(text: string): LanguageDetection;
   intents(text: string): IntentMatch[];
   has(text: string, intent: IntentName): boolean;
@@ -35,11 +38,12 @@ export interface LanguagePack {
   hasTime(text: string): boolean;
 }
 
-function pack(code: LanguageCode, tags: string[], lexicon: IntentLexicon): LanguagePack {
+function pack(code: LanguageCode, tags: string[], lexicon: IntentLexicon, questionCues: QuestionCues): LanguagePack {
   return {
     code,
     tags,
     lexicon,
+    questionCues,
     detect: detectLanguage,
     intents: (text) => matchIntents(text, lexicon),
     has: (text, intent) => matchIntents(text, lexicon).some((m) => m.intent === intent),
@@ -54,8 +58,8 @@ function pack(code: LanguageCode, tags: string[], lexicon: IntentLexicon): Langu
   };
 }
 
-export const TELUGU_PACK = pack("te", ["te", "te-in", "te-en"], TELUGU_LEXICON);
-export const ENGLISH_PACK = pack("en", ["en", "en-in", "en-us", "en-gb"], ENGLISH_LEXICON);
+export const TELUGU_PACK = pack("te", ["te", "te-in", "te-en"], TELUGU_LEXICON, TELUGU_QUESTION_CUES);
+export const ENGLISH_PACK = pack("en", ["en", "en-in", "en-us", "en-gb"], ENGLISH_LEXICON, ENGLISH_QUESTION_CUES);
 
 const PACKS = [TELUGU_PACK, ENGLISH_PACK];
 

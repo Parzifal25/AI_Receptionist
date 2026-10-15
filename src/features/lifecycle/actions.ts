@@ -1,5 +1,8 @@
 "use server";
 
+import { rejectSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
+
 import { revalidatePath } from "next/cache";
 import { requireBusiness } from "@halo/tenancy/auth";
 import {
@@ -29,31 +32,33 @@ export async function updateLifecycleSettings(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { businessId, role } = await requireBusiness();
-  if (role === "member") return { error: "Only admins can change settings" };
+  return withAuditedAction(async () => {
 
-  const labels = formData.getAll("intakeLabel").slice(0, MAX_INTAKE_ROWS);
-  const ids = formData.getAll("intakeId");
-  const types = formData.getAll("intakeType");
+    const { businessId, role } = await requireBusiness();
+    if (role === "member") { await rejectSecurityAudit(); return { error: "Only admins can change settings" }; }
 
-  const intakeForm = parseIntakeFields(
-    labels.map((label, index) => ({
-      id: String(ids[index] ?? ""),
-      label: String(label ?? ""),
-      type: String(types[index] ?? "text"),
-      required: formData.get(`intakeRequired-${index}`) === "on",
-    })),
-  );
+    const labels = formData.getAll("intakeLabel").slice(0, MAX_INTAKE_ROWS);
+    const ids = formData.getAll("intakeId");
+    const types = formData.getAll("intakeType");
 
-  const parsed = lifecycleSettingsSchema.safeParse({
-    locationAddress: formData.get("locationAddress") ?? "",
-    prepInstructions: formData.get("prepInstructions") ?? "",
-    reviewUrl: formData.get("reviewUrl") ?? "",
-    intakeForm,
-    remindersEnabled: formData.get("remindersEnabled") === "on",
-    reminderLeadMinutes: parseReminderLeadMinutes(String(formData.get("reminderLeadMinutes") ?? "")),
-    autoNoShowEnabled: formData.get("autoNoShowEnabled") === "on",
-    noShowGraceMinutes: Number(formData.get("noShowGraceMinutes") ?? 30),
+    const intakeForm = parseIntakeFields(
+      labels.map((label, index) => ({
+        id: String(ids[index] ?? ""),
+        label: String(label ?? ""),
+        type: String(types[index] ?? "text"),
+        required: formData.get(`intakeRequired-${index}`) === "on",
+      })),
+    );
+
+    const parsed = lifecycleSettingsSchema.safeParse({
+      locationAddress: formData.get("locationAddress") ?? "",
+      prepInstructions: formData.get("prepInstructions") ?? "",
+      reviewUrl: formData.get("reviewUrl") ?? "",
+      intakeForm,
+      remindersEnabled: formData.get("remindersEnabled") === "on",
+      reminderLeadMinutes: parseReminderLeadMinutes(String(formData.get("reminderLeadMinutes") ?? "")),
+      autoNoShowEnabled: formData.get("autoNoShowEnabled") === "on",
+      noShowGraceMinutes: Number(formData.get("noShowGraceMinutes") ?? 30),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -72,4 +77,6 @@ export async function updateLifecycleSettings(
 
   revalidatePath("/dashboard/settings/lifecycle");
   return { error: null, message: "Customer lifecycle settings saved." };
+
+  }, { action: "updateLifecycleSettings" });
 }

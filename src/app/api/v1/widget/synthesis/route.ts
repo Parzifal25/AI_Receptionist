@@ -1,3 +1,5 @@
+import { bindSecurityIdentity } from "@halo/platform/security-audit";
+import { telemetryId } from "@halo/platform/telemetry";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { AppError } from "@halo/core/errors/app-error";
@@ -24,6 +26,7 @@ export const POST = withErrorHandling("widget.synthesis", async (request: NextRe
   const conversation = await repository.getConversationByToken(body.visitorToken);
   if (conversation.status === "ended") return fail(AppError.conflict("Conversation ended"), headers);
   const { receptionist, business, allowedDomains } = await repository.getReceptionistById(conversation.receptionistId);
+  await bindSecurityIdentity({ actorId: null, businessId: business.id });
   if (business.id !== conversation.businessId || !receptionist.voiceEnabled || !isOriginAllowed(origin, allowedDomains)) return fail(AppError.forbidden(), headers);
   if (!(await widgetMessageLimiter.check(`tts:tenant:${business.id}`)).allowed) return fail(AppError.rateLimited(), headers);
   const messages = await repository.getRecentMessages(conversation.id, business.id, 1);
@@ -31,7 +34,7 @@ export const POST = withErrorHandling("widget.synthesis", async (request: NextRe
   if (reply?.role !== "assistant" || !reply.content.trim()) return fail(AppError.conflict("No HALO reply ready for playback"), headers);
   const base = process.env.VOICE_GATEWAY_INTERNAL_URL, secret = process.env.VOICE_STREAM_TOKEN_SECRET;
   if (!base || !secret || secret.length < 32) return fail(AppError.serviceUnavailable("HALO voice gateway is not configured"), headers);
-  const payload = JSON.stringify({ businessId: business.id, language: receptionist.language, text: reply.content, timestamp: Date.now() });
+  const payload = JSON.stringify({ correlationId: telemetryId(), businessId: business.id, language: receptionist.language, text: reply.content, timestamp: Date.now() });
   try {
     const response = await fetch(new URL("/web/tts", base), { method: "POST", redirect: "error", headers: { "content-type": "application/json", "x-halo-signature": signWebTts(secret, payload) }, body: payload,
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(28000)]) });

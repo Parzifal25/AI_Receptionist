@@ -1,5 +1,8 @@
 "use server";
 
+import { finishSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
+
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -36,14 +39,16 @@ export async function createBusiness(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireUser();
-  const parsed = onboardingSchema.safeParse({ name: formData.get("name") });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  return withAuditedAction(async () => {
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("create_business_with_owner", {
-    business_name: parsed.data.name,
-    business_slug: slugify(parsed.data.name),
+    await requireUser();
+    const parsed = onboardingSchema.safeParse({ name: formData.get("name") });
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("create_business_with_owner", {
+      business_name: parsed.data.name,
+      business_slug: slugify(parsed.data.name),
   });
 
   if (error) {
@@ -51,7 +56,10 @@ export async function createBusiness(
     return { error: "Could not create your business. Please try again." };
   }
 
+  await finishSecurityAudit(200);
   redirect("/dashboard");
+
+  }, { action: "createBusiness" });
 }
 
 // ---------------------------------------------------------------------------
@@ -80,16 +88,18 @@ export async function updateBusinessProfile(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { businessId } = await requireBusiness();
+  return withAuditedAction(async () => {
 
-  const parsed = profileSchema.safeParse({
-    name: formData.get("name"),
-    description: formData.get("description"),
-    industry: formData.get("industry"),
-    website: formData.get("website"),
-    phone: formData.get("phone"),
-    email: formData.get("email"),
-    address: formData.get("address"),
+    const { businessId } = await requireBusiness();
+
+    const parsed = profileSchema.safeParse({
+      name: formData.get("name"),
+      description: formData.get("description"),
+      industry: formData.get("industry"),
+      website: formData.get("website"),
+      phone: formData.get("phone"),
+      email: formData.get("email"),
+      address: formData.get("address"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -115,4 +125,6 @@ export async function updateBusinessProfile(
 
   revalidatePath("/dashboard/profile");
   return { error: null, message: "Profile saved." };
+
+  }, { action: "updateBusinessProfile" });
 }

@@ -50,7 +50,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D4](#d4--pilot-call-direction-and-pre-carrier-harness) | Pilot call direction and pre-carrier harness | PENDING | — | Minimum set S1–S6 |
 | [D5](#d5--tool-invocation-model) | Tool invocation model | PENDING | — | Minimum set S1–S6; S4.4, S4.5 |
 | [D6](#d6--call-recording-in-the-pilot) | Call recording in the pilot | PENDING | — | External gate before S7; S10 |
-| [D7](#d7--new-migrations-tool-executions-and-audit-logs) | New migrations (tool executions, audit logs) | `tool_executions` APPROVED, implemented and verified on a disposable database; `audit_logs` PENDING | Owner instruction, 2026-10-15 | Applying `0032` to a real database: R8, D19 |
+| [D7](#d7--new-migrations-tool-executions-and-audit-logs) | New migrations (tool executions, audit logs) | `tool_executions` APPROVED, implemented and verified on a disposable database; `audit_logs` APPROVED FOR LOCAL WS4 IMPLEMENTATION ONLY (`0036`); any real application PENDING | Owner instructions, 2026-10-15 | Applying `0032` or `0036` to a real database: R8, D19 |
 | [D8](#d8--spend) | Spend | PENDING | — | Everything from S7 onward |
 | [D9](#d9--numeric-pilot-targets) | Numeric pilot targets (latency, recognition, extraction, cost) | PENDING | — | S11 acceptance |
 | [D10](#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit) | Dirty-tree commit grouping; uncommitted `0001` edit | APPROVED and executed | Owner instruction, 2026-10-15 | — (hosted follow-on: D21) |
@@ -61,7 +61,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D15](#d15--canonical-tracking-ids-eng-04-versus-eng-12) | Canonical tracking IDs: ENG-04 versus ENG-12 | PENDING | — | Backlog and record naming |
 | [D16](#d16--implementation-owner-naming-astra) | Implementation-owner naming ("Astra") | PENDING | — | Role clarity |
 | [D17](#d17--pilot-speech-and-llm-provider-route) | Pilot speech and LLM provider route | PENDING | — | Voice pilot; S7 |
-| [D18](#d18--telemetry-export-backend-and-cross-process-correlation) | Telemetry export backend and cross-process correlation | PENDING | — | Staging observability |
+| [D18](#d18--telemetry-export-backend-and-cross-process-correlation) | Telemetry export backend and cross-process correlation | SPLIT — local correlation and disabled/opt-in stdout APPROVED FOR LOCAL WS4; hosted export backend PENDING (owner + operations owner) | Owner instruction (WS4), 2026-10-15, local scope only | Staging observability |
 | [D19](#d19--hosting-topology-and-region) | Hosting topology and region | PENDING | — | Staging (S9) |
 | [D20](#d20--validated-speech-streaming-on-the-phone-path) | Validated speech streaming on the phone path | PENDING | — | Voice latency task W4.10 |
 | [D21](#d21--running-migration-0001-on-hosted-supabase) | Running migration `0001` on hosted Supabase | PENDING | — | Any hosted migration (W1.6, W8.1) |
@@ -262,7 +262,8 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
 - **State:** split on 2026-10-15.
   - **`tool_executions`: APPROVED, implemented, and verified on a disposable database.** Decided by owner instruction ("HALO D7 — Autonomous Tool-Execution Audit Implementation Loop", given to Claude Code), which directed implementation with a new additive migration. Migration `0032_tool_executions.sql` was applied and tested on 2026-10-15 **only** on fresh disposable `halo_check_*` databases (owner instruction "HALO Autonomous Engineering Loop — Complete D7 + D14"); it has not been applied to any shared, developer or hosted database.
-  - **`audit_logs`: still PENDING.** The instruction did not ask for it, and the original recommendation defers it.
+  - **`audit_logs`: APPROVED FOR LOCAL WS4 IMPLEMENTATION ONLY** by the owner’s “Workstream 4 Finalization: Security, Audit, and End-to-End Telemetry” instruction (2026-10-15). No real/shared/hosted application is authorized.
+  - **Historical state before this finalization:** `audit_logs` was PENDING; the earlier tool-audit instruction did not ask for it and the original recommendation deferred it.
 - **Required approver:** owner. `AGENTS.md` requires owner approval for any new migration.
 - **Question:** approve the additive `tool_executions` migration (blueprint §22) now, and `audit_logs` later?
 - **Before 2026-10-15 (source):** neither table existed. Partial audit trails were `messages.role='tool'`, `call_events`, `lead_state_events`, `campaign_events`, `workflow_events`, `workflow_run_logs` and `usage_events`. They remain.
@@ -305,6 +306,17 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - Per-tool timeouts do not exist (D5), so there is no `timed_out` status.
   - Retries: tool executors are never retried, and a duplicate intent is recorded as `rejected`/`duplicate`.
   - No operator UI. Operators read the table through RLS.
+
+**WS4 local resolution, 2026-10-15 (owner authorization; source/local test/disposable DB).** The exact question above is resolved locally by adding `0036_security_authorization_audit.sql`, after the unchanged WS3 `0035`. The CLI generated the initial timestamped file; it was renamed before final acceptance to follow this repository's enforced contiguous numbering. No historical migration changed.
+
+- **Decision:** keep the specialized `tool_executions` lifecycle and add minimal append-only `audit_logs` for application authorization/accountability. Existing domain events are retained; operational stdout is not the durable audit store.
+- **Record:** server operation UUID, trusted actor/tenant when available (null before authentication/system or visitor access), a closed action code, HTTP method/category, outcome, stable reason, canonical correlation UUID, database-generated timestamp. No request body/headers, tokens, resource names, SQL, provider text or arbitrary metadata column.
+- **Boundaries:** API wrapper, verified auth/membership, dashboard server actions, authentication and calendar OAuth, widget/hook resolution, authenticated cron admission, signed web speech/call services, Pipecat attachment and gateway HTTP denials. Successful model tools retain `0032`; workflow runs and reminder/campaign claims retain their domain trails.
+- **Failure:** dashboard/server-action and resolved widget mutations, signed gateway calls, control attachment and cron work require durable pre-execution attempts. Audit writes have a five-second HTTP deadline. Authentication/authorization denials and read-only access records are best effort: denial still holds during an audit outage. Failed terminal writes never turn a completed action into a rollback/retry signal; an attempt without a terminal event needs reconciliation. A 5xx means outcome unknown, not proof of rollback. Sign-out remains fail-open so an audit outage cannot trap a session.
+- **Isolation/integrity:** members SELECT their own tenant through RLS; unscoped denials are service-operator only. Clients cannot write; service role can INSERT/SELECT but not UPDATE/DELETE/TRUNCATE. Database owners and business-deletion cascades remain administrative exceptions, so this is not tamper-proof storage. Actor IDs deliberately survive actor deletion; no caller supplies them through the audit API.
+- **Retention:** no automatic audit purge or invented duration. Local synthetic records persist until disposable teardown; business deletion cascades them. Real-data retention/access review remains under D23/R8 before pilot use; no deployment is authorized by this local choice.
+- **Rejected:** ordinary logs as durable audit; overloading tool rows with unrelated API identities; arbitrary JSON metadata; adding a hosted vendor or a full event-sourcing system.
+- **Evidence:** API/auth/store failure-injection contracts, real-role RLS (669 assertions total), 40 concurrent SQL appends (5 focused assertions), and the actual production adapter over disposable PostgREST (8 assertions), including pre/post audit outages. See [WORKSTREAM_4_REPORT.md](WORKSTREAM_4_REPORT.md). Hosted roles, operations access, backup retention and alert delivery remain unverified.
 
 ### D8 — Spend
 
@@ -452,6 +464,8 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 | 5 Pinning | **No.** The original D14 text says "Pin … the knowledge revision used by each conversation"; the default is per-turn. | Owner approval required | Keep per-turn (recommended: withdrawal works on the next turn, and no snippet persists in history or state)? And persist the served `revisionId` per answer for traceability (migration)? Until then, an answer cannot be traced to a revision after the fact. |
 | 6 Legacy rollout | Yes | Owner approval required | Accept that existing knowledge stops serving when `0033` lands, until it is backfilled and approved ([runbook §5.2](HOSTED_MIGRATION_RUNBOOK.md#52-sequence))? |
 
+**WS3 final-closure evidence (2026-10-15; no decision-state change):** the owner's final-closure prompt explicitly authorized local implementation of K1 as an additive correction. Migration `0035_knowledge_backfill_source_ref_validation.sql` adds consistent >500 source_ref quarantine to the existing backfill function, preserving owner/ACL, approval, provenance and collection semantics. This closes the separate K1 engineering-approval action; it does not ratify D14 items 3–6, approve D22 or authorize hosted SQL. See [WS3 report](WORKSTREAM_3_REPORT.md).
+
 ### D15 — Canonical tracking IDs: ENG-04 versus ENG-12
 
 - **State:** PENDING OWNER APPROVAL (recorded since 2026-10-12). **Required approver:** release owner.
@@ -501,7 +515,8 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
 ### D18 — Telemetry export backend and cross-process correlation
 
-- **State:** PENDING. Added at consolidation, 2026-10-15. **Required approvers:** owner and an operations owner. Cost is subject to G2 and D8.
+- **State:** SPLIT — local correlation and disabled/opt-in stdout export APPROVED FOR LOCAL WS4 by the current owner instruction; a hosted export backend remains PENDING. **Required approvers for hosted export:** owner and an operations owner. Cost remains subject to G2 and D8.
+- **Historical state:** entirely PENDING at consolidation, 2026-10-15; the evidence and recommendations below describe that earlier state.
 - **Question:** which backend receives telemetry outside the process (logs, metrics, alerts), and how are correlation IDs carried across the Next.js app, the gateway and the worker?
 - **Evidence (source, local test):**
   - Telemetry is allowlisted stdout JSON, enabled with `HALO_TELEMETRY=stdout`.
@@ -516,6 +531,15 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   3. A vendor APM or error tracker (overlaps D12).
 - **Recommendation ([TELEMETRY.md](TELEMETRY.md), not approved):** "After backend selection, cost review and approval, adapt this single boundary to the chosen stack (prefer an OpenTelemetry SDK/collector if required by staging)."
 - **Depends on:** D8, D12, D19.
+
+**WS4 local resolution, 2026-10-15 (owner authorization; source/local test).** The question above has two scopes. Locally the recipient is explicitly **none by default**, or the existing allowlisted stdout sink when opted in. No telemetry account, collector, SDK or paid backend is introduced. Selecting and operating a hosted log drain, durable metrics, alerts or Python metrics still needs the operations owner and deployment authorization; this task does not supply those approvals.
+
+- **Canonical context:** lower-case UUID shape, generated by HALO; not an actor, tenant or idempotency key. `correlationId` is the logical-operation/trace identifier; a second trace ID adds no value here. Each HTTP entry has a local `x-request-id`; signed internal bodies carry the upstream correlation separately and a safe gateway transition log links the two. Public caller headers are ignored.
+- **Propagation:** AsyncLocalStorage through app/services/adapters; signed Next→gateway speech/TTS/call payloads; correlation authenticated inside the media stream token; durable call correlation→Pipecat `ready`; Python ContextVar per control/media task with cleanup. Old stream tokens remain accepted and establish a fresh voice context. Malformed signed body IDs are rejected; malformed worker IDs become fresh IDs, never identities.
+- **Jobs:** a separate `workflow_events.telemetry_correlation_id` preserves operation context across serialization, cron retries, failures and dead letters without changing the existing business journey `correlation_id`. `workflow_timers` carries the same optional field. Legacy workflow events/timers and DB-scheduled reminder, no-show and campaign items derive a stable UUID from namespace/tenant/persisted job identity. Those independently scheduled jobs start their own logical operation; the original HTTP request is not retroactively reconstructed. IDs cannot change tenant checks, claims or action keys.
+- **Replay consequence:** unknown workflow executor outcomes and post-action evidence failures quarantine instead of retrying. Only an explicit internal `RetrySafeWorkflowError` permits automatic step/run retry; raw provider exception text cannot grant that authority. Reminders only requeue failures before send begins. Unkeyed calendar and WhatsApp creates get one attempt. Keyed Resend retries remain conditional on the provider honoring its key; exactly-once execution is not claimed.
+- **Evidence:** real local HTTP/WebSocket gateway contracts, Python ready/context/concurrency contracts, serialized event/timer tests, concurrent requests/jobs, failure/retry/dead-letter and provider-fake tests. This is correlation, not a complete tracing/export platform. No carrier/provider/hosted proof, metric aggregation, alert delivery or cross-system transaction is claimed.
+- **Rejected:** trusting public IDs as authority, repurposing journey IDs, global mutable tenant state, adding a hosted tracing vendor, or claiming stdout delivery is durable.
 
 ### D19 — Hosting topology and region
 
@@ -589,7 +613,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
   The full procedure, including backup, the fresh and upgrade paths and the stop rules, is [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md).
 - **Still unknown (environment evidence):**
-  - the target's CLI-path `search_path` (the installed CLI wrapper has no binary to inspect);
+  - the target's CLI-path `search_path` (historical WS2 binary limitation; WS3 installed help now works, but no hosted runner session was observed);
   - its `vector` placement;
   - its ledger.
 
@@ -652,6 +676,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
 ## Change history
 
+
 | Date | Change | By |
 |---|---|---|
 | 2026-10-14 | D1–D13 table created from HALO Phase 1 plan §9 (a proposal). D14 and the Astra question added as open questions. D14 non-migration subset authorized and implemented. | Owner instruction; plan author |
@@ -661,3 +686,5 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 | 2026-10-15 | **D7 verified and D14 completed under owner instruction** ("HALO Autonomous Engineering Loop — Complete D7 + D14"). D7: `0032` verified as real roles on a disposable database; two harness defects fixed; state text updated, `audit_logs` still PENDING. D14: migration `0033` and application changes implemented and verified on a disposable database; the defaults for items 1–6 are recorded for owner ratification, not approved. D5's evidence line updated. No other state changed. | Owner instruction; Claude Code |
 | 2026-10-15 | **Phase 2 Workstream 1 (tenant isolation) under owner instruction** ("Branch Integration + Phase 2 Tenant-Isolation Hardening"). D10, D7 and D14 work integrated into `main` by fast-forward; D22 added as PENDING for the new migration `0034` (implemented and verified on disposable databases only). No other state changed. | Owner instruction; Claude Code |
 | 2026-10-15 | **Phase 2 Workstream 2 (decision review) under owner instruction** ("Close Pending Decisions and Resolve Unknowns"). Every entry received a review disposition ([HALO_DECISION_REVIEW.md](HALO_DECISION_REVIEW.md)). D21 got real-image evidence and a refined recommendation, plus [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md). D14 items 1–6 were each reviewed; item 5 diverges from the original proposal. D6's retention unknown was resolved by evidence, and D23 was added as PENDING. Evidence corrections in D1, D10, D19 and D22. **No state changed and nothing was approved.** | Owner instruction; Claude Code |
+| 2026-10-15 | **WS4 finalization under explicit owner instruction.** D7 audit storage and D18 local correlation/export policy resolved for local implementation only; additive 0036 and local/disposable evidence recorded. Historical states retained. Hosted export, deployment and unrelated owner decisions are unchanged. | Owner instruction; Codex |
+| 2026-10-15 | **Local release-readiness audit** (owner's autonomous local-completion instruction). Index rows for D7 and D18 reconciled with their entries, which WS4 had updated without updating the index. **No state changed and nothing was approved.** | Owner instruction; Claude Code |

@@ -229,6 +229,38 @@ describe("ChatService.respond", () => {
     expect(events).toContain("unanswered_question");
   });
 
+  // G5.4 / W2.1: the gate was English-only, so a Telugu question that found
+  // no knowledge was never recorded as a gap.
+  it.each([
+    ["Telugu script", "సోలార్ సబ్సిడీ ఎంత వస్తుంది?"],
+    ["romanized Telugu without a question mark", "solar subsidy entha vastundi"],
+    ["Tenglish yes/no", "EMI facility undaa"],
+  ])("records a knowledge gap when a question (%s) retrieves nothing", async (_label, userMessage) => {
+    const { service, events } = buildFakes({ llmReplies: ["Nenu check chesi cheptanu."], knowledgeEmpty: true });
+
+    await respondForTest(service, {
+      business,
+      receptionist: { ...receptionist, leadCaptureEnabled: false },
+      conversationId: "c1",
+      userMessage,
+    });
+
+    expect(events).toContain("unanswered_question");
+  });
+
+  it("does not record a knowledge gap for a Telugu greeting", async () => {
+    const { service, events } = buildFakes({ llmReplies: ["Namaskaram!"], knowledgeEmpty: true });
+
+    await respondForTest(service, {
+      business,
+      receptionist: { ...receptionist, leadCaptureEnabled: false },
+      conversationId: "c1",
+      userMessage: "నమస్కారం అండి",
+    });
+
+    expect(events).not.toContain("unanswered_question");
+  });
+
   it("does not record a knowledge gap for greetings", async () => {
     const { service, events } = buildFakes({ llmReplies: ["Hi!"], knowledgeEmpty: true });
 

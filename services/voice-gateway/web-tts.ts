@@ -1,3 +1,6 @@
+import { withSecurityAudit, bindSecurityIdentity, finishSecurityAudit, SecurityAuditUnavailable } from "@halo/platform/security-audit";
+import { securityAuditStore } from "@halo/tenancy/security-audit-store";
+import { withTelemetryContext, telemetryId } from "@halo/platform/telemetry";
 import { observe } from "@halo/platform/telemetry";
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -6,18 +9,23 @@ import { signWebTts } from "@halo/voice/web-audio-auth";
 import { TtsError, type StreamingTtsProvider } from "@halo/ports/streaming-tts-provider";
 import { logger } from "@halo/platform/logger";
 
-const schema = z.object({ businessId: z.string().uuid(), language: z.string().min(2).max(20), text: z.string().trim().min(1).max(4000), timestamp: z.number() }).strict();
+const schema = z.object({ correlationId: z.string().regex(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/).optional(), businessId: z.string().uuid(), language: z.string().min(2).max(20), text: z.string().trim().min(1).max(4000), timestamp: z.number() }).strict();
 
 /** Same authenticated gateway and provider port as STT; no client-selected tenant or voice. */
 export async function handleWebTts(req: IncomingMessage, res: ServerResponse, secret: string, sampleRate: number, provider?: StreamingTtsProvider): Promise<void> {
-  const send = (status: number, data: object) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(data)); };
+  let auditStatus = 500;
+  const send = (status: number, data: object) => { auditStatus = status; res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(data)); };
   let size = 0; const chunks: Buffer[] = [];
   for await (const chunk of req) { size += chunk.length; if (size > 32000) { send(413, { error: "bad_text" }); return; } chunks.push(Buffer.from(chunk)); }
   const body = Buffer.concat(chunks).toString("utf8");
   const signature = req.headers["x-halo-signature"], expected = signWebTts(secret, body);
-  if (typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature) || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) { send(403, { error: "unauthorized" }); return; }
+  if (typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature) || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) { await withSecurityAudit(securityAuditStore, false, () => finishSecurityAudit(403), "POST", "widget"); send(403, { error: "unauthorized" }); return; }
   const parsed = schema.safeParse((() => { try { return JSON.parse(body); } catch { return null; } })());
   if (!parsed.success || Math.abs(Date.now() - parsed.data.timestamp) > 30000) { send(400, { error: "bad_text" }); return; }
+  logger.info("gateway correlation accepted", { upstreamCorrelationId: parsed.data.correlationId, requestId: telemetryId() });
+  return withTelemetryContext(() => withSecurityAudit(securityAuditStore, true, async () => {
+  try {
+    await bindSecurityIdentity({ actorId: null, businessId: parsed.data.businessId });
   if (!provider || provider.name.includes("fake")) { send(503, { error: "tts_not_configured" }); return; }
   const format = provider.capabilities().formats.find(f => f.encoding === "pcm16le" && f.channels === 1 && f.sampleRate === sampleRate);
   const languages = provider.capabilities().languages;
@@ -46,4 +54,9 @@ export async function handleWebTts(req: IncomingMessage, res: ServerResponse, se
     logger.warn("web TTS failed", { provider: provider.name, code });
     if (!res.destroyed) send(502, { error: `tts_${code}` });
   } finally { clearTimeout(timer); res.off("close", onClose); }
+  } catch (error) {
+    if (error instanceof SecurityAuditUnavailable) { send(503, { error: "audit_unavailable" }); return; }
+    throw error;
+  } finally { await finishSecurityAudit(auditStatus); }
+  }, "POST", "widget"), parsed.data.correlationId ?? telemetryId());
 }

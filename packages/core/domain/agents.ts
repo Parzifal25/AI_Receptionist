@@ -151,6 +151,13 @@ const guardrailsSchema = z.object({
    * agent's language. Empty = the platform's English default.
    */
   safeFallbackReply: z.string().max(400).default(""),
+  /**
+   * INERT (gap G2.10, task W2.3). Accepted and stored so existing configs
+   * stay valid, but nothing reads it: no masking, redaction or refusal
+   * happens because of it. Do not rely on it, and do not expose it to
+   * tenants as a control. Enforcement needs an owner decision; whoever adds
+   * it must update tests/unit/pii-rules-inert.test.ts and the docs.
+   */
   piiRules: z.record(z.string(), z.unknown()).default({}),
 });
 

@@ -107,6 +107,7 @@ export class PipecatBridge {
   /** Start (or re-attach to) the session for an already-authenticated call. */
   async attach(params: {
     provider: string;
+    correlationId?: string;
     providerCallId: string;
     from: string;
     to: string;
@@ -115,12 +116,19 @@ export class PipecatBridge {
     const gateway = this.gateway;
     if (!gateway) throw new Error("pipecat bridge: gateway not bound");
     const key = this.key(params.provider, params.providerCallId);
+    // A control socket already owns this call. A worker's control socket has
+    // no reconnect window (closing it ends the call), so a second attach is a
+    // replayed stream token or a duplicate worker. Refuse it before touching
+    // the live sink or engine: overwriting the sink would redirect the call's
+    // speech commands, and releasing on refusal would orphan the live call.
+    if (this.sinks.has(key)) return { ok: false, reason: "session_active" };
     // Registered BEFORE startSession, so the greeting has somewhere to go.
     this.sinks.set(key, params.commands);
 
     let result: StartSessionResult;
     try {
       result = await gateway.startSession({
+        correlationId: params.correlationId,
         provider: params.provider,
         providerCallId: params.providerCallId,
         from: params.from,

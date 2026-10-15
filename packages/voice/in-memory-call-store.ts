@@ -71,7 +71,7 @@ export class InMemoryCallStore implements CallStore {
       fromNumber: input.fromNumber,
       toNumber: input.toNumber,
       state: input.state,
-      correlationId: randomUUID(),
+      correlationId: input.correlationId ?? randomUUID(),
       language: input.language,
     };
     this.calls.set(call.id, call);

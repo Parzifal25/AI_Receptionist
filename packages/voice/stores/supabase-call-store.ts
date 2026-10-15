@@ -153,6 +153,7 @@ export class SupabaseCallStore implements CallStore {
         to_number: input.toNumber.slice(0, 32),
         state: input.state,
         language: input.language,
+        ...(input.correlationId ? { correlation_id: input.correlationId } : {}),
       })
       .select(CALL_COLUMNS)
       .maybeSingle();

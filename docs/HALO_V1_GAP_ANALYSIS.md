@@ -732,3 +732,30 @@ The criteria and their status remain in [HALO_V1_STATUS.md §C](HALO_V1_STATUS.m
 | 8. Release and operations evidence | G2.6, G2.7, G3.1–G3.8 |
 | 9. Integrations, one exercised end to end | G4.1, G4.5, G7.4, G7.10 |
 | 10. Arunodhaya pilot scenarios | G5.1–G5.3, G6.1–G6.2, G6.7, G7.6 |
+
+## Workstream 3 final-closure evidence — 2026-10-15
+
+**VERIFIED_LOCAL (disposable DB/local tests):** [WS3 report](WORKSTREAM_3_REPORT.md) updates G1.1/G2.2/G2.6 and recovery preparation. Destination default-privilege drift is mitigated with deterministic source/recovered schema/security comparisons and an unsafe-restore negative regression. K1 is corrected under explicit final-closure authorization in additive 0035; 0033 remains unchanged. Corrected 499/500/501 dry/apply behavior, mixed progress/quarantine, fault rollback, retry, tenant isolation, unchanged provenance/collection and preserved publication are tested. [Owner actions](WS3_OWNER_ACTIONS.md) retain nine pending scoped IDs; the separate K1 engineering approval is closed. All T1–T10 actual-target groups remain unverified. Local rollout preparation is COMPLETE; no hosted, pilot or deployment gate is closed by simulation.
+
+## WS4 finalization — 2026-10-15
+
+**Local implementation evidence:** D7 now has locally authorized additive `0036` authorization auditing alongside `0032` tool audit. D18 has signed service/worker and persisted job correlation; export stays disabled/opt-in stdout locally, with hosted selection still pending operations approval. Failure/retry, redaction, tenant isolation and ambiguous-action quarantine are covered by deterministic tests. See [WORKSTREAM_4_REPORT.md](WORKSTREAM_4_REPORT.md) for the final disposition, exact counts and accepted limits.
+
+No hosted acceptance follows: target identity, real grants/Auth, backup/retention, provider idempotency, exporter/alerts and all WS3 T1–T10 evidence remain unverified. WS3's K1/recovery evidence stays local/disposable; `0035` and its recovery artifacts are unchanged. WS3 saved-ledger tests have one reviewed compatibility amendment so their 0001–0035 fixtures remain historical and current comparisons must account for 0036. No unrelated pending decision is ratified. New audit schema must precede matching code on a separately authorized target.
+
+## Local release-readiness audit — 2026-10-15
+
+Evidence and exact results: [LOCAL_RELEASE_READINESS_REPORT.md](LOCAL_RELEASE_READINESS_REPORT.md). The gap entries above are kept as written; this section records what changed locally. Every item below is `local test` (or `disposable DB` where stated) evidence only.
+
+| Gap | Change | Remaining |
+|---|---|---|
+| G1.4 | **Fixed locally (W1.2).** Re-attach only inside the reconnect window; the Pipecat bridge refuses a second control attach before touching the live sink. Replay tests fail on the old code. | Real carrier reconnect behaviour (D3, D8) |
+| G5.4 | **Fixed locally (W2.1).** Per-language question cues; Telugu, romanized and Tenglish gaps recorded; English pinned identical to the old regex. | Curated cue lists; native review of the cues |
+| G6.4 | **Fixed locally (W4.1).** Worker applies `vad.minSpeechMs` (Silero `start_secs`) and `bargeIn.minSpeechMs` (audio-time sustained barge-in). | Real speech tuning; W4.7 (HALO-side thinking interruption) |
+| G6.3 lever 10 | **Done locally (W4.6).** Latency-sensitive channels pass `maxCooldownWaitMs: 0`. | No mock-harness delta measured; other levers not started |
+| G6.5 | Unchanged: blocked on D17 (choosing the default model) | D17 |
+| G3.3 | **Fixed locally (W7.1).** One `llm.attempt` per router attempt, plus fallback, cooldown and exhaustion events, with no payloads. | Single-provider deployments; export backend (D18) |
+| G3.5 | **Sweep added (W7.2)**; it found and fixed a Resend recipient/subject log leak. Log contexts were scanned for unredacted personal-data keys. | Bounded to the exercised paths; third-party and Python vendor logs |
+| G2.10 | **Documented and pinned inert (W2.3).** | Enforcement needs an owner decision |
+| §4 documentation | API reference now covers all 30 routes (W0.8) | — |
+| Cross-workstream | WS4's `0036` had broken WS3's rollout rehearsal (67/70) and docs check; both fixed, and the rehearsal now restores a post-0036 backup (83/83, `disposable DB`) | Hosted backup/restore (W8.3) |

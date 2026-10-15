@@ -1,0 +1,9 @@
+ok actual adapter persisted attempt and success over HTTP
+ok trusted identity, timestamp and correlation survived HTTP serialization
+ok foreign member cannot read audit through PostgREST
+ok authorized denial persisted through the production adapter
+ok client cannot fabricate audit records through HTTP
+ok service cannot rewrite audit history through HTTP
+ok HTTP pre-audit outage prevented protected side effect
+ok HTTP terminal audit outage retained completed result and durable attempt
+check-security-audit-http: 8 assertions passed

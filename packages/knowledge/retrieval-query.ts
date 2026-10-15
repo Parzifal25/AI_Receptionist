@@ -1,4 +1,7 @@
 import type { ChatMessage } from "@halo/core/domain/types";
+import { detectLanguage } from "@halo/language/detect";
+import { ENGLISH_PACK, TELUGU_PACK } from "@halo/language/language-pack";
+import { isSubstantiveQuestionIn } from "@halo/language/question-cues";
 
 /**
  * Retrieval query rewriting.
@@ -48,22 +51,18 @@ export function buildRetrievalQuery(history: ChatMessage[], userMessage: string)
   return [...recentVisitorContext, message].join(" ");
 }
 
-// Interrogative openers that mark a message as a real question even without
-// a question mark ("do you offer weekend appointments").
-const INTERROGATIVE_RE =
-  /^(do|does|did|can|could|will|would|is|are|was|were|how|what|when|where|which|who|why|should)\b/i;
-
-const GREETING_RE = /^(hi|hey|hello|good (morning|afternoon|evening)|thanks|thank you|ok(ay)?|bye|goodbye)\b/i;
-
 /**
  * Whether a visitor message is a substantive question — the gate for
  * recording an unanswered_question event when retrieval comes back empty.
- * Greetings, one-word messages and statements don't count; a business
+ * Greetings, very short messages and statements don't count; a business
  * shouldn't see "hi" in its knowledge-gap report.
+ *
+ * Language-configurable (AGENTS.md): the cues live in each language pack.
+ * English text is judged by the English cues only, exactly as before. Text
+ * detected as Telugu (script or romanized) is judged by the Telugu cues OR
+ * the English ones, because Telugu callers code-mix ("EMI facility undaa?").
  */
 export function isSubstantiveQuestion(userMessage: string): boolean {
-  const message = userMessage.trim();
-  if (wordCount(message) < 3) return false;
-  if (GREETING_RE.test(message)) return false;
-  return message.includes("?") || INTERROGATIVE_RE.test(message);
+  const packs = detectLanguage(userMessage).primary === "te" ? [TELUGU_PACK, ENGLISH_PACK] : [ENGLISH_PACK];
+  return packs.some((pack) => isSubstantiveQuestionIn(userMessage, pack.questionCues));
 }

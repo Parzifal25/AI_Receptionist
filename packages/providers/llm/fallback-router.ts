@@ -4,6 +4,7 @@ import type {
   LLMCapabilities, LLMCompletionOptions, LLMDelta, LLMMessage, LLMProvider,
   LLMResult, LLMRoute, LLMRouteEvent,
 } from "@halo/ports/llm-provider";
+import { observe } from "@halo/platform/telemetry";
 
 export interface ModelCandidate { provider: LLMProvider; model: string }
 
@@ -16,6 +17,37 @@ function failureCategory(error: unknown): string {
     return typeof details?.category === "string" ? details.category : "provider_unavailable";
   }
   return "non_retryable";
+}
+
+/**
+ * Mirrors route events into allowlisted telemetry (G3.3): one `llm.attempt`
+ * per candidate attempt, plus fallbacks, cooldown skips and exhaustion.
+ * Labels are the provider family and failure class only — never the model,
+ * prompt, error text or token counts.
+ */
+function routeTelemetry(event: LLMRouteEvent, aborted: boolean): void {
+  const provider = event.provider;
+  const category = event.failureCategory;
+  switch (event.type) {
+    case "completed":
+      observe("llm.attempt", { component: "llm", provider, outcome: "ok" }, event.latencyMs);
+      return;
+    case "failed":
+      observe("llm.attempt", { component: "llm", provider, category,
+        outcome: aborted ? "cancelled" : category === "timeout" ? "timeout" : "error" }, event.latencyMs);
+      return;
+    case "fallback":
+      observe("llm.fallback", { component: "llm", operation: "fallback", provider, category });
+      return;
+    case "skipped":
+      observe("llm.cooldown", { component: "llm", operation: "skip", provider, category }, event.retryAfterMs);
+      return;
+    case "exhausted":
+      observe("llm.exhausted", { component: "llm", category });
+      return;
+    default:
+      return;
+  }
 }
 
 /** Ordered, per-request failover. Every candidate receives the same prompt, messages and tools. */
@@ -64,10 +96,13 @@ export class FallbackLLMRouter implements LLMProvider {
     const cooldown = this.cooldowns.get(this.candidates[index].provider.name);
     const waitMs = cooldown ? Math.max(0, cooldown.until - this.now()) : 0;
     if (!cooldown || waitMs === 0) return null;
-    if (waitMs > (this.backoff.maxWaitMs ?? 2_000) || this.now() + waitMs >= deadline) {
+    const maxWaitMs = Math.min(this.backoff.maxWaitMs ?? 2_000, options.maxCooldownWaitMs ?? Infinity);
+    if (waitMs > maxWaitMs || this.now() + waitMs >= deadline) {
       this.emit(options, { type: "skipped", ...this.base(index), failureCategory: failureCategory(cooldown.error), retryAfterMs: waitMs });
       return cooldown.error;
     }
+    observe("llm.cooldown", { component: "llm", operation: "wait", provider: this.candidates[index].provider.name,
+      category: failureCategory(cooldown.error) }, waitMs);
     await (this.backoff.sleep ?? ((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms))))(waitMs);
     this.assertActive(deadline, options);
     return null;
@@ -90,6 +125,7 @@ export class FallbackLLMRouter implements LLMProvider {
 
   private emit(options: LLMCompletionOptions, event: LLMRouteEvent): void {
     try { options.onRouteEvent?.(event); } catch { /* telemetry cannot break inference */ }
+    routeTelemetry(event, options.abortSignal?.aborted === true);
   }
 
   private base(index: number): Pick<LLMRouteEvent, "provider" | "model" | "attempt" | "fallback"> {
@@ -152,6 +188,9 @@ export class FallbackLLMRouter implements LLMProvider {
       const live = options.liveStream === true;
       const deltas: LLMDelta[] = [];
       let anyDeltaEmitted = false;
+      // A consumer that stops iterating ends this attempt without a
+      // completed/failed event; the finally below still records it once.
+      let attemptOpen = true;
       this.emit(options, { type: "started", ...base });
       try {
         for await (const delta of candidate.provider.stream!(systemPrompt, messages, this.candidateOptions(options, deadline, index))) {
@@ -178,6 +217,7 @@ export class FallbackLLMRouter implements LLMProvider {
         const done = deltas.find((d) => d.type === "done");
         const route: LLMRoute = { provider: base.provider, model: base.model, attempt: base.attempt,
           fallbackCount: index, timeToFirstTokenMs: firstTokenMs };
+        attemptOpen = false;
         this.emit(options, { type: "completed", ...base, latencyMs: Math.max(0, Date.now() - started),
           httpStatus: done?.type === "done" ? done.httpStatus : undefined,
           inputTokens: counts?.promptTokens, outputTokens: counts?.completionTokens,
@@ -194,10 +234,13 @@ export class FallbackLLMRouter implements LLMProvider {
       } catch (error) {
         lastError = error;
         const category = failureCategory(error);
+        attemptOpen = false;
         this.emit(options, { type: "failed", ...base, latencyMs: Math.max(0, Date.now() - started), failureCategory: category,
           ...this.recordFailure(base.provider, error) });
         if (anyDeltaEmitted || !RETRYABLE.has(category) || options.abortSignal?.aborted) throw error;
         if (index + 1 < this.candidates.length) this.emit(options, { type: "fallback", ...this.base(index + 1), failureCategory: category });
+      } finally {
+        if (attemptOpen) observe("llm.attempt", { component: "llm", provider: base.provider, outcome: "cancelled" }, Math.max(0, Date.now() - started));
       }
     }
     this.emit(options, { type: "exhausted", ...this.base(this.candidates.length - 1), failureCategory: failureCategory(lastError) });

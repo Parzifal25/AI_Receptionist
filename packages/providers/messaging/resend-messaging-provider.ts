@@ -64,8 +64,7 @@ export class ResendMessagingProvider implements MessagingProvider {
         });
 
         if (!response.ok) {
-          const text = await response.text().catch(() => "");
-          throw new HttpError(response.status, `Resend API error: ${response.status} ${response.statusText} ${text}`);
+          throw new HttpError(response.status, `Resend API error: ${response.status}`);
         }
       },
       {
@@ -73,9 +72,9 @@ export class ResendMessagingProvider implements MessagingProvider {
       }
     );
 
+    // Never the recipient or subject: both are personal data (W7.2 sweep).
     this.log.info("outbound email sent via resend", {
-      to: message.to,
-      subject: message.subject,
+      channel: message.channel,
       hasHtml: Boolean(message.html),
       attachmentsCount: message.attachments?.length || 0,
     });

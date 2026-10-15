@@ -1,6 +1,6 @@
 # HALO first-hosting migration and database rollout runbook
 
-**Date:** 2026-10-15 · **Status:** PROCEDURE, NOT AUTHORIZATION. Nothing in this runbook has been run against any hosted, staging, shared or developer database. It answers [D21](DECISIONS.md#d21--running-migration-0001-on-hosted-supabase) with evidence, and it sequences the pending migrations `0032` (D7), `0033` (D14) and `0034` (D22).
+**Date:** 2026-10-15 · **Status:** PROCEDURE, NOT AUTHORIZATION. Nothing in this runbook has been run against any hosted, staging, shared or developer database. It answers [D21](DECISIONS.md#d21--running-migration-0001-on-hosted-supabase) with evidence, and it sequences the pending migrations `0032` (D7), `0033` (D14) and `0034` (D22), followed by `0035` (K1 local correction).
 
 **Before step 1 may start, all of these must be recorded in [DECISIONS.md](DECISIONS.md):**
 
@@ -8,6 +8,8 @@
 - D21 approved (the method below or another).
 - `0034` adopted (D22). D14 items 1–6 ratified or replaced. Without these approvals the chain stops at `0031`, and the application at this revision must not be deployed against it (§6).
 - The owner's written authorization for this exact action on this exact target. G2 requires one.
+
+**WS3 operational addendum (2026-10-15):** Preparation is COMPLETE — ROLLOUT PREPARED (local package only). The original restore failure is reproduced as a negative test; the corrected isolated restore preserves source security. K1 is corrected in additive 0035 and verified locally; 0033 is unchanged. Local preparation is complete, while owner/target gates still block execution. Do not execute this procedure until the [preflight worksheet](HOSTED_TARGET_PREFLIGHT.md), [migration map](MIGRATION_DEPENDENCY_MAP.md), [knowledge procedure](KNOWLEDGE_ROLLOUT_RUNBOOK.md), [recovery procedure](DATABASE_RECOVERY_RUNBOOK.md), and [owner/readiness register](WS3_OWNER_ACTIONS.md) pass. See [WS3 evidence report](WORKSTREAM_3_REPORT.md). Commands below describe future separately authorized operator actions, including read-only commands; none may run against a real target under WS3.
 
 Evidence labels follow [HALO_Architecture.md §1.3](HALO_Architecture.md#13-evidence-levels).
 
@@ -27,7 +29,7 @@ Evidence labels follow [HALO_Architecture.md §1.3](HALO_Architecture.md#13-evid
 | The local HALO stack's ledger lists `0001`–`0030` (`0001` in its committed form). The hosted ledger is **unknown**: not empty, not zero. | `source` (D10 read-only query); hosted: no query made |
 | CI's `check:migrations` runs on vanilla `pgvector:pg16`, where every extension lands in `public`. It does **not** exercise hosted extension placement. | `source` (`scripts/check-migrations.mjs`) |
 
-**Reproduce the image evidence:** `npm run check:supabase-image-chain` (Docker, cached image, `--network none`, no ports; it removes its containers). Result on 2026-10-15: `ok A`, `ok P`, `ok C`; 34 migrations.
+**Reproduce the image evidence:** `npm run check:supabase-image-chain` (Docker, cached image, `--network none`, no ports; it removes its containers). Result on 2026-10-15: `ok A`, `ok P`, `ok C`; final closure rechecked 35 migrations (the WS2 report covered 34).
 
 ---
 
@@ -56,13 +58,13 @@ Evidence labels follow [HALO_Architecture.md §1.3](HALO_Architecture.md#13-evid
    - client TRUNCATE/REFERENCES/TRIGGER grant counts.
 
    Tested on 2026-10-15 against a fresh, a `0001`–`0031` and a `0001`–`0034` database (`disposable DB`). It detected a planted cross-tenant calendar connection and a cross-tenant knowledge collection.
-3. **Ledger comparison.** Run `supabase migration list --db-url "$TARGET_URL"`, which is read-only. Also compare preflight §5 with `ls supabase/migrations`, by version **and** name.
+3. **Ledger comparison.** After verifying the exact binary and authorizing target reads, run `supabase migration list --db-url "$TARGET_URL"`, which is read-only. Also compare preflight §5 with `ls supabase/migrations`, by version **and** name.
 4. **Dry run.** Run `supabase db push --db-url "$TARGET_URL" --dry-run`. It must list exactly the versions you expect to apply, and nothing else.
-5. **Record** all of the above (counts and facts only) in a dated evidence entry before going further.
+5. **Record** all of the above (counts and facts only) in a dated evidence entry before going further. Object flags are samples, not full schema equivalence; inspect all definitions and effective privileges as specified in the worksheet.
 
 **Stop. Do not apply anything, and return to the owner, if any of these hold:**
 
-- `search_path_has_extensions` is false on the connection that will run the migrations.
+- `search_path_has_extensions` is false while 0001 is pending with pgcrypto in extensions. Known-prefix upgrades may not need that schema path; verify the exact pending SQL and runner session rather than replay 0001.
 - `stop_vector_outside_public` is true before `0001` (scenario C). Moving the extension or editing `0001` is an owner decision. Do not improvise.
 - `storage_buckets`, `auth_uid` or `client_roles` is false: the target is not a Supabase project.
 - The ledger and the database objects disagree. For example: objects exist but the ledger is empty; versions are missing in the middle; names differ from the repository; or a version the repository does not have is present.
@@ -75,11 +77,11 @@ Evidence labels follow [HALO_Architecture.md §1.3](HALO_Architecture.md#13-evid
 ## 4. Fresh database
 
 1. Preflight passes, with ledger empty or absent and no HALO objects.
-2. Apply with `supabase db push --db-url "$TARGET_URL"` as `postgres`. Do not use `--linked`, whose login role may lack `extensions` (§1). This records every version in the ledger. If the CLI cannot be used, stop: hand-applied files leave no ledger rows, and a later push would try to re-run them.
+2. Apply with `supabase db push --db-url "$TARGET_URL"` as `postgres`. Do not use `--linked`, whose login role may lack `extensions` (§1). This records every version in the ledger. The installed help now confirms these flags, but the actual CLI migration/ledger transaction behavior must be proved on a clone first. If the CLI cannot be used, stop: hand-applied files leave no ledger rows, and a later push would try to re-run them.
 3. Afterwards:
    - run `migration list` again: every version is applied;
    - re-run the preflight: §8 counts are zero, and both censuses are empty;
-   - `NOTIFY pgrst, 'reload schema'` is not needed after `db push`;
+   - verify the API schema cache exposes the new schema; automatic reload on the actual runner is NOT VERIFIED;
    - run the staging verification in [HALO_PHASE_BETA_READINESS.md](HALO_PHASE_BETA_READINESS.md) and the Gate 2 procedure in [HALO_THREE_GATE_EXECUTION.md](HALO_THREE_GATE_EXECUTION.md).
 
 ---
@@ -97,18 +99,22 @@ Evidence labels follow [HALO_Architecture.md §1.3](HALO_Architecture.md#13-evid
 
 Each step is preceded by the preflight and followed by `migration list`.
 
-1. **Catch up `0001`–`0031`**, if the ledger is behind. These are not new decisions; they are the committed baseline.
+1. **Catch up `0001`–`0031`**, if the ledger is behind. They are the committed baseline, but any target catch-up still requires reviewed compatibility, data transforms, backup and exact authorization.
 2. **`0032` (D7, approved).** Additive; it needs no data preparation.
-3. **`0033` (D14).** Only after the item 1–6 ratification. From this point, existing knowledge stops being served until it is backfilled, re-indexed and approved. Schedule it with the tenant: run `knowledge_backfill_legacy(business, false)` (dry run) per tenant, review, then apply, re-index and approve through the dashboard.
+3. **`0033` (D14).** Only after the item 1–6 ratification. From this point, existing knowledge stops being served until it is backfilled, re-indexed and approved. Schedule it with the tenant: follow [the knowledge runbook](KNOWLEDGE_ROLLOUT_RUNBOOK.md): dry run per tenant, inspect revision constraints (before 0035, K1 source_ref >500 can abort apply), reconcile, require 0035, then separately authorize apply/index/review. Backfilled drafts have no automatic indexing job; dashboard re-save may lose imported provenance or collection binding. Do not bulk re-save or approve.
 4. **`0034` (D22).** Only after adoption, and after the pre-`0034` tenant-reference section of the preflight shows zero rows, or every nonzero row is dispositioned.
-5. **Deploy the application** built from the same revision (§6).
+5. **0035 (K1).** Apply after 0034 under separately authorized target execution, before any legacy backfill. Local implementation was explicitly authorized; this is not hosted execution approval. Verify source_ref 499/500 accepted and 501 quarantined in both dry/apply; valid mixed items progress, invalid provenance remains untouched and no content is approved.
+5a. **`0036` (D7 `audit_logs`, D18 job correlation; added 2026-10-15 by the [local release-readiness audit](LOCAL_RELEASE_READINESS_REPORT.md)).** Apply after 0035, under separately authorized target execution; WS4's approval covers local and disposable verification only. Additive: one append-only table and two nullable columns, no data transformation. Verify the preflight's `0036=t` flag, the audit_logs grants (authenticated SELECT; service_role INSERT/SELECT; nothing else for application roles) and RLS. The local rehearsal (`node scripts/check-rollout-rehearsal.mjs`, 83 checks) applies it on a source and a recovered copy and restores a post-0036 backup; that is `disposable DB` evidence, not hosted proof.
+6. **Deploy the application** built from the same revision (§6), only after separate deployment authorization.
 
 ### 5.3 Rollback limitations
 
 - Prefer a forward correction or a verified restore. Do not reverse migration SQL by hand.
 - **`0032`:** dropping `tool_executions` discards the audit record. The current application fails closed for side-effecting tools without the table.
 - **`0033`:** dropping it discards approvals and revision history. Members lost direct knowledge writes. An older application build still retrieves safely, because the old RPC names return governed content only, but it cannot edit knowledge.
+- **`0035`:** no source data is changed; reverting the function restores the dry-run/apply bug. Prefer a reviewed forward correction; do not replay ledger rows.
 - **`0034`:** dropping its triggers re-opens the cross-tenant references. Re-granting the revoked privileges would re-open TRUNCATE.
+- **`0036`:** dropping `audit_logs` discards security evidence; never do it as a rollback. An older application build ignores the table and the two nullable columns.
 
 ---
 
@@ -119,10 +125,13 @@ Each step is preceded by the preflight and followed by `migration list`.
 | A schema without `0032` | `save_contact_details` and `offer_concession` return `AUDIT_UNAVAILABLE`: fail closed. Handoff still works. |
 | A schema without `0033` | The governed RPCs do not exist. Knowledge retrieval degrades to no knowledge (a safe but broken answer path), and dashboard knowledge editing fails. |
 | A schema without `0034` | It works, but the database does not refuse cross-tenant references, and clients keep TRUNCATE. |
+| A schema without `0036` | Mandatory pre-execution audits fail, so protected dashboard mutations, resolved widget mutations, cron work and signed gateway services refuse to run (fail closed). Workflow event and timer inserts that carry telemetry correlation fail. |
 
 **Rule:** migrate first, then deploy the matching application. Never leave this application running against an older schema.
 
 ---
+
+A schema at 0034 without 0035 keeps normal governed retrieval but has unsafe legacy dry-run reporting; do not use backfill until the additive correction is applied under authorization.
 
 ## 7. Evidence still needed before a real rollout
 

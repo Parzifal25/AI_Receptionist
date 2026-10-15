@@ -66,6 +66,7 @@ export class SupabaseWorkflowStore implements WorkflowStore {
       business_id: event.businessId,
       type: event.type,
       correlation_id: event.correlationId,
+      telemetry_correlation_id: event.telemetryCorrelationId,
       payload: event.payload,
       occurred_at: event.occurredAt,
     });
@@ -77,6 +78,7 @@ export class SupabaseWorkflowStore implements WorkflowStore {
     if (!data) return null;
     return {
       id: data.id,
+      telemetryCorrelationId: data.telemetry_correlation_id ?? undefined,
       businessId: data.business_id,
       type: data.type,
       correlationId: data.correlation_id ?? "",
@@ -302,6 +304,7 @@ export class SupabaseWorkflowStore implements WorkflowStore {
     eventType: BusinessEventType;
     payload: Record<string, unknown>;
     correlationId: string;
+    telemetryCorrelationId?: string;
     fireAt: string;
   }): Promise<void> {
     const { error } = await this.db.from("workflow_timers").insert({
@@ -310,6 +313,7 @@ export class SupabaseWorkflowStore implements WorkflowStore {
       payload: timer.payload,
       correlation_id: timer.correlationId,
       fire_at: timer.fireAt,
+      telemetry_correlation_id: timer.telemetryCorrelationId,
     });
     if (error) throw new Error(`schedule timer: ${error.message}`);
   }
@@ -317,6 +321,7 @@ export class SupabaseWorkflowStore implements WorkflowStore {
   async claimDueTimers(limit: number): Promise<
     Array<{
       businessId: string;
+      telemetryCorrelationId?: string;
       eventType: BusinessEventType;
       payload: Record<string, unknown>;
       correlationId: string;

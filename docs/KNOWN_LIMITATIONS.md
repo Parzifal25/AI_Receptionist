@@ -145,7 +145,11 @@ Two local-loop artefacts, both the client's and neither HALO's:
 - `isSubstantiveQuestion` (`packages/knowledge/retrieval-query.ts`) recognises
   only `?` and English interrogative openers, so on a Telugu call
   `knowledgeGap` is always false and the unanswered-question escalation path
-  cannot fire.
+  cannot fire. **Fixed locally by W2.1 (2026-10-15):** per-language cues in
+  `packages/language/question-cues.ts` cover Telugu script, romanized Telugu
+  and Tenglish; English is unchanged. The cue lists are curated, a leading
+  greeting still disqualifies a message (as in English), and a romanized cue
+  word counts only when the rest of the message is independently Telugu.
 - Confirmation detection **was** English-only and is no longer:
   `packages/language/confirmation.ts` (Phase 4.5 Sprint 2) reads Telugu and
   romanized Telugu, and refuses rejection, hedging, question forms and

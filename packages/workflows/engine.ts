@@ -1,3 +1,5 @@
+import { RetrySafeWorkflowError } from "./types";
+import { isTelemetryId, withTelemetryContext, telemetryId, jobTelemetryId } from "@halo/platform/telemetry";
 import type {
   BusinessEvent,
   WorkflowDefinition,
@@ -68,6 +70,7 @@ export class WorkflowEngine {
    * break the flow that emitted the event.
    */
   async dispatch(event: BusinessEvent): Promise<void> {
+    event = { ...event, telemetryCorrelationId: isTelemetryId(event.telemetryCorrelationId) ? event.telemetryCorrelationId : telemetryId() ?? jobTelemetryId("workflow_event", event.businessId, event.id) };
     try {
       await this.store.insertEvent(event);
       const workflows = await this.store.listEnabledWorkflows(event.businessId, event.type);
@@ -81,6 +84,7 @@ export class WorkflowEngine {
 
   /** Fire one specific workflow (the dashboard's manual trigger). */
   async runManually(workflow: WorkflowDefinition, event: BusinessEvent): Promise<void> {
+    event = { ...event, telemetryCorrelationId: isTelemetryId(event.telemetryCorrelationId) ? event.telemetryCorrelationId : telemetryId() ?? jobTelemetryId("workflow_event", event.businessId, event.id) };
     await this.store.insertEvent(event);
     await this.startRun(workflow, event);
   }
@@ -97,12 +101,12 @@ export class WorkflowEngine {
 
     const timers = await this.store.claimDueTimers(batch);
     for (const timer of timers) {
-      await params.emit({
+      await withTelemetryContext(() => params.emit({
         businessId: timer.businessId,
         type: timer.eventType,
         correlationId: timer.correlationId,
         payload: timer.payload,
-      });
+      }), timer.telemetryCorrelationId ?? jobTelemetryId("workflow_timer", timer.businessId, timer.correlationId));
     }
 
     const dueRuns = await this.store.claimDueRuns(batch);
@@ -164,6 +168,13 @@ export class WorkflowEngine {
     workflow: WorkflowDefinition,
     event: BusinessEvent,
   ): Promise<void> {
+    // Legacy events get a stable tenant-scoped ID, independent of the cron request.
+    const fallback = jobTelemetryId("workflow_event", event.businessId, event.id);
+    return withTelemetryContext(() => this.executeRunInContext(run, workflow, event),
+      isTelemetryId(event.telemetryCorrelationId) ? event.telemetryCorrelationId : fallback);
+  }
+
+  private async executeRunInContext(run: WorkflowRun, workflow: WorkflowDefinition, event: BusinessEvent): Promise<void> {
     const attempt = run.attempt + 1;
     await this.store.updateRun(run.id, {
       status: "running",
@@ -189,7 +200,6 @@ export class WorkflowEngine {
         log[exhausted ? "error" : "warn"]("workflow run attempt failed", {
           runId: run.id,
           workflowId: workflow.id,
-          correlationId: run.correlationId,
           stepId: step.id,
           attempt,
           deadLetter: exhausted,
@@ -209,7 +219,6 @@ export class WorkflowEngine {
     log.info("workflow run succeeded", {
       runId: run.id,
       workflowId: workflow.id,
-      correlationId: run.correlationId,
       steps: workflow.steps.length,
       attempt,
     });
@@ -240,9 +249,12 @@ export class WorkflowEngine {
     let lastError = "";
 
     for (let stepAttempt = 1; stepAttempt <= maxAttempts; stepAttempt++) {
+      let completed = false;
+      let executorStarted = false;
       try {
         const params = interpolateParams(step.params, event);
         const controller = new AbortController();
+        executorStarted = true;
         const detail = await withTimeout(
           executor(params, {
             event,
@@ -254,6 +266,7 @@ export class WorkflowEngine {
           step.id,
           controller,
         );
+        completed = true;
         await this.store.appendLog({
           runId: run.id,
           stepId: step.id,
@@ -263,7 +276,8 @@ export class WorkflowEngine {
         });
         return { ok: true };
       } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
+        if (completed) return { ok: false, error: "action_completed_history_unavailable", uncertain: true };
+        lastError = error instanceof StepTimeoutError ? "step_timeout_outcome_unknown" : "step_failed";
         await this.store.appendLog({
           runId: run.id,
           stepId: step.id,
@@ -271,6 +285,7 @@ export class WorkflowEngine {
           status: "failed",
           detail: { error: lastError, stepAttempt },
         });
+        if (executorStarted && !(error instanceof RetrySafeWorkflowError) && !(error instanceof StepTimeoutError)) return { ok: false, error: "action_outcome_unknown", uncertain: true };
         if (error instanceof StepTimeoutError) return { ok: false, error: lastError, uncertain: true };
         if (stepAttempt < maxAttempts && backoffMs > 0) await sleep(backoffMs);
       }

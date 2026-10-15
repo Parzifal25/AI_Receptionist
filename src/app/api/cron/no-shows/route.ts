@@ -1,3 +1,4 @@
+import { beginSecurityAudit } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { AppError } from "@halo/core/errors/app-error";
 import { NoShowSweepService } from "@halo/lifecycle/no-show-sweep";
@@ -30,6 +31,7 @@ export const GET = withErrorHandling("cron.no-shows", async (request: NextReques
     return fail(AppError.unauthorized());
   }
 
+  await beginSecurityAudit(true);
   const result = await new NoShowSweepService().sweep();
   log.info("no-show sweep complete", result);
 

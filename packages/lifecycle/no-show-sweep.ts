@@ -1,3 +1,4 @@
+import { jobTelemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import "server-only";
 import type { Business } from "@halo/core/domain/types";
 import type { Appointment, SchedulingSettings } from "@halo/core/domain/scheduling";
@@ -82,6 +83,7 @@ export class NoShowSweepService {
     const businessCache = new Map<string, Business | null>();
 
     for (const appointment of candidates) {
+      await withTelemetryContext(async () => {
       let settings = settingsCache.get(appointment.businessId);
       if (!settings) {
         settings = await this.repository.getSettings(appointment.businessId);
@@ -90,7 +92,7 @@ export class NoShowSweepService {
 
       if (!isNoShowOverdue(appointment, settings, now)) {
         result.skipped += 1;
-        continue;
+        return;
       }
 
       let business = businessCache.get(appointment.businessId);
@@ -100,7 +102,7 @@ export class NoShowSweepService {
       }
       if (!business) {
         result.failed += 1;
-        continue;
+        return;
       }
 
       try {
@@ -116,6 +118,7 @@ export class NoShowSweepService {
           error: error instanceof Error ? error.message : String(error),
         });
       }
+      }, jobTelemetryId("no_show", appointment.businessId, appointment.id));
     }
 
     return result;

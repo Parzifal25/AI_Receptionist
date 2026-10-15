@@ -1,3 +1,4 @@
+import { beginSecurityAudit } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { AppError } from "@halo/core/errors/app-error";
 import { WidgetRepository } from "@/core/services/widget-repository";
@@ -28,6 +29,7 @@ export const GET = withErrorHandling("cron.retention", async (request: NextReque
     return fail(AppError.unauthorized());
   }
 
+  await beginSecurityAudit(true);
   const result = await new WidgetRepository().purgeExpiredData();
   log.info("retention purge complete", result);
 

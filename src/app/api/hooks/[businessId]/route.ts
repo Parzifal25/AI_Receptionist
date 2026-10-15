@@ -1,3 +1,4 @@
+import { bindSecurityIdentity } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { AppError } from "@halo/core/errors/app-error";
 import { emitBusinessEvent } from "@halo/workflows/event-bus";
@@ -37,6 +38,7 @@ export const POST = withErrorHandling(
       return fail(AppError.unauthorized());
     }
 
+    await bindSecurityIdentity({ actorId: null, businessId });
     const raw = await request.text();
     if (raw.length > MAX_BODY_BYTES) {
       return fail(AppError.validation("Payload too large"));

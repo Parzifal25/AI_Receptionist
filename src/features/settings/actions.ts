@@ -1,5 +1,9 @@
 "use server";
 
+import { rejectSecurityAudit } from "@halo/platform/security-audit";
+import { failSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
+
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBusiness } from "@halo/tenancy/auth";
@@ -40,13 +44,15 @@ export async function updateSettings(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { businessId, role } = await requireBusiness();
-  if (role === "member") return { error: "Only admins can change settings" };
+  return withAuditedAction(async () => {
 
-  const parsed = settingsSchema.safeParse({
-    allowedDomains: formData.get("allowedDomains"),
-    notifyOnLead: formData.get("notifyOnLead") === "on",
-    notificationEmail: formData.get("notificationEmail"),
+    const { businessId, role } = await requireBusiness();
+    if (role === "member") { await rejectSecurityAudit(); return { error: "Only admins can change settings" }; }
+
+    const parsed = settingsSchema.safeParse({
+      allowedDomains: formData.get("allowedDomains"),
+      notifyOnLead: formData.get("notifyOnLead") === "on",
+      notificationEmail: formData.get("notificationEmail"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -67,6 +73,8 @@ export async function updateSettings(
 
   revalidatePath("/dashboard/settings");
   return { error: null, message: "Settings saved." };
+
+  }, { action: "updateSettings" });
 }
 
 /**
@@ -75,17 +83,22 @@ export async function updateSettings(
  * RLS policies by design — tenant scoping happens here.
  */
 export async function disconnectGoogleCalendar(): Promise<void> {
-  const { businessId, role } = await requireBusiness();
-  if (role === "member") return;
+  return withAuditedAction(async () => {
 
-  const { error } = await getAdminClient()
-    .from("calendar_connections")
-    .delete()
-    .eq("business_id", businessId)
-    .eq("provider", "google")
-    .is("staff_id", null);
-  if (error) {
-    log.error("calendar disconnect failed", { error: error.message });
-  }
-  revalidatePath("/dashboard/settings");
+    const { businessId, role } = await requireBusiness();
+    if (role === "member") { await rejectSecurityAudit(); return; }
+
+    const { error } = await getAdminClient()
+      .from("calendar_connections")
+      .delete()
+      .eq("business_id", businessId)
+      .eq("provider", "google")
+      .is("staff_id", null);
+    if (error) {
+      await failSecurityAudit();
+      log.error("calendar disconnect failed", { error: error.message });
+    }
+    revalidatePath("/dashboard/settings");
+
+  }, { action: "disconnectGoogleCalendar" });
 }

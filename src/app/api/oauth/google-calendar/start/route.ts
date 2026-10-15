@@ -1,3 +1,5 @@
+import { rejectSecurityAudit, failSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
 import { NextResponse } from "next/server";
 import { requireBusiness } from "@halo/tenancy/auth";
 import { getServerEnv } from "@halo/platform/env";
@@ -24,13 +26,17 @@ const log = logger.child({ route: "oauth.google-calendar.start" });
  * refresh token, which the booking engine needs to sync unattended.
  */
 export async function GET(): Promise<NextResponse> {
+  return withAuditedAction(async () => {
+
   const env = getServerEnv();
   const { businessId, role } = await requireBusiness();
 
   if (role === "member") {
+    await rejectSecurityAudit();
     return NextResponse.redirect(settingsRedirect(env, { error: "forbidden" }));
   }
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY) {
+    await failSecurityAudit();
     log.warn("google calendar connect attempted without GOOGLE_CLIENT_ID/SECRET");
     return NextResponse.redirect(settingsRedirect(env, { error: "not_configured" }));
   }
@@ -54,4 +60,6 @@ export async function GET(): Promise<NextResponse> {
     maxAge: 600,
   });
   return response;
+
+  }, {"action":"calendar_authorization","method":"GET"});
 }

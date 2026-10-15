@@ -1,3 +1,4 @@
+import { isTelemetryId } from "@halo/platform/telemetry";
 import type { RuntimeEvent } from "@halo/runtime/contracts";
 import type {
   CallDisposition,
@@ -126,7 +127,7 @@ export interface VoiceGatewayDeps {
 
 export type StartSessionResult =
   | { ok: true; sessionId: string; call: CallRecord; reattached: boolean }
-  | { ok: false; reason: "unknown_number" | "capacity" | "already_ended" | "provider_mismatch" | "identity_mismatch" | "recovery_required" };
+  | { ok: false; reason: "unknown_number" | "capacity" | "already_ended" | "provider_mismatch" | "identity_mismatch" | "recovery_required" | "session_active" };
 
 interface Session {
   id: string;
@@ -177,11 +178,15 @@ export class VoiceGateway {
   /**
    * Answer an inbound call: resolve the tenant from the dialled number,
    * create (or recover) the call row and conversation, and start the media
-   * loop. Idempotent per provider call id; a second media socket for a live
-   * call re-attaches instead of starting a second session.
+   * loop. Idempotent per provider call id: a second media socket never starts
+   * a second session. It re-attaches only while the live session is waiting
+   * in its reconnect window (its socket dropped); otherwise it is refused as
+   * `session_active`. A stream token stays valid for its whole TTL, so
+   * without this a replayed token could take over a live call's audio (G1.4).
    */
   async startSession(params: {
     provider: string;
+    correlationId?: string;
     providerCallId: string;
     from: string;
     to: string;
@@ -198,9 +203,7 @@ export class VoiceGateway {
       if (!result.ok) return result;
       const entry = this.sessions.get(result.sessionId);
       if (!entry) return result;
-      if (entry.ctx.call.fromNumber !== params.from || entry.ctx.call.toNumber !== params.to) return { ok: false, reason: "identity_mismatch" };
-      this.attachMedia(entry, params.output);
-      return { ...result, reattached: true };
+      return this.reattach(entry, params);
     }
     const attempt = this.beginSession(params);
     this.starting.set(key, attempt);
@@ -213,6 +216,7 @@ export class VoiceGateway {
 
   private async beginSession(params: {
     provider: string;
+    correlationId?: string;
     providerCallId: string;
     from: string;
     to: string;
@@ -222,11 +226,7 @@ export class VoiceGateway {
     if (params.provider !== this.deps.telephony.name) return { ok: false, reason: "provider_mismatch" };
     const existingId = this.byProviderCall.get(this.key(params.provider, params.providerCallId));
     const existing = existingId ? this.sessions.get(existingId) : undefined;
-    if (existing) {
-      if (existing.ctx.call.fromNumber !== params.from || existing.ctx.call.toNumber !== params.to) return { ok: false, reason: "identity_mismatch" };
-      this.attachMedia(existing, params.output);
-      return { ok: true, sessionId: existing.id, call: existing.ctx.call, reattached: true };
-    }
+    if (existing) return this.reattach(existing, params);
 
     const persisted = await this.deps.callStore.getCallByProviderId(params.provider, params.providerCallId);
     if (persisted && (persisted.fromNumber !== params.from || persisted.toNumber !== params.to ||
@@ -255,6 +255,7 @@ export class VoiceGateway {
       toNumber: params.to,
       state: direction === "inbound" ? "ringing" : "created",
       language: route.version.config.language.primary || null,
+      correlationId: isTelemetryId(params.correlationId) ? params.correlationId : undefined,
     });
     if (isTerminalCallState(call.state)) return { ok: false, reason: "already_ended" };
 
@@ -464,19 +465,25 @@ export class VoiceGateway {
     return `${provider}|${providerCallId}`;
   }
 
-  private attachMedia(entry: Session, output: VoiceOutput): void {
-    entry.output = output;
-    if (entry.reconnectTimer) {
-      clearTimeout(entry.reconnectTimer);
-      entry.reconnectTimer = null;
-      this.onSessionEvent(entry, {
-        type: "media_reconnected",
-        at: new Date(this.now()).toISOString(),
-        latencyMs: null,
-        detail: { component: "media" },
-      });
-      void this.advanceTo(entry, "in_conversation");
-    }
+  /**
+   * A second socket for a call that already has a live session. It may take
+   * over the media output only while that session's socket is gone and the
+   * reconnect window is open; a live socket is never displaced.
+   */
+  private reattach(entry: Session, params: { from: string; to: string; output: VoiceOutput }): StartSessionResult {
+    if (entry.ctx.call.fromNumber !== params.from || entry.ctx.call.toNumber !== params.to) return { ok: false, reason: "identity_mismatch" };
+    if (entry.finalized || !entry.reconnectTimer) return { ok: false, reason: "session_active" };
+    clearTimeout(entry.reconnectTimer);
+    entry.reconnectTimer = null;
+    entry.output = params.output;
+    this.onSessionEvent(entry, {
+      type: "media_reconnected",
+      at: new Date(this.now()).toISOString(),
+      latencyMs: null,
+      detail: { component: "media" },
+    });
+    void this.advanceTo(entry, "in_conversation");
+    return { ok: true, sessionId: entry.id, call: entry.ctx.call, reattached: true };
   }
 
   private async transfer(entry: Session, reason: string): Promise<boolean> {

@@ -1,5 +1,9 @@
 "use server";
 
+import { bindSecurityIdentity, recordAuthenticationDenial, finishSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
+
+
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@halo/tenancy/supabase/server";
@@ -22,6 +26,8 @@ export async function signIn(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  return withAuditedAction(async () => {
+
   const parsed = credentialsSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -30,24 +36,31 @@ export async function signIn(
 
   try {
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+    const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
     if (error) {
+      await recordAuthenticationDenial();
       log.warn("sign in failed", { status: error.status });
       return { error: error.status && error.status < 500 && error.status !== 429
         ? "Invalid email or password" : "Sign-in is temporarily unavailable. Please try again." };
     }
+    if (data?.user) await bindSecurityIdentity({ actorId: data.user.id, businessId: null }, true);
   } catch {
     log.warn("sign in unavailable");
     return { error: "Sign-in is temporarily unavailable. Please try again." };
   }
 
+  await finishSecurityAudit(200);
   redirect(safeRedirectPath(formData.get("next")));
+
+  }, {"action":"authentication","mandatory":true});
 }
 
 export async function signUp(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  return withAuditedAction(async () => {
+
   const parsed = credentialsSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -65,6 +78,7 @@ export async function signUp(
     });
 
     if (error) {
+      await recordAuthenticationDenial();
       log.warn("sign up failed", { status: error.status });
       return { error: "Unable to create an account. Please try again." };
     }
@@ -75,15 +89,19 @@ export async function signUp(
   }
 
   // When email confirmation is disabled, a session exists immediately.
-  if (hasSession) redirect("/onboarding");
+  if (hasSession) { await finishSecurityAudit(200); redirect("/onboarding"); }
 
   return {
     error: null,
     message: "Check your inbox — we sent you a confirmation link.",
   };
+
+  }, {"action":"authentication","mandatory":true});
 }
 
 export async function signOut(): Promise<void> {
+  return withAuditedAction(async () => {
+
   let failed = false;
   try {
     const supabase = await createSupabaseServerClient();
@@ -93,5 +111,8 @@ export async function signOut(): Promise<void> {
     failed = true;
   }
   if (failed) log.warn("sign out unavailable");
+  await finishSecurityAudit(failed ? 500 : 200);
   redirect(failed ? "/dashboard?error=signout_failed" : "/login");
+
+  }, {"action":"authentication","mandatory":false});
 }

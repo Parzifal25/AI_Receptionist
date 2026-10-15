@@ -269,6 +269,7 @@ All of the following is **VERIFIED (`source`)** unless marked otherwise. No comp
   - Webhook verification fails closed.
   - The stream token is an HMAC-SHA256 over the provider call ID, both numbers and an expiry (default TTL 120 s), verified on media `start` or `hello`.
   - **Known deferred issue:** a valid token replayed within its TTL can re-attach a session ([PIPECAT_INTEGRATION.md](PIPECAT_INTEGRATION.md) §6).
+  - **Fixed locally (W1.2, local release-readiness audit, 2026-10-15; [report](LOCAL_RELEASE_READINESS_REPORT.md)):** a second media or control socket now re-attaches only while the live session is waiting in its reconnect window; otherwise it is refused as `session_active` and the live socket keeps the call (`local test`, including a real local WebSocket replay test). Real carrier reconnect behaviour remains unverified (D3, D8).
 - **Data ownership:**
   - A tenant owns its rows.
   - `calendar_connections` has no RLS policies and is reachable by the service role only.
@@ -472,6 +473,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 
 - Silero VAD runs in the worker. Its `stop_secs` comes from the agent's `endOfSpeechMs`: default 700 ms, Arunodhaya 900 ms. The 900 ms value is a hypothesis tuned on mock audio ([KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)).
 - VAD start sensitivity uses Pipecat defaults (0.2 s, confidence 0.7). The worker parses `vad.minSpeechMs` and `bargeIn.minSpeechMs` but **does not apply them**.
+- **Updated by W4.1 (local release-readiness audit, 2026-10-15; [report](LOCAL_RELEASE_READINESS_REPORT.md)):** the worker now sets Silero `start_secs` from `vad.minSpeechMs` and cuts playback only after `bargeIn.minSpeechMs` of caller audio, or at once when a transcript arrives mid-speech, matching the in-process session (`local test`). Confidence stays at the Pipecat default. HALO's own interruption of a *thinking* turn on `speech_started` is unchanged (W4.7).
 - There is no semantic or "smart-turn" model.
 
 **Turn commit (VERIFIED: `source`, `local test`)**
@@ -641,7 +643,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
   - Bookings are protected by the exclusion constraint and are idempotent per conversation on voice.
   - Calendar-credential updates use compare-and-swap.
   - A workflow timeout is quarantined rather than replayed.
-- **Audit (VERIFIED, partial):** `lead_state_events`, `campaign_events`, `call_events`, `workflow_events` and `workflow_run_logs`, `usage_events`, `learning_proposals`, and `messages.role='tool'`. Since 2026-10-15, model tool calls are audited in `tool_executions` (§5.3; migration `0032`, verified on a disposable database only). Knowledge approval, rejection, publication, supersession and withdrawal are recorded on the revision rows themselves (§8.2; `0033`). There is no `audit_logs` table (PENDING, [D7](DECISIONS.md#d7--new-migrations-tool-executions-and-audit-logs)).
+- **Audit (VERIFIED, partial):** `lead_state_events`, `campaign_events`, `call_events`, `workflow_events` and `workflow_run_logs`, `usage_events`, `learning_proposals`, and `messages.role='tool'`. Since 2026-10-15, model tool calls are audited in `tool_executions` (§5.3; migration `0032`, verified on a disposable database only). Knowledge approval, rejection, publication, supersession and withdrawal are recorded on the revision rows themselves (§8.2; `0033`). WS4 adds append-only `audit_logs` in additive `0036`, locally authorized under D7 and verified on a disposable database; no shared/hosted application is authorized.
 - **Escalation (VERIFIED: `source`, `local test`):**
   - Escalations are typed: explicit human request, repeated misunderstanding, unsupported request, sensitive situation, action failed, low confidence. Each is recorded once per conversation.
   - On the phone, a live transfer is offered only when one is available; otherwise a callback is recorded.
@@ -676,7 +678,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 
 - `tenants` is `businesses` and `call_outcomes` is `conversation_outcomes`.
 - `analytics_events` is approximated by `usage_events` plus `call_events`.
-- `tool_executions` exists as migration `0032` (D7; disposable-DB verified, not applied to a real database). There are no `audit_logs` (D7, PENDING), generic `integrations` or `billing` tables.
+- `tool_executions` exists as migration `0032` (D7; disposable-DB verified, not applied to a real database). WS4 adds `audit_logs` in local-only `0036` (D7); generic `integrations` and `billing` remain absent.
 - `campaigns`, `knowledge_documents` and `knowledge_chunks` already exist.
 
 ### 8.2 Knowledge retrieval and approval
@@ -702,6 +704,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 - **Gaps (VERIFIED: `source`):**
   - Full-text search with the English dictionary is weak for Telugu (W2.5).
   - `isSubstantiveQuestion` matches English only, so knowledge gaps are never recorded on Telugu turns. This conflicts with the `AGENTS.md` rule that safety checks must be language-configurable (W2.1).
+  - **Fixed locally (W2.1, local release-readiness audit, 2026-10-15; [report](LOCAL_RELEASE_READINESS_REPORT.md)):** the gate's cues are now per-language data in `packages/language/question-cues.ts`; Telugu-script, romanized and Tenglish questions are recorded as gaps, and English behaviour is pinned identical to the old regex by an oracle test (`local test`). Cue lists are curated, not exhaustive.
   - The `openai` embedding provider needs a new dimension migration, which requires owner approval.
   - Approval has no separation of duties: an owner/admin may approve a revision they wrote (D14 item 3 default).
 
@@ -765,7 +768,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 
 | Concern | Current design | Classification |
 |---|---|---|
-| Correlation | One ID per Node HTTP request (AsyncLocalStorage, `x-request-id`) and one per voice session, shared with that session's runtime turns. The Pipecat `ready` frame carries a per-call `correlationId`. IDs do **not** cross the Next.js→gateway HTTP or gateway→worker telemetry boundaries. | VERIFIED (`source`, `local test`); propagation PENDING ([D18](DECISIONS.md#d18--telemetry-export-backend-and-cross-process-correlation)) |
+| Correlation | One ID per Node HTTP request (AsyncLocalStorage, `x-request-id`) and one per voice session, shared with that session's runtime turns. The Pipecat `ready` frame carries a per-call `correlationId`. WS4 now authenticates correlation in signed Next→gateway bodies and stream tokens, persists call context and includes canonical worker ContextVars; workflow event/timer UUID columns restore jobs independently of cron context. | VERIFIED (`source`, `local test`); local propagation implemented; hosted export PENDING ([D18](DECISIONS.md#d18--telemetry-export-backend-and-cross-process-correlation)) |
 | Structured telemetry | `HALO_TELEMETRY=stdout` emits allowlisted JSON observations: `http.request`, `voice.*`, `runtime.outcome`, `tool.outcome`, `booking.outcome`, `dependency.attempt` and `dependency.retry`. No payloads, transcripts, identities or IDs are used as labels. | VERIFIED (`source`, `local test`) |
 | Call and stage latency | `call_events` with per-stage latency, `call_transcript_turns`, `context_ready` and `llm_first_token` marks | VERIFIED (`source`, `local test`) |
 | Runtime events and usage | Runtime events (counts, codes, durations); `usage_events` with token usage when the provider reports it (never estimated) | VERIFIED (`source`, `local test`) |
@@ -848,7 +851,7 @@ Every boundary above is VERIFIED (`source`, `local test`). None is verified in a
 
 **Residual risks (VERIFIED: `source`)**
 
-- Stream-token replay within its TTL (fix deferred).
+- Stream-token replay within its TTL (fix deferred). **Fixed locally by W1.2** (local release-readiness audit, 2026-10-15; [report](LOCAL_RELEASE_READINESS_REPORT.md)); no carrier evidence.
 - DNS rebinding between the SSRF check and the fetch (documented residual).
 - The origin allowlist is a browser-only control.
 - Service-role correctness depends on code.
@@ -890,12 +893,12 @@ Each item is VERIFIED unless stated otherwise. The full list of gaps is in [HALO
 4. Telugu weaknesses:
    - no STT confidence, so confidence-gated read-back never fires;
    - full-text retrieval uses the English dictionary;
-   - `isSubstantiveQuestion` matches English only;
+   - `isSubstantiveQuestion` matches English only (fixed locally by W2.1, local release-readiness audit, 2026-10-15; [report](LOCAL_RELEASE_READINESS_REPORT.md));
    - local Telugu STT runs at 67% WER;
    - no human has reviewed the TTS output.
 5. The LLM provider is process-global, so an agent cannot pin a model.
 6. Voice sessions live in one process, with no failover. The rate limiter is per instance.
-7. Tool-call audit (`0032`) is verified on a disposable database only; it has not been applied to any shared or hosted database. There is no `audit_logs` table, and tools have no per-tool timeout or retry policy.
+7. Tool-call audit (`0032`) is verified on a disposable database only; it has not been applied to any shared or hosted database. `audit_logs` is added by local-only WS4 migration `0036`; tools still have no per-tool timeout or retry policy.
 8. Knowledge governance (`0033`) is verified on a disposable database only. Existing knowledge is not served until it is re-indexed and approved through the backfill, and approval has no separation of duties.
 9. No alert delivery, hosted backup, approved RPO/RTO or artifact rollback exists.
 10. Worker and gateway use different default speech models, and the worker ignores the minimum-speech settings for VAD and barge-in.
@@ -1034,3 +1037,14 @@ Where these documents cite paths under `src/core/*`, `src/providers/*` or `src/l
 | [LOCAL_SPEECH.md](LOCAL_SPEECH.md), [LOCAL_SPEECH_BENCHMARK.md](LOCAL_SPEECH_BENCHMARK.md) | Local speech setup and benchmarks |
 | [LOCAL_TELUGU_STT_HUMAN_REVIEW.md](LOCAL_TELUGU_STT_HUMAN_REVIEW.md), [LOCAL_TELUGU_HUMAN_REVIEW_PACKET.md](LOCAL_TELUGU_HUMAN_REVIEW_PACKET.md), [LOCAL_TELUGU_REVIEWER_FORM.md](LOCAL_TELUGU_REVIEWER_FORM.md), [LOCAL_TELUGU_TTS_BLIND_REVIEW.md](LOCAL_TELUGU_TTS_BLIND_REVIEW.md), [LOCAL_TELUGU_TTS_REVIEWER_DECISIONS.md](LOCAL_TELUGU_TTS_REVIEWER_DECISIONS.md), [LOCAL_TELUGU_CONSENT_LOG_TEMPLATE.csv](LOCAL_TELUGU_CONSENT_LOG_TEMPLATE.csv), [LOCAL_TELUGU_RECORDING_MANIFEST.csv](LOCAL_TELUGU_RECORDING_MANIFEST.csv) | Telugu human-review instruments. All reviews are **pending**. |
 | [CLOUD_LLM_REPORT.md](CLOUD_LLM_REPORT.md), [CLOUD_LLM_RELIABILITY_REPORT.md](CLOUD_LLM_RELIABILITY_REPORT.md), `CLOUD_LLM_*.json` | Cloud LLM routing and reliability evidence (2026-09-24); the JSON is written by scripts |
+
+## WS4 local architecture amendment — 2026-10-15
+
+The current owner instruction explicitly authorizes this local D7/D18 implementation and additive `0036`, following unchanged `0035`. Earlier historical references to deferred general auditing/propagation are superseded by this amendment. No unrelated decision, deployment, provider action or target authorization changes.
+
+- Security boundary wrappers write minimal append-only `audit_logs`; verified membership/resource resolution supplies identity. Protected action admission requires a durable attempt, with best-effort terminal records and explicit unknown outcomes after ambiguous errors. Authentication/denial/read records are best effort on outage and sign-out remains possible. Existing specialized tool/domain audit trails remain authoritative for their own actions.
+- Service roles append/select audit; members SELECT through tenant RLS. No client writes or service UPDATE/DELETE/TRUNCATE. Owner administration and tenant deletion cascades are exceptions; retention duration for real data remains a release decision, not an invented default.
+- `correlationId` is the logical-operation ID; HTTP request, job/event/run/step and security operation IDs retain distinct roles. Signed handoffs, persisted workflow/timer UUIDs, per-job derived legacy roots and Python session context link the actual local service/job paths. IDs do not authorize anything. There is no hosted tracing backend, alert destination or provider propagation proof.
+- Unknown workflow/reminder outcomes and post-action evidence failures do not automatically replay. Safe workflow retry requires explicit internal proof (`RetrySafeWorkflowError`). Unkeyed calendar/WhatsApp creates run once per invocation; keyed Resend remains conditional on provider behavior. Manual independent invocations and process/remote commit gaps still rule out exactly-once guarantees.
+
+Details, rejected alternatives and scope limits: [DECISIONS D7/D18](DECISIONS.md), [TELEMETRY](TELEMETRY.md), [WS4 evidence](WORKSTREAM_4_REPORT.md). These statements carry source/local-test/disposable-DB evidence only.

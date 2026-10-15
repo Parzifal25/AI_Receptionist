@@ -30,6 +30,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     const data = await this.call<{ id: string }>(
       `${API}/calendars/${encodeURIComponent(calendarRef)}/events`,
       { method: "POST", body: JSON.stringify(toGoogleEvent(event)) },
+      false,
     );
     return data.id;
   }
@@ -48,8 +49,11 @@ export class GoogleCalendarProvider implements CalendarProvider {
     );
   }
 
-  private call<T>(url: string, init: RequestInit): Promise<T> {
+  private call<T>(url: string, init: RequestInit, retrySafe = true): Promise<T> {
     return withRetry(async () => authedJsonFetch<T>(url, await this.token(), init), {
+      // A create may have committed before its response was lost. Never replay
+      // an unkeyed POST; surface the ambiguous outcome for reconciliation.
+      attempts: retrySafe ? 3 : 1,
       isRetryable: isTransientHttpError,
       telemetryProvider: "google",
     });

@@ -31,6 +31,8 @@ export const BUSINESS_EVENT_TYPES = [
 export type BusinessEventType = (typeof BUSINESS_EVENT_TYPES)[number];
 
 export interface BusinessEvent {
+  /** Server-created telemetry context, distinct from the business journey ID. */
+  telemetryCorrelationId?: string;
   /** Stable id — the idempotency anchor for run creation. */
   id: string;
   businessId: string;

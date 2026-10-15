@@ -1,3 +1,4 @@
+import { bindSecurityIdentity, recordAuthenticationDenial } from "@halo/platform/security-audit";
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
@@ -25,7 +26,11 @@ export const requireUser = cache(async function requireUser(): Promise<User> {
     data: { user },
     error,
   } = await supabase.auth.getUser();
-  if (error || !user) redirect("/login");
+  if (error || !user) {
+    await recordAuthenticationDenial();
+    redirect("/login");
+  }
+  await bindSecurityIdentity({ actorId: user.id, businessId: null });
   return user;
 });
 
@@ -55,6 +60,7 @@ export const requireBusiness = cache(async function requireBusiness(): Promise<B
   if (error) throw AppError.serviceUnavailable("Account access is temporarily unavailable");
   if (!data) redirect("/onboarding");
 
+  await bindSecurityIdentity({ actorId: user.id, businessId: data.business_id });
   return {
     userId: user.id,
     businessId: data.business_id,

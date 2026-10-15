@@ -1,3 +1,5 @@
+import { rejectSecurityAudit, failSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
 import { NextResponse, type NextRequest } from "next/server";
 import { requireBusiness } from "@halo/tenancy/auth";
 import { getServerEnv } from "@halo/platform/env";
@@ -29,9 +31,15 @@ const log = logger.child({ route: "oauth.google-calendar.callback" });
  * visitor-facing booking flow never depends on this route.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  return withAuditedAction(async () => {
+
   const env = getServerEnv();
 
-  const done = (result: { connected: true } | { error: CalendarConnectError }) => {
+  const done = async (result: { connected: true } | { error: CalendarConnectError }) => {
+    if ("error" in result) {
+      if (["denied", "invalid_state", "forbidden"].includes(result.error)) await rejectSecurityAudit();
+      else await failSecurityAudit();
+    }
     const response = NextResponse.redirect(settingsRedirect(env, result));
     response.cookies.delete(NONCE_COOKIE);
     return response;
@@ -75,7 +83,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!response.ok) {
       log.error("google token exchange failed", {
         status: response.status,
-        body: (await response.text().catch(() => "")).slice(0, 300),
+        reason: "token_exchange_failed",
       });
       return done({ error: "exchange_failed" });
     }
@@ -117,4 +125,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   log.info("google calendar connected", { businessId });
   return done({ connected: true });
+
+  }, {"action":"calendar_authorization","method":"GET"});
 }

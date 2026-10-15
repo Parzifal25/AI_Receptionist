@@ -1,4 +1,4 @@
-import { telemetryId } from "./telemetry";
+import { isTelemetryId, telemetryId } from "./telemetry";
 /**
  * Structured JSON logger. Zero-dependency by design: emits one JSON object
  * per line so any log aggregator (Datadog, Axiom, CloudWatch, Vercel logs)
@@ -19,7 +19,7 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
-const PRIVATE_FIELDS = /^(?:audio|rawAudio|transcript|transcripts|text|phone|phoneNumber|visitorPhone|callerPhone|fromNumber|toNumber|name|visitorName|customerName|email|visitorEmail|credentials|calendarCredentials|payload|error|message|stack|cause|authorization|cookie|set-cookie|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|service[_-]?role[_-]?key|visitor[_-]?token|token|prompt|systemPrompt|body|html|recipient)$/i;
+const PRIVATE_FIELDS = /^(?:audio|rawAudio|transcript|transcripts|text|phone|phoneNumber|visitorPhone|callerPhone|fromNumber|toNumber|name|visitorName|customerName|email|visitorEmail|credentials|calendarCredentials|payload|error|message|stack|cause|authorization|cookie|set-cookie|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|service[_-]?role[_-]?key|visitor[_-]?token|token|prompt|systemPrompt|body|html|recipient|headers|request|response|data|customer|contact|input|output|client[_-]?secret|id[_-]?token|x-api-key)$/i;
 
 function activeLevel(): LogLevel {
   const raw = process.env.LOG_LEVEL;
@@ -30,16 +30,17 @@ function activeLevel(): LogLevel {
 function emit(level: LogLevel, message: string, context: LogContext): void {
   if (LEVEL_ORDER[level] < LEVEL_ORDER[activeLevel()]) return;
   const entry = {
+    ...context,
     level,
     time: new Date().toISOString(),
     msg: message,
-    ...context,
     ...(telemetryId() ? { correlationId: telemetryId() } : {}),
   };
   // Upstream exception text can contain prompts, row values or credentials.
   // Keep static msg + route/code/category/IDs; do not serialize raw exceptions.
   try {
     const line = JSON.stringify(entry, (key, value) => {
+      if (key === "correlationId" && !isTelemetryId(value)) return "[redacted]";
       if (PRIVATE_FIELDS.test(key)) return "[redacted]";
       if (value instanceof Error) return { name: "Error" };
       return value;

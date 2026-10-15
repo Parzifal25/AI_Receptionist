@@ -1,3 +1,6 @@
+import { withSecurityAudit, bindSecurityIdentity, finishSecurityAudit, SecurityAuditUnavailable } from "@halo/platform/security-audit";
+import { securityAuditStore } from "@halo/tenancy/security-audit-store";
+import { withTelemetryContext, telemetryId } from "@halo/platform/telemetry";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
@@ -6,7 +9,7 @@ import type { AudioFormat } from "@halo/ports/streaming-stt-provider";
 import { logger } from "@halo/platform/logger";
 import { mintStreamToken } from "./stream-token";
 
-const schema = z.object({ businessId: z.string().uuid(), timestamp: z.number() }).strict();
+const schema = z.object({ correlationId: z.string().regex(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/).optional(), businessId: z.string().uuid(), timestamp: z.number() }).strict();
 
 export interface WebCallDeps {
   secret: string;
@@ -29,26 +32,36 @@ export interface WebCallDeps {
  * tenant, an agent or a number.
  */
 export async function handleWebCall(req: IncomingMessage, res: ServerResponse, deps: WebCallDeps | null): Promise<void> {
-  const send = (status: number, data: object) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(data)); };
+  let auditStatus = 500;
+  const send = (status: number, data: object) => { auditStatus = status; res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(data)); };
   let size = 0; const chunks: Buffer[] = [];
   for await (const chunk of req) { size += chunk.length; if (size > 1024) { send(413, { error: "bad_request" }); return; } chunks.push(Buffer.from(chunk)); }
   if (!deps) { send(503, { error: "voice_call_not_configured" }); return; }
   const body = Buffer.concat(chunks).toString("utf8");
   const signature = req.headers["x-halo-signature"], expected = signWebCall(deps.secret, body);
-  if (typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature) || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) { send(403, { error: "unauthorized" }); return; }
+  if (typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature) || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) { await withSecurityAudit(securityAuditStore, false, () => finishSecurityAudit(403), "POST", "widget"); send(403, { error: "unauthorized" }); return; }
   const parsed = schema.safeParse((() => { try { return JSON.parse(body); } catch { return null; } })());
   if (!parsed.success || Math.abs(deps.now() - parsed.data.timestamp) > 30000) { send(400, { error: "bad_request" }); return; }
+  logger.info("gateway correlation accepted", { upstreamCorrelationId: parsed.data.correlationId, requestId: telemetryId() });
+  return withTelemetryContext(() => withSecurityAudit(securityAuditStore, true, async () => {
+  try {
+    await bindSecurityIdentity({ actorId: null, businessId: parsed.data.businessId });
   const to = await deps.resolveNumber(parsed.data.businessId);
   if (!to) { send(404, { error: "no_voice_agent" }); return; }
   const callId = `web-${randomUUID()}`;
   // Not a phone number, and unique per session: it can never match a CRM
   // contact or a do-not-call entry belonging to a real caller.
   const from = `web:${callId.slice(4, 22)}`;
-  const token = mintStreamToken(deps.secret, { providerCallId: callId, from, to }, deps.tokenTtlMs, deps.now());
+  const token = mintStreamToken(deps.secret, { providerCallId: callId, from, to, correlationId: telemetryId() }, deps.tokenTtlMs, deps.now());
   logger.info("web voice call offered", { callId });
   send(200, {
     mediaUrl: deps.mediaUrl,
     format: deps.format,
     start: { event: "start", callId, streamId: callId, parameters: { token, callId, from, to, haloControlUrl: deps.controlUrl } },
   });
+  } catch (error) {
+    if (error instanceof SecurityAuditUnavailable) { send(503, { error: "audit_unavailable" }); return; }
+    throw error;
+  } finally { await finishSecurityAudit(auditStatus); }
+  }, "POST", "widget"), parsed.data.correlationId ?? telemetryId());
 }

@@ -1,0 +1,221 @@
+{
+  "schema": 1,
+  "generated": "2026-10-15",
+  "task": "HALO autonomous local completion and release-readiness audit",
+  "report": "docs/LOCAL_RELEASE_READINESS_REPORT.md",
+  "ledger": "docs/evidence/local-release-verification-ledger.json",
+  "branch": "Phase-2-Security-Hardening",
+  "head": "ad6a19d830633712b948ff5fc75972c2f61a17fa",
+  "overallDisposition": "PARTIALLY COMPLETE",
+  "statusVocabulary": ["NOT STARTED", "IN PROGRESS", "LOCALLY COMPLETE", "BLOCKED", "NOT VERIFIED", "HOSTED VALIDATION PENDING"],
+  "note": "localStatus covers only what can be done and verified locally; hostedStatus covers staging/production. Evidence levels: source, local test, disposable DB. No staging, production or real-provider evidence exists for any workstream.",
+  "workstreams": [
+    {
+      "id": "P2-WS1",
+      "name": "Phase 2 Workstream 1 — tenant isolation",
+      "authority": "docs/TENANT_ISOLATION_EVIDENCE.md",
+      "localStatus": "LOCALLY COMPLETE",
+      "hostedStatus": "HOSTED VALIDATION PENDING",
+      "acceptanceCriteria": [
+        "Every tenant-owned table and access path has an explicit enforcement mechanism (G1.1, G1.2 local)",
+        "Cross-tenant negative tests pass at database, HTTP API, route, runtime, knowledge, calendar and background-job boundaries",
+        "Service-role paths mapped to a tenant predicate or capability"
+      ],
+      "evidence": [
+        "disposable DB: check:rls 669 ok / 0 FAIL (rerun twice in this audit)",
+        "disposable DB: tenant-isolation-postgrest.test.ts within 26 opt-in cases passed",
+        "local test: full TypeScript suite"
+      ],
+      "blockers": ["D22 adoption of 0034 (owner)", "Codex review of WS1 work"],
+      "openFindings": ["TENANT_ISOLATION_EVIDENCE.md §8 items (owner decisions: agents.business_id mutability, 0018 message, hook ?token=, OAuth state key reuse)", "SchedulingRepository/SupabaseCrmStore by-id methods reviewed, not individually adversarially tested"],
+      "hostedFollowUps": ["W1.5 staging Auth/RLS/service-role matrix", "W1.6 read-only ledger and linkage audit", "tenant_reference_census on real data"]
+    },
+    {
+      "id": "P2-WS2",
+      "name": "Phase 2 Workstream 2 — decision review",
+      "authority": "docs/HALO_DECISION_REVIEW.md",
+      "localStatus": "LOCALLY COMPLETE",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["Every register entry has a disposition", "No decision state changed by the review"],
+      "evidence": ["source: DECISIONS.md and HALO_DECISION_REVIEW.md", "disposable DB: check:supabase-image-chain A/P/C rerun in this audit (36 migrations)"],
+      "blockers": ["Owner decisions R8–R10, D1–D6, D8, D9, D11–D13, D15–D17, D19–D23 and the hosted parts of D7/D18"],
+      "openFindings": ["Index rows for D7/D18 were stale after WS4; reconciled in this audit without state change"],
+      "hostedFollowUps": ["Owner approvals listed in the report §6"]
+    },
+    {
+      "id": "P2-WS3",
+      "name": "Phase 2 Workstream 3 — database rollout security and recovery",
+      "authority": "docs/WORKSTREAM_3_REPORT.md",
+      "localStatus": "LOCALLY COMPLETE",
+      "hostedStatus": "HOSTED VALIDATION PENDING",
+      "acceptanceCriteria": [
+        "0035 additive; historical migrations unchanged",
+        "K1 boundary, provenance, idempotency and tenant-isolation regressions pass",
+        "Recovery preserves schema, ownership, grants, effective privileges and defaults (tested environment)",
+        "Migration ordering/compatibility checks pass; rollout artifacts intact"
+      ],
+      "evidence": [
+        "disposable DB: check-rollout-rehearsal.mjs FAILED 67/70 at audit start (stale after 0036), 83/83 after documented compatibility change",
+        "local test: check-rollout-docs.mjs failed at start (missing 0036 map row), passes after fix",
+        "disposable DB: K1 7 cases within 26 opt-in cases passed",
+        "source: 0001-0034 identical to HEAD; 0035 identical to baseline"
+      ],
+      "blockers": ["Nine owner decision IDs (R8, D19, D21, D22, D14, D8, D23, D11, D15)", "Ten actual-target evidence groups T1–T10"],
+      "openFindings": [],
+      "hostedFollowUps": ["T1–T10 collection under exact read authorization", "hosted backup/restore and RPO/RTO", "real runner/ledger proof"]
+    },
+    {
+      "id": "P2-WS4",
+      "name": "Phase 2 Workstream 4 — security, audit and telemetry",
+      "authority": "docs/WORKSTREAM_4_REPORT.md",
+      "localStatus": "LOCALLY COMPLETE",
+      "hostedStatus": "HOSTED VALIDATION PENDING",
+      "acceptanceCriteria": [
+        "D7/D18 local decisions within owner authorization",
+        "Durable audit, trusted identity, tenant isolation, before/after failure policy",
+        "Service/job correlation, serialization, retries, terminal failure",
+        "Privacy and no automatic replay after ambiguous consequential outcomes"
+      ],
+      "evidence": [
+        "disposable DB: check:migrations 0001-0036, check:rls 669/0, check-security-audit 5/5, check-security-audit-http 8/8 (rerun in this audit)",
+        "local test: full TypeScript and worker suites",
+        "local test: new log-leak sweep found and fixed a Resend recipient/subject log leak"
+      ],
+      "blockers": ["Hosted export backend (D18 hosted part)", "real application of 0036 (R8, D19)"],
+      "openFindings": ["HTTP audit harness depends on check:rls fixtures (undocumented ordering)", "Logger redaction is key-based, not universal secret detection", "No exactly-once guarantee"],
+      "hostedFollowUps": ["production audit access and retention (D23/R8)", "log sink/alerting", "backup including audit rows on the real target"]
+    },
+    {
+      "id": "W0",
+      "name": "Governance, decisions, baseline",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md §4 S-0/S-1",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["W0.1/W0.4–W0.7 owner decisions recorded", "W0.2 coherent commits", "W0.3 Codex review", "W0.8 API.md covers every route"],
+      "evidence": ["local test: W0.8 coverage check 30/30 routes after this audit"],
+      "blockers": ["W0.1, W0.4–W0.7: owner decisions", "W0.2: commits not authorized in this run", "W0.3: Codex review (reviewer role)"],
+      "openFindings": [],
+      "hostedFollowUps": []
+    },
+    {
+      "id": "W1",
+      "name": "Tenancy, identity, data security",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "HOSTED VALIDATION PENDING",
+      "acceptanceCriteria": ["W1.1 inventory + adversarial tests", "W1.2 replayed token outside reconnect window rejected; voice invariants pass", "W1.3 local credential backfill", "W1.4 no @/ import in services/*"],
+      "evidence": ["W1.1: P2-WS1", "W1.2: local test — 5 replay/race tests fail on pre-fix code and pass after; full suite passes"],
+      "blockers": ["W1.3: written write authorization for the local credential backfill", "W1.4: D2", "W1.5/W1.6: hosted target (D19, R8, D21)"],
+      "openFindings": [],
+      "hostedFollowUps": ["W1.5", "W1.6", "real carrier reconnect behaviour for W1.2 (D3, D8)"]
+    },
+    {
+      "id": "W2",
+      "name": "Agent configuration, knowledge control, data policy",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["W2.1 Telugu/Tenglish gap tests pass, English unchanged", "W2.2 retention coverage reviewed", "W2.3 piiRules documented and pinned", "W2.4 D14 governance", "W2.5 Telugu retrieval"],
+      "evidence": ["W2.1: local test — 4 tests fail on pre-fix gate; English oracle equivalence test", "W2.2: P2-WS2 §6", "W2.3: local test pii-rules-inert", "W2.4: disposable DB (D14)"],
+      "blockers": ["D14 ratification", "W2.5: new D-entry/migration approval + D14", "D23 retention policy"],
+      "openFindings": ["Telugu cue lists are curated; a native reviewer should check them"],
+      "hostedFollowUps": ["0033 rollout and legacy backfill on an authorized target"]
+    },
+    {
+      "id": "W3",
+      "name": "Runtime, tools, action audit",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "HOSTED VALIDATION PENDING",
+      "acceptanceCriteria": ["W3.1 per-D5 tool contract", "W3.2 tool_executions", "W3.3 audit_logs", "W3.4 per-agent provider"],
+      "evidence": ["W3.2: disposable DB", "W3.3: disposable DB (WS4 0036, re-verified)"],
+      "blockers": ["W3.1: D5", "W3.4: D17"],
+      "openFindings": [],
+      "hostedFollowUps": ["apply 0032/0036 on an authorized target"]
+    },
+    {
+      "id": "W4",
+      "name": "Voice pipeline latency and correctness",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md; docs/VOICE_LATENCY_COST_AUDIT.md §5.5",
+      "localStatus": "IN PROGRESS",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["Each lever has an invariant-preserving test and a measured mock-harness delta (G6.3)", "W4.1 short speech does not interrupt", "W4.2 identical model IDs from one configuration"],
+      "evidence": ["W4.1: local test — 3 worker tests fail on pre-fix code; full worker suite 83 run OK", "W4.6: local test — router and per-channel tests"],
+      "blockers": ["W4.2: D17", "W4.8: acceptance criteria internally inconsistent (owner clarification)", "W4.10: D20", "W4.7: depends on W4.1, which awaits Codex review"],
+      "openFindings": ["W4.3, W4.4, W4.5, W4.9 NOT STARTED: decision-free performance cards deferred, each needing its own invariant tests, harness delta and review", "No mock-harness delta measured for W4.6"],
+      "hostedFollowUps": ["real latency baseline (W5.3, D8, D9)"]
+    },
+    {
+      "id": "W5",
+      "name": "Providers, speech and Telugu quality",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md S-4",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["W5.1–W5.4 per plan"],
+      "evidence": [],
+      "blockers": ["D8 spend", "D17 route", "consent and native reviewer", "licence review"],
+      "openFindings": [],
+      "hostedFollowUps": ["W5.1–W5.4"]
+    },
+    {
+      "id": "W6",
+      "name": "Business execution",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["W6.1–W6.6 per plan"],
+      "evidence": ["source: deterministic engines and mock tests from earlier phases (rerun in the full suite)"],
+      "blockers": ["W6.1: D5, D11", "W6.2: D13, D11", "W6.3: D6, D12", "W6.4–W6.6: D3, D4, D8, R5, R8"],
+      "openFindings": ["Calendar OAuth callback replaces a connection delete-then-insert without a transaction (pre-existing; recorded)"],
+      "hostedFollowUps": ["W6.4–W6.6"]
+    },
+    {
+      "id": "W7",
+      "name": "Telemetry and operations",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md",
+      "localStatus": "LOCALLY COMPLETE",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["W7.1 every router attempt/fallback emits one event, no payloads", "W7.2 sweep finds no message text, phone or email", "W7.3 correlation across app, gateway, worker"],
+      "evidence": ["W7.1: local test — 6 tests fail before, pass after", "W7.2: local test — sweep; Resend leak regression fails before", "W7.3: WS4 local evidence"],
+      "blockers": ["W7.4/W7.5: D18 hosted backend, named responder, target"],
+      "openFindings": ["Sweep is bounded to exercised paths"],
+      "hostedFollowUps": ["W7.4 alert delivery drill", "W7.5 $0 uptime monitor"]
+    },
+    {
+      "id": "W8",
+      "name": "Environments, deployment, recovery",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md S-3",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["W8.1–W8.4 per plan (all target tasks)"],
+      "evidence": ["disposable DB: local recovery preparation via P2-WS3 (83/83)", "local test: npm run build"],
+      "blockers": ["D19 hosting topology", "R8", "D8", "RPO/RTO approval"],
+      "openFindings": [],
+      "hostedFollowUps": ["W8.1 target", "W8.2 deploy", "W8.3 restore drill", "W8.4 load test"]
+    },
+    {
+      "id": "W9",
+      "name": "Pilot acceptance",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md S-5",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["W9.1–W9.4 per plan"],
+      "evidence": [],
+      "blockers": ["D6, D11, R8, R9", "S-3 and S-4 tasks"],
+      "openFindings": [],
+      "hostedFollowUps": ["W9.1–W9.4"]
+    },
+    {
+      "id": "W10",
+      "name": "General availability",
+      "authority": "docs/HALO_V1_IMPLEMENTATION_PLAN.md S-6",
+      "localStatus": "BLOCKED",
+      "hostedStatus": "BLOCKED",
+      "acceptanceCriteria": ["W10.1 GA evidence packet", "W10.2 go/no-go"],
+      "evidence": [],
+      "blockers": ["S-5", "R10"],
+      "openFindings": [],
+      "hostedFollowUps": ["W10.1", "W10.2"]
+    }
+  ]
+}

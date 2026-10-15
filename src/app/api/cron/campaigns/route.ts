@@ -1,3 +1,4 @@
+import { beginSecurityAudit } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { AppError } from "@halo/core/errors/app-error";
 import { getServerEnv } from "@halo/platform/env";
@@ -10,6 +11,7 @@ export const GET = withErrorHandling("cron.campaigns", async (request: NextReque
   const secret = getServerEnv().CRON_SECRET;
   if (!secret) return fail(AppError.internal("Campaign scheduler is not configured"));
   if (!timingSafeEqualStr(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "", secret)) return fail(AppError.unauthorized());
+  await beginSecurityAudit(true);
   const { data, error } = await getAdminClient().rpc("schedule_campaign_batch", { p_limit: 20 });
   if (error) throw AppError.internal("Campaign scheduler lookup failed");
   let dispatched = 0, failed = 0;

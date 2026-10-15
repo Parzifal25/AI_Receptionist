@@ -1,0 +1,66 @@
+{
+  "targetId": "",
+  "readAuthorizationRecord": "",
+  "groups": [
+    {
+      "id": "T1",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T2",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T3",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T4",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T5",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T6",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T7",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T8",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T9",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    },
+    {
+      "id": "T10",
+      "outcome": "NOT VERIFIED",
+      "evidenceRef": "",
+      "reviewedBy": ""
+    }
+  ]
+}

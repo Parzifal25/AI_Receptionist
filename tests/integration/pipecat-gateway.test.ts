@@ -324,6 +324,38 @@ describe("pipecat control plane", () => {
     worker.ws.close();
   });
 
+  /**
+   * G1.4 / W1.2: the stream token stays valid for its TTL. Before the fix a
+   * second control socket replaying it overwrote the live call's command
+   * sink (the agent's speech went to the replayer) and, when it closed, ended
+   * the caller's call. A worker control socket has no reconnect window, so a
+   * second attach is always refused and the live session is untouched.
+   */
+  it("refuses a replayed token while the call is live and leaves the live worker in control", async () => {
+    const answer = await answerFor("PC-REPLAY");
+    const live = await connectWorker(helloFor(answer, "PC-REPLAY"));
+    expect(await waitFor(() => live.commands.some((c) => c.type === "speak"))).toBe(true);
+    const greeting = live.commands.find((c) => c.type === "speak") as { playbackId: string };
+    live.send({ type: "playback", playbackId: greeting.playbackId, phase: "stopped", reason: "completed" });
+
+    const replay = await connectWorker(helloFor(answer, "PC-REPLAY"));
+    expect(await waitFor(() => replay.closes.length > 0)).toBe(true);
+    expect(replay.closes[0].code).toBe(1011);
+    expect(replay.commands.filter((c) => c.type === "ready" || c.type === "speak")).toHaveLength(0);
+    expect(store.calls.size).toBe(1);
+    expect([...store.calls.values()][0].finalization).toBeUndefined();
+
+    // The live worker still owns the call: its caller turn gets the reply.
+    live.send({ type: "speech_started" });
+    live.send({ type: "transcript", final: true, text: "cheppandi", utteranceId: "u1", language: "te-IN", confidence: 0.9 });
+    live.send({ type: "speech_stopped" });
+    expect(await waitFor(() => live.commands.filter((c) => c.type === "speak").length === 2, 5_000)).toBe(true);
+    expect(replay.commands.filter((c) => c.type === "speak")).toHaveLength(0);
+    live.send({ type: "bye", reason: "caller_hangup" });
+    expect(await waitFor(() => [...store.calls.values()][0]?.finalization?.hangupCause === "caller_hangup", 5_000)).toBe(true);
+    live.ws.close();
+  });
+
   it("finalizes the call when the control socket drops without a bye", async () => {
     const answer = await answerFor("PC-8");
     const worker = await connectWorker(helloFor(answer, "PC-8"));
@@ -336,7 +368,7 @@ describe("pipecat control plane", () => {
 
 describe("browser voice call offer", () => {
   const offer = (businessId: string, sign = true, timestamp = Date.now()) => {
-    const body = JSON.stringify({ businessId, timestamp });
+    const body = JSON.stringify({ businessId, timestamp, correlationId: "11111111-1111-4111-8111-111111111111" });
     return fetch(`http://127.0.0.1:${port}/web/call`, { method: "POST", body,
       headers: { "x-halo-signature": sign ? signWebCall(STREAM_SECRET, body) : "0".repeat(64) } });
   };
@@ -354,7 +386,7 @@ describe("browser voice call offer", () => {
     const worker = await connectWorker(helloFor(body.start, body.start.callId));
     expect(await waitFor(() => worker.commands.some((c) => c.type === "ready"))).toBe(true);
     const ready = worker.commands.find((c) => c.type === "ready") as { session: Record<string, string> };
-    expect(ready.session).toMatchObject({ tenantId: BUSINESS_A.id, agentId: "agent-a" });
+    expect(ready.session).toMatchObject({ tenantId: BUSINESS_A.id, agentId: "agent-a", correlationId: "11111111-1111-4111-8111-111111111111" });
     worker.ws.close();
 
     // The token is bound to the offered route: it opens nothing for another tenant.

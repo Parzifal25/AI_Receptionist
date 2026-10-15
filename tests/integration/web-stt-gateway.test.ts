@@ -1,3 +1,4 @@
+import { telemetryId } from "@halo/platform/telemetry";
 import { createServer, type Server } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { handleWebStt, signWebAudio } from "../../services/voice-gateway/web-stt";
@@ -8,11 +9,13 @@ async function listen(server: Server) { servers.push(server); await new Promise<
 afterEach(async () => { await Promise.all(servers.splice(0).map(server => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }))); });
 describe("web audio → gateway → STT provider port (recording provider)", () => {
   it("delivers exact PCM and format to the configured STT provider and returns its transcript", async () => {
+    let receivedCorrelation: string | undefined;
     let received: { audio: string; format: unknown; language: string } | undefined;
     const provider: StreamingSttProvider = {
       name: "recording-stt",
       capabilities: () => ({ languages: [], formats: [{ encoding: "pcm16le", sampleRate: 16000, channels: 1 }], interimResults: false, providerEndpointing: false, reportsConfidence: false }),
       open: (options, listener) => {
+        receivedCorrelation = telemetryId();
         const chunks: Uint8Array[] = [];
         return {
           write: chunk => { chunks.push(chunk.slice()); },
@@ -26,9 +29,11 @@ describe("web audio → gateway → STT provider port (recording provider)", () 
     };
     const gatewayUrl = await listen(createServer((req, res) => { void handleWebStt(req, res, secret, provider); }));
     const audio = Buffer.alloc(640, 10).toString("base64");
-    const body = JSON.stringify({ businessId: "11111111-1111-4111-8111-111111111111", language: "te-IN", audio, timestamp: Date.now() });
+    const body = JSON.stringify({ correlationId: "22222222-2222-4222-8222-222222222222", businessId: "11111111-1111-4111-8111-111111111111", language: "te-IN", audio, timestamp: Date.now() });
     const response = await fetch(gatewayUrl, { method: "POST", headers: { "x-halo-signature": signWebAudio(secret, body) }, body });
     expect(response.status).toBe(200); expect(await response.json()).toMatchObject({ text: "contract transcript", provider: "recording-stt" });
+    expect(receivedCorrelation).toBe("22222222-2222-4222-8222-222222222222");
+    expect(telemetryId()).toBeUndefined();
     expect(received).toMatchObject({ audio, format: { encoding: "pcm16le", sampleRate: 16000, channels: 1 }, language: "te-IN" });
   });
   it("rejects unsigned, altered and stale requests, and refuses an unconfigured provider", async () => {

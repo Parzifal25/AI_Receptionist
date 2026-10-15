@@ -1,5 +1,7 @@
 "use server";
 
+import { withAuditedAction } from "@halo/tenancy/audited-action";
+
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBusiness } from "@halo/tenancy/auth";
@@ -29,22 +31,24 @@ export async function updateReceptionist(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { businessId } = await requireBusiness();
+  return withAuditedAction(async () => {
 
-  const parsed = configSchema.safeParse({
-    id: formData.get("id"),
-    name: formData.get("name"),
-    greeting: formData.get("greeting"),
-    tone: formData.get("tone"),
-    language: formData.get("language"),
-    customInstructions: formData.get("customInstructions"),
-    isActive: formData.get("isActive") === "on",
-    leadCaptureEnabled: formData.get("leadCaptureEnabled") === "on",
-    voiceEnabled: formData.get("voiceEnabled") === "on",
-    theme: formData.get("theme"),
-    primaryColor: formData.get("primaryColor"),
-    position: formData.get("position"),
-    launcherLabel: formData.get("launcherLabel"),
+    const { businessId } = await requireBusiness();
+
+    const parsed = configSchema.safeParse({
+      id: formData.get("id"),
+      name: formData.get("name"),
+      greeting: formData.get("greeting"),
+      tone: formData.get("tone"),
+      language: formData.get("language"),
+      customInstructions: formData.get("customInstructions"),
+      isActive: formData.get("isActive") === "on",
+      leadCaptureEnabled: formData.get("leadCaptureEnabled") === "on",
+      voiceEnabled: formData.get("voiceEnabled") === "on",
+      theme: formData.get("theme"),
+      primaryColor: formData.get("primaryColor"),
+      position: formData.get("position"),
+      launcherLabel: formData.get("launcherLabel"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -76,4 +80,6 @@ export async function updateReceptionist(
 
   revalidatePath("/dashboard/receptionist");
   return { error: null, message: "Receptionist updated." };
+
+  }, { action: "updateReceptionist" });
 }

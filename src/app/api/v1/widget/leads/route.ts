@@ -1,3 +1,4 @@
+import { bindSecurityIdentity } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { AppError } from "@halo/core/errors/app-error";
@@ -42,6 +43,7 @@ export const POST = withErrorHandling("widget.leads", async (request: NextReques
   const { business, allowedDomains } = await repository.getReceptionistById(
     conversation.receptionistId,
   );
+  await bindSecurityIdentity({ actorId: null, businessId: business.id });
   if (!isOriginAllowed(origin, allowedDomains)) {
     return fail(AppError.forbidden("This domain is not allowed to use this widget"), headers);
   }

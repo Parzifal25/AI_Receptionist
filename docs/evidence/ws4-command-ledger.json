@@ -1,0 +1,999 @@
+{
+  "finalGateRunner": "python3 /tmp/ws4-final-gates.py",
+  "finalGates": [
+    {
+      "name": "typecheck",
+      "invocation": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-typecheck.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "name": "lint",
+      "invocation": [
+        "npm",
+        "run",
+        "lint"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-lint.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "name": "architecture",
+      "invocation": [
+        "npm",
+        "run",
+        "check:architecture"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-architecture.log",
+      "sha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "name": "neutral",
+      "invocation": [
+        "npm",
+        "run",
+        "check:neutral"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-neutral.log",
+      "sha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "name": "preflight",
+      "invocation": [
+        "unshare",
+        "-Urn",
+        "sh",
+        "-c",
+        "ip link set lo up && exec \"$@\"",
+        "ws4",
+        "npm",
+        "run",
+        "preflight:ci"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-preflight.log",
+      "sha256": "387058affd4b86b9c79f9ebaee3b50f877df0cb6405a534a3e1764a41ca639c6"
+    },
+    {
+      "name": "full-tests",
+      "invocation": [
+        "unshare",
+        "-Urn",
+        "sh",
+        "-c",
+        "ip link set lo up && exec \"$@\"",
+        "ws4",
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-full-tests.log",
+      "sha256": "4e23bc021672f840362bc910d1087afb24f79471fdf6ef12977df225ec2a4988"
+    },
+    {
+      "name": "worker",
+      "invocation": [
+        "unshare",
+        "-Urn",
+        "sh",
+        "-c",
+        "ip link set lo up && exec \"$@\"",
+        "ws4",
+        "/home/parzifal/AI_Receptionist/.venv/bin/python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "services/pipecat-worker",
+        "-p",
+        "test_*.py"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-worker.log",
+      "sha256": "2ac52073324944c8fa619f5bedad60758a2193f39353a458e5bb522c6df6d6c8"
+    },
+    {
+      "name": "build",
+      "invocation": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-build.log",
+      "sha256": "5c3fc4c67ca65db6e71310dff0703897417cb688f8597a78d7a9362f2349b38c"
+    },
+    {
+      "name": "diff",
+      "invocation": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-accepted-diff.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "finalDatabaseRunner": "python3 /tmp/ws4-final-db-v4.py",
+  "databaseEnvironment": {
+    "HALO_DISPOSABLE_DATABASE": "1",
+    "HALO_DISPOSABLE_DB_URL": "postgresql://postgres:ws4_synthetic@127.0.0.1:55459/halo_check_ws4_final_v4"
+  },
+  "finalDatabase": [
+    {
+      "name": "db-bootstrap",
+      "command": [
+        "psql",
+        "postgresql://postgres:ws4_synthetic@127.0.0.1:55459/halo_check_ws4_final_v4",
+        "-X",
+        "-v",
+        "ON_ERROR_STOP=1"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-v4-db-bootstrap.log",
+      "sha256": "9b98e96d6f7727cd54382d934d91d256e3c18d2d3ab4a1b2089b812edcd224ab"
+    },
+    {
+      "name": "migrations",
+      "command": [
+        "npm",
+        "run",
+        "check:migrations"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-v4-migrations.log",
+      "sha256": "3d8c69f464714d1add733d0635ad2874565f69bdf9994ff6658e97597d819917"
+    },
+    {
+      "name": "rls",
+      "command": [
+        "npm",
+        "run",
+        "check:rls"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-v4-rls.log",
+      "sha256": "d97678e0bb08a2b527e19504311d015cd831d120974b71b5bc11aadcb3667070"
+    },
+    {
+      "name": "audit-concurrency",
+      "command": [
+        "node",
+        "scripts/check-security-audit.mjs"
+      ],
+      "exit": 0,
+      "log": "/tmp/ws4-final-v4-audit-concurrency.log",
+      "sha256": "631c7f06f5f543dfa72a1655bfe87a31d7a1dae77c2c338900154185a661cee1"
+    }
+  ],
+  "http": {
+    "command": "HALO_DISPOSABLE_DATABASE=1 HALO_DISPOSABLE_POSTGREST_URL=http://127.0.0.1:55460 HALO_DISPOSABLE_JWT_SECRET=ws4-synthetic-local-only-jwt-secret-00000000 node --import tsx --conditions react-server scripts/check-security-audit-http.mjs",
+    "exit": 0,
+    "assertions": 8,
+    "log": "/tmp/ws4-final-audit-http-accepted.log",
+    "sha256": "e9ae8045ee3a931c82c03b08939fa72624e81b0e9f6a7f44797c269ac395d21c"
+  },
+  "earlierVerificationLogs": [
+    {
+      "command": "npm test -- tests/integration/auth-actions.test.ts tests/integration/auth-callback.test.ts tests/integration/dashboard-authorization.test.ts tests/integration/ws4-audit-correlation.test.ts tests/unit/knowledge-governance-migration.test.ts tests/unit/tool-executions-migration.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-actions-focused.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  6 passed (6); Tests  39 passed (39)",
+      "log": "/tmp/ws4-final-actions-focused.log",
+      "sha256": "9d18c11bbe191c8e0179daf56e289696ac34d10472f20ab2535872bf2bc94475"
+    },
+    {
+      "command": "npm run check:architecture",
+      "redirection": "> /tmp/ws4-final-architecture-final.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-architecture-final.log",
+      "sha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run check:architecture",
+      "redirection": "> /tmp/ws4-final-architecture-last.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-architecture-last.log",
+      "sha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run check:architecture",
+      "redirection": "> /tmp/ws4-final-architecture.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-architecture.log",
+      "sha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/integration/ws4-boundary-audit-route.test.ts tests/unit/security-audit-store.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-audit-checked.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  3 passed (3); Tests  13 passed (13)",
+      "log": "/tmp/ws4-final-audit-checked.log",
+      "sha256": "6bea00687ac61e0efacf8c9b41d15ba0507949d3427fe20fffb3dadd1e3ae419"
+    },
+    {
+      "command": "node --import tsx --conditions react-server scripts/check-security-audit-http.mjs",
+      "redirection": "> /tmp/ws4-final-audit-http-accepted.log 2>&1",
+      "exit": 0,
+      "summary": "check-security-audit-http: 8 assertions passed",
+      "log": "/tmp/ws4-final-audit-http-accepted.log",
+      "sha256": "e9ae8045ee3a931c82c03b08939fa72624e81b0e9f6a7f44797c269ac395d21c"
+    },
+    {
+      "command": "node --import tsx --conditions react-server scripts/check-security-audit-http.mjs",
+      "redirection": "> /tmp/ws4-final-audit-http-escalated.log 2>&1",
+      "exit": 0,
+      "summary": "check-security-audit-http: 7 assertions passed",
+      "log": "/tmp/ws4-final-audit-http-escalated.log",
+      "sha256": "82dca7f1ff80f98540132c5efbf4aafcac0173db78b515fa5e3b353517b786b9"
+    },
+    {
+      "command": "node --import tsx --conditions react-server scripts/check-security-audit-http.mjs",
+      "redirection": "> /tmp/ws4-final-audit-http-last.log 2>&1",
+      "exit": 0,
+      "summary": "check-security-audit-http: 8 assertions passed",
+      "log": "/tmp/ws4-final-audit-http-last.log",
+      "sha256": "f65668b791d4988586a0e5925e90b8d45f6110e05bbda57827e59e5aaff761f0"
+    },
+    {
+      "command": "node --import tsx --conditions react-server scripts/check-security-audit-http.mjs",
+      "redirection": "> /tmp/ws4-final-audit-http.log 2>&1",
+      "exit": 1,
+      "summary": "listen EPERM",
+      "log": "/tmp/ws4-final-audit-http.log",
+      "sha256": "a7cc612780002f3526766e070cae0acce9eaf53d35e516e7f9266a96546c4acf"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-boundary-audit-route.test.ts tests/integration/ws4-audit-correlation.test.ts tests/unit/security-audit-store.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-audit-new.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  3 passed (3); Tests  13 passed (13)",
+      "log": "/tmp/ws4-final-audit-new.log",
+      "sha256": "5728ca1697998a0a6a1143f591def9f40db8003f30cc7cbf526a3060f96ec8e7"
+    },
+    {
+      "command": "npm test -- tests/unit/ws4-security-telemetry.test.ts tests/unit/logger-privacy.test.ts tests/unit/telemetry.test.ts tests/integration/tool-execution-audit.test.ts tests/integration/tenant-isolation-routes.test.ts tests/integration/workflow-engine.test.ts tests/unit/retry.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-baseline-tests.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  7 passed (7); Tests  75 passed (75)",
+      "log": "/tmp/ws4-final-baseline-tests.log",
+      "sha256": "d5ba52a883c4a1f862994253a9220e1453cb775f7441168150b59ea10b54bbf0"
+    },
+    {
+      "command": "npm run check:architecture",
+      "redirection": "> /tmp/ws4-final-before-health-architecture.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-before-health-architecture.log",
+      "sha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run build",
+      "redirection": "> /tmp/ws4-final-before-health-build.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-before-health-build.log",
+      "sha256": "644205ccdd807e72e8f047cb35b32bec7c054ed4f7cfe7539df505934e94b11b"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-before-health-full-tests.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  172 passed | 3 skipped (175); Tests  1747 passed | 31 skipped (1778)",
+      "log": "/tmp/ws4-final-before-health-full-tests.log",
+      "sha256": "d19524ca59be1284841f7dcc59694c3d6dac80a2220663a3b11f1dab8f461478"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-before-health-lint.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-before-health-lint.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run check:neutral",
+      "redirection": "> /tmp/ws4-final-before-health-neutral.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-before-health-neutral.log",
+      "sha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": "npm run preflight:ci",
+      "redirection": "> /tmp/ws4-final-before-health-preflight.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-before-health-preflight.log",
+      "sha256": "387058affd4b86b9c79f9ebaee3b50f877df0cb6405a534a3e1764a41ca639c6"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-before-health-typecheck.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-before-health-typecheck.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+      "redirection": "> /tmp/ws4-final-before-health-worker.log 2>&1",
+      "exit": 0,
+      "summary": [
+        "Ran 75 tests in 9.990s",
+        "OK (skipped=1)"
+      ],
+      "log": "/tmp/ws4-final-before-health-worker.log",
+      "sha256": "3311a86be87a7f012892f442ae5c07ffb26a49e2e332cac5c99d824bb0d1076c"
+    },
+    {
+      "command": "npm run build",
+      "redirection": "> /tmp/ws4-final-build-escalated.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-build-escalated.log",
+      "sha256": "d8facfefb1111c171b2b7097e199b8a29dd62402c3f2004609e6cf86fd617f1c"
+    },
+    {
+      "command": "npm run build",
+      "redirection": "> /tmp/ws4-final-build-last.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-build-last.log",
+      "sha256": "3e4f543f3988264ecb4213ec6b401be2b508f8c2962d71826fcdab44122677db"
+    },
+    {
+      "command": "npm run build",
+      "redirection": "> /tmp/ws4-final-build.log 2>&1",
+      "exit": 1,
+      "summary": null,
+      "log": "/tmp/ws4-final-build.log",
+      "sha256": "39ea5dd8bb81840af456bb0ed61070943c8b900f47055b76ce09b032f0c046a2"
+    },
+    {
+      "command": "npm test -- tests/unit/compare-migration-ledger.test.ts tests/integration/ws4-audit-correlation.test.ts tests/integration/ws4-boundary-audit-route.test.ts tests/unit/security-audit-store.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-compatibility.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  4 passed (4); Tests  31 passed (31)",
+      "log": "/tmp/ws4-final-compatibility.log",
+      "sha256": "1b6837bba52187b2581426fc9bfc927f99d8129a63c2a9712d82b95f5860d1c7"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-scheduled-correlation.test.ts tests/integration/ws4-audit-correlation.test.ts tests/unit/whatsapp-messaging.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-context-normalization.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  3 passed (3); Tests  17 passed (17)",
+      "log": "/tmp/ws4-final-context-normalization.log",
+      "sha256": "214086403417f82b7cd7570a8997f8f7f68aecb559def9660fc7a07c5e201f3a"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/integration/ws4-boundary-audit-route.test.ts tests/integration/ws4-scheduled-correlation.test.ts tests/unit/security-audit-store.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-focused-done.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  4 passed (4); Tests  17 passed (17)",
+      "log": "/tmp/ws4-final-focused-done.log",
+      "sha256": "cbdbda51fea4d7cd983021d9b429736cd22e6cbbabe9216405cf20c5d5ab295d"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/integration/workflow-engine.test.ts tests/integration/tool-execution-audit.test.ts tests/integration/dashboard-authorization.test.ts tests/integration/tenant-isolation-routes.test.ts tests/unit/ws4-security-telemetry.test.ts tests/unit/logger-privacy.test.ts tests/unit/telemetry.test.ts tests/unit/retry.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-focused.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  9 passed (9); Tests  89 passed (89)",
+      "log": "/tmp/ws4-final-focused.log",
+      "sha256": "631f52c1f093430d26e9408cc8adc4f8be05f0f498742aa03938564c6662beaa"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-full-tests.log 2>&1",
+      "exit": 1,
+      "summary": "Test Files  15 failed | 154 passed | 3 skipped (172); Tests  52 failed | 1685 passed | 31 skipped (1768); Errors  12 errors",
+      "log": "/tmp/ws4-final-full-tests.log",
+      "sha256": "c64a798b0f5a07c96a5877972f49cbf9f9a84d0087fa099b6b04ecec07764fb4"
+    },
+    {
+      "command": "npm run check:architecture",
+      "redirection": "> /tmp/ws4-final-gate-architecture.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-gate-architecture.log",
+      "sha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-gate-lint.log 2>&1",
+      "exit": null,
+      "summary": "lint errors; individual exit not captured in combined shell",
+      "log": "/tmp/ws4-final-gate-lint.log",
+      "sha256": "e1685d2574a3c99c079fb6f7e546b688c135e15f25e7d2b8d19e214920052613"
+    },
+    {
+      "command": "npm run check:neutral",
+      "redirection": "> /tmp/ws4-final-gate-neutral.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-gate-neutral.log",
+      "sha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-gate-typecheck.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-gate-typecheck.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/integration/ws4-boundary-audit-route.test.ts tests/unit/security-audit-store.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-health-audit.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  3 passed (3); Tests  15 passed (15)",
+      "log": "/tmp/ws4-final-health-audit.log",
+      "sha256": "3f7da06d6908f524a9630d9643ced95e301a0588673ff3801447c2f7ae9dc014"
+    },
+    {
+      "command": "npm test -- tests/integration/workflow-engine.test.ts tests/integration/dashboard-authorization.test.ts tests/unit/ws4-security-telemetry.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-intermediate.log 2>&1",
+      "exit": 1,
+      "summary": "Test Files  1 failed | 2 passed (3); Tests  2 failed | 25 passed (27)",
+      "log": "/tmp/ws4-final-intermediate.log",
+      "sha256": "c841d5846e8ceb023868c58d65ff9a15eee1bdc19eefa222da6bff9f0171a6d6"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/integration/pipecat-gateway.test.ts tests/integration/web-stt-gateway.test.ts tests/integration/web-tts-gateway.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-isolated-boundary-first.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  4 passed (4); Tests  24 passed (24)",
+      "log": "/tmp/ws4-final-isolated-boundary-first.log",
+      "sha256": "7ab5fe86aa2ba26fce7e9383289beffc14140e3ee2b51a7ea3ca5fc83fba8020"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/integration/pipecat-gateway.test.ts tests/integration/web-stt-gateway.test.ts tests/integration/web-tts-gateway.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-isolated-boundary.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  4 passed (4); Tests  24 passed (24)",
+      "log": "/tmp/ws4-final-isolated-boundary.log",
+      "sha256": "7ab5fe86aa2ba26fce7e9383289beffc14140e3ee2b51a7ea3ca5fc83fba8020"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-isolated-full-tests-first.log 2>&1",
+      "exit": 1,
+      "summary": "Test Files  2 failed | 167 passed | 3 skipped (172); Tests  2 failed | 1735 passed | 31 skipped (1768)",
+      "log": "/tmp/ws4-final-isolated-full-tests-first.log",
+      "sha256": "dc48bded259d78b2f9b5f4481e8bd0be1070da5cedc1b832700526d6e4375801"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-isolated-full-tests-second.log 2>&1",
+      "exit": 1,
+      "summary": "Test Files  1 failed | 170 passed | 3 skipped (174); Tests  4 failed | 1737 passed | 31 skipped (1772)",
+      "log": "/tmp/ws4-final-isolated-full-tests-second.log",
+      "sha256": "5e33abe183cb563a5154379250814f8be62b491e7f07902a6267fb79cdc40ec2"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-isolated-full-tests-third.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  172 passed | 3 skipped (175); Tests  1747 passed | 31 skipped (1778)",
+      "log": "/tmp/ws4-final-isolated-full-tests-third.log",
+      "sha256": "92689ea3fd3628eaabdc7c349a15a36161ce829ed36d2042d772e0f3f3a5874f"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-isolated-full-tests.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  172 passed | 3 skipped (175); Tests  1747 passed | 31 skipped (1778)",
+      "log": "/tmp/ws4-final-isolated-full-tests.log",
+      "sha256": "eeb624e307b1a3d25006c25576b3902beedaf8ef50a9b6d95758596e77de9223"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+      "redirection": "> /tmp/ws4-final-isolated-worker-first.log 2>&1",
+      "exit": 0,
+      "summary": [
+        "Ran 75 tests in 9.918s",
+        "OK (skipped=1)"
+      ],
+      "log": "/tmp/ws4-final-isolated-worker-first.log",
+      "sha256": "4094c660bd47ea9d5e9cd15876687c083dfd39da5852789c6f67ab253c01f42a"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+      "redirection": "> /tmp/ws4-final-isolated-worker-second.log 2>&1",
+      "exit": 0,
+      "summary": [
+        "Ran 75 tests in 15.305s",
+        "OK (skipped=1)"
+      ],
+      "log": "/tmp/ws4-final-isolated-worker-second.log",
+      "sha256": "7cba8788e679a58be8a8b02aecd1593ab9bf9d7661f85b719231709860687345"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+      "redirection": "> /tmp/ws4-final-isolated-worker.log 2>&1",
+      "exit": 0,
+      "summary": [
+        "Ran 75 tests in 15.305s",
+        "OK (skipped=1)"
+      ],
+      "log": "/tmp/ws4-final-isolated-worker.log",
+      "sha256": "7cba8788e679a58be8a8b02aecd1593ab9bf9d7661f85b719231709860687345"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint-2.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-lint-2.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint-3.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-lint-3.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint-4.log 2>&1",
+      "exit": null,
+      "summary": "lint errors; individual exit not captured in combined shell",
+      "log": "/tmp/ws4-final-lint-4.log",
+      "sha256": "e1685d2574a3c99c079fb6f7e546b688c135e15f25e7d2b8d19e214920052613"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint-5.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-lint-5.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint-6.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-lint-6.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint-done.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-lint-done.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint-final.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-lint-final.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint-last.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-lint-last.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run lint",
+      "redirection": "> /tmp/ws4-final-lint.log 2>&1",
+      "exit": 0,
+      "summary": "no errors",
+      "log": "/tmp/ws4-final-lint.log",
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm test -- tests/unit/whatsapp-messaging.test.ts tests/unit/resend-messaging.test.ts tests/integration/whatsapp-delivery.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-messaging.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  3 passed (3); Tests  11 passed (11)",
+      "log": "/tmp/ws4-final-messaging.log",
+      "sha256": "1c09a607ea3a67d7c9af67980094cd1f30b1b85352f660682eebcebf6ab7fb0f"
+    },
+    {
+      "command": "npm test -- tests/unit/knowledge-governance-migration.test.ts tests/unit/tool-executions-migration.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-migration-static.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  2 passed (2); Tests  12 passed (12)",
+      "log": "/tmp/ws4-final-migration-static.log",
+      "sha256": "6d63a4181ac07d3520d466967d0108fcad9a3daf9966017c7fc22175f6f8d03e"
+    },
+    {
+      "command": "npm run check:migrations",
+      "redirection": "> /tmp/ws4-final-migrations.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-migrations.log",
+      "sha256": "c57b001dcf014a71fae29fec67a7f4b036f27530cb2c4a97e0a1f9c40c78ca6b"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/integration/workflow-engine.test.ts tests/integration/dashboard-authorization.test.ts tests/unit/ws4-security-telemetry.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-narrow.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  4 passed (4); Tests  36 passed (36)",
+      "log": "/tmp/ws4-final-narrow.log",
+      "sha256": "83abc851b2db0500a508bd78614b25a42610bf402d6cf42641d8a37084615ffa"
+    },
+    {
+      "command": "npm run check:neutral",
+      "redirection": "> /tmp/ws4-final-neutral-final.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-neutral-final.log",
+      "sha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": "npm run check:neutral",
+      "redirection": "> /tmp/ws4-final-neutral-last.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-neutral-last.log",
+      "sha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": "npm run check:neutral",
+      "redirection": "> /tmp/ws4-final-neutral.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-neutral.log",
+      "sha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": "npm run preflight:ci",
+      "redirection": "> /tmp/ws4-final-preflight-escalated.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-preflight-escalated.log",
+      "sha256": "387058affd4b86b9c79f9ebaee3b50f877df0cb6405a534a3e1764a41ca639c6"
+    },
+    {
+      "command": "npm run preflight:ci",
+      "redirection": "> /tmp/ws4-final-preflight-last.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-preflight-last.log",
+      "sha256": "387058affd4b86b9c79f9ebaee3b50f877df0cb6405a534a3e1764a41ca639c6"
+    },
+    {
+      "command": "npm run preflight:ci",
+      "redirection": "> /tmp/ws4-final-preflight.log 2>&1",
+      "exit": 1,
+      "summary": null,
+      "log": "/tmp/ws4-final-preflight.log",
+      "sha256": "9d08b68bc42da850f9840739082078ce70e9c9fe21121d8d223258f0f268630f"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/unit/whatsapp-messaging.test.ts tests/unit/resend-messaging.test.ts tests/integration/whatsapp-delivery.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-replay-providers-fixed.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  4 passed (4); Tests  21 passed (21)",
+      "log": "/tmp/ws4-final-replay-providers-fixed.log",
+      "sha256": "482af5dc34f3bb14715b7c9278818ee2744a98a4c1612a080fa524df50bcfc53"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-audit-correlation.test.ts tests/unit/whatsapp-messaging.test.ts tests/unit/resend-messaging.test.ts tests/integration/whatsapp-delivery.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-replay-providers.log 2>&1",
+      "exit": 1,
+      "summary": "Test Files  1 failed | 3 passed (4); Tests  1 failed | 20 passed (21)",
+      "log": "/tmp/ws4-final-replay-providers.log",
+      "sha256": "c02ae7cd15a5061989ad057f071f4b146514cc151e1c38eb5b5722c8607e1a0a"
+    },
+    {
+      "command": "npm test -- tests/integration/workflow-engine.test.ts tests/integration/ws4-audit-correlation.test.ts tests/integration/ws4-scheduled-correlation.test.ts tests/unit/reminder-service-tenant.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-replay.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  4 passed (4); Tests  27 passed (27)",
+      "log": "/tmp/ws4-final-replay.log",
+      "sha256": "6a4fa94ea8752927b7d2f219227b411df507951dc024e956afa98ed21d394561"
+    },
+    {
+      "command": "npm run check:rls",
+      "redirection": "> /tmp/ws4-final-rls.log 2>&1",
+      "exit": 1,
+      "summary": null,
+      "log": "/tmp/ws4-final-rls.log",
+      "sha256": "37ab736c49908ee3780bae837f35db8988e6810b4bb184ff11395935fa368b2a"
+    },
+    {
+      "command": "npm test -- tests/integration/ws4-scheduled-correlation.test.ts tests/unit/reminder-service-tenant.test.ts tests/unit/no-show-sweep.test.ts tests/unit/campaign-engine.test.ts --maxWorkers=2",
+      "redirection": "> /tmp/ws4-final-scheduled.log 2>&1",
+      "exit": 0,
+      "summary": "Test Files  4 passed (4); Tests  19 passed (19)",
+      "log": "/tmp/ws4-final-scheduled.log",
+      "sha256": "16fbf30b1b36dfb5dd5a153cd7827db4a5531df6468f930b254b23fdfd260fa5"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-10.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-10.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-11.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-11.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-12.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-12.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-13.log 2>&1",
+      "exit": null,
+      "summary": "diagnostics present; individual exit not captured in combined shell",
+      "log": "/tmp/ws4-final-typecheck-13.log",
+      "sha256": "2ef42c2b5827498353d7854b92be351f21f437df88bac1e7790024feac299f0d"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-14.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-14.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-15.log 2>&1",
+      "exit": null,
+      "summary": "diagnostics present; individual exit not captured in combined shell",
+      "log": "/tmp/ws4-final-typecheck-15.log",
+      "sha256": "02cd2c79f331984d29e9fe3a1abe601094a3de9a0b0e86bf72827567541b5500"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-16.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-16.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-2.log 2>&1",
+      "exit": null,
+      "summary": "diagnostics present; individual exit not captured in combined shell",
+      "log": "/tmp/ws4-final-typecheck-2.log",
+      "sha256": "8ee3613f8b59224eed58d50a2f1ef1583af6f5d7cbb0a9168d6642598646881e"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-3.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-3.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-4.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-4.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-5.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-5.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-6.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-6.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-7.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-7.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-8.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-8.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-9.log 2>&1",
+      "exit": null,
+      "summary": "diagnostics present; individual exit not captured in combined shell",
+      "log": "/tmp/ws4-final-typecheck-9.log",
+      "sha256": "3f25c5ec35270f5cf9cba303bdd879115455543c348e8304b9ebae7e7a65ce70"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-done.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-done.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-final.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-final.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-first.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-first.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck-last.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck-last.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run typecheck",
+      "redirection": "> /tmp/ws4-final-typecheck.log 2>&1",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "log": "/tmp/ws4-final-typecheck.log",
+      "sha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run check:migrations",
+      "redirection": "> /tmp/ws4-final-v2-migrations.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-v2-migrations.log",
+      "sha256": "c57b001dcf014a71fae29fec67a7f4b036f27530cb2c4a97e0a1f9c40c78ca6b"
+    },
+    {
+      "command": "npm run check:rls",
+      "redirection": "> /tmp/ws4-final-v2-rls.log 2>&1",
+      "exit": 1,
+      "summary": null,
+      "log": "/tmp/ws4-final-v2-rls.log",
+      "sha256": "e7cb4384e61638d413e36a36921178a6ba9f375f4a3cedfb8bbdc50a23cf457a"
+    },
+    {
+      "command": "node scripts/check-security-audit.mjs",
+      "redirection": "> /tmp/ws4-final-v3-audit-concurrency.log 2>&1",
+      "exit": 0,
+      "summary": "5 assertions passed, 40 concurrent inserts",
+      "log": "/tmp/ws4-final-v3-audit-concurrency.log",
+      "sha256": "631c7f06f5f543dfa72a1655bfe87a31d7a1dae77c2c338900154185a661cee1"
+    },
+    {
+      "command": "npm run check:migrations",
+      "redirection": "> /tmp/ws4-final-v3-migrations.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-v3-migrations.log",
+      "sha256": "3d8c69f464714d1add733d0635ad2874565f69bdf9994ff6658e97597d819917"
+    },
+    {
+      "command": "npm run check:rls",
+      "redirection": "> /tmp/ws4-final-v3-rls.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-v3-rls.log",
+      "sha256": "a0c9b3deced3ebbc975821c98246f5644cae5d0357df90351be6bed5c3d277a6"
+    },
+    {
+      "command": "node scripts/check-security-audit.mjs",
+      "redirection": "> /tmp/ws4-final-v4-audit-concurrency.log 2>&1",
+      "exit": 0,
+      "summary": "5 assertions passed, 40 concurrent inserts",
+      "log": "/tmp/ws4-final-v4-audit-concurrency.log",
+      "sha256": "631c7f06f5f543dfa72a1655bfe87a31d7a1dae77c2c338900154185a661cee1"
+    },
+    {
+      "command": "npm run check:migrations",
+      "redirection": "> /tmp/ws4-final-v4-migrations.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-v4-migrations.log",
+      "sha256": "3d8c69f464714d1add733d0635ad2874565f69bdf9994ff6658e97597d819917"
+    },
+    {
+      "command": "npm run check:rls",
+      "redirection": "> /tmp/ws4-final-v4-rls.log 2>&1",
+      "exit": 0,
+      "summary": null,
+      "log": "/tmp/ws4-final-v4-rls.log",
+      "sha256": "d97678e0bb08a2b527e19504311d015cd831d120974b71b5bc11aadcb3667070"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_halo_client.py'",
+      "redirection": "> /tmp/ws4-final-worker-contract.log 2>&1",
+      "exit": 0,
+      "summary": [
+        "Ran 10 tests in 0.011s",
+        "OK"
+      ],
+      "log": "/tmp/ws4-final-worker-contract.log",
+      "sha256": "3a037b6bb20a3dd03422f2b8040235ae1d54b246fde9aa9c96f9774f440a9991"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_ws4*.py'",
+      "redirection": "> /tmp/ws4-final-worker-focused.log 2>&1",
+      "exit": 0,
+      "summary": [
+        "Ran 5 tests in 0.040s",
+        "OK"
+      ],
+      "log": "/tmp/ws4-final-worker-focused.log",
+      "sha256": "a03be0b875d42d963c16d3142cd5baf5dddd3d6651e4ccd82bd0d0a6a648b46b"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+      "redirection": "> /tmp/ws4-final-worker.log 2>&1",
+      "exit": 130,
+      "summary": "sandbox run blocked; interrupted, not passing",
+      "log": "/tmp/ws4-final-worker.log",
+      "sha256": "ac8449a2f5a299d0ad43ce3299cafa0682ce505940a561d1f41654023c11520c"
+    }
+  ],
+  "postArtifactChecks": [
+    {
+      "command": "npm run lint > /tmp/ws4-final-artifact-lint.log 2>&1",
+      "exit": 0,
+      "sha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "git diff --no-index --check -- /dev/null <each new WS4 file>",
+      "initialResult": "extra blank line at EOF in correlation.py; fixed whitespace only",
+      "finalResult": "no whitespace diagnostic output; exits 0 or normal no-index difference 1"
+    }
+  ]
+}

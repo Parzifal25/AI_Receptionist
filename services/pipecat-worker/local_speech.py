@@ -27,6 +27,7 @@ Which models are used is decided by `manifest.json` in VOICE_LOCAL_MODEL_DIR
 """
 
 from __future__ import annotations
+from correlation import CorrelationFilter
 
 import asyncio
 import io
@@ -52,6 +53,7 @@ from local_tts_text import plan_speech as _plan_speech
 from local_tts_text import split_script_runs as _split_script_runs
 
 log = logging.getLogger("halo.worker.local_speech")
+log.addFilter(CorrelationFilter())
 
 MANIFEST_VERSION = 1
 DEFAULT_THREADS = 4
@@ -263,10 +265,13 @@ def plan_speech(text: str, base: Optional[str], available: list[str]) -> list[tu
         raise LocalSpeechError("unsupported_language", str(exc), False) from exc
 
 
-def _error_frame(error: str, code: str, message: str, cause: BaseException) -> ErrorFrame:
-    """A recoverable inference failure. Pipecat reads the exception's
-    traceback when it reports the frame, so the cause's is carried over."""
-    return ErrorFrame(error=error, exception=LocalSpeechError(code, message, True).with_traceback(cause.__traceback__))
+def _error_frame(error: str, code: str) -> ErrorFrame:
+    """Keep a safe traceback: Pipecat requires one to deliver error frames."""
+    try:
+        raise LocalSpeechError(code, "local speech inference failed", True) from None
+    except LocalSpeechError as safe:
+        safe.__context__ = None
+        return ErrorFrame(error=error, exception=safe)
 
 
 def _float_to_pcm16(samples: np.ndarray) -> bytes:
@@ -362,15 +367,15 @@ class LocalSTTService(SegmentedSTTService):
                 pcm = await create_file_resampler().resample(pcm, rate, model_rate)
             samples = np.frombuffer(pcm, dtype="<i2").astype(np.float32) / 32768.0
             text = await asyncio.wait_for(asyncio.to_thread(self._engine.transcribe, samples, model_rate), self._timeout_s)
-        except asyncio.TimeoutError as exc:
+        except asyncio.TimeoutError:
             log.error("local_stt failed code=timeout audio_ms=%d timeout_s=%.0f", seconds * 1000, self._timeout_s)
-            yield _error_frame("local_stt_timeout", "timeout", "local STT timed out", exc)
+            yield _error_frame("local_stt_timeout", "timeout")
             return
         except LocalSpeechConfigError:
             raise
-        except Exception as exc:  # noqa: BLE001 - inference faults must not kill the pipeline
-            log.exception("local_stt failed code=inference audio_ms=%d", seconds * 1000)
-            yield _error_frame("local_stt_failed", "inference", str(exc)[:200], exc)
+        except Exception:  # noqa: BLE001 - inference faults must not kill the pipeline
+            log.error("local_stt failed code=inference audio_ms=%d", seconds * 1000)
+            yield _error_frame("local_stt_failed", "inference")
             return
         decode_ms = (time.perf_counter() - started) * 1000
         # Transcript text is caller content: lengths only, never the words.
@@ -462,9 +467,9 @@ class LocalTTSService(TTSService):
                 (time.perf_counter() - started) * 1000,
                 audio_ms,
             )
-        except asyncio.TimeoutError as exc:
+        except asyncio.TimeoutError:
             log.error("local_tts failed code=timeout chars=%d timeout_s=%.0f", len(text), self._timeout_s)
-            yield _error_frame("local_tts_timeout", "timeout", "local TTS timed out", exc)
+            yield _error_frame("local_tts_timeout", "timeout")
             await self._end_failed_context(context_id)
         except LocalSpeechConfigError:
             raise
@@ -472,9 +477,9 @@ class LocalTTSService(TTSService):
             log.error("local_tts failed code=%s chars=%d", exc.code, len(text))
             yield ErrorFrame(error=f"local_tts_{exc.code}", exception=exc)
             await self._end_failed_context(context_id)
-        except Exception as exc:  # noqa: BLE001 - inference faults must not kill the pipeline
-            log.exception("local_tts failed code=inference chars=%d", len(text))
-            yield _error_frame("local_tts_failed", "inference", str(exc)[:200], exc)
+        except Exception:  # noqa: BLE001 - inference faults must not kill the pipeline
+            log.error("local_tts failed code=inference chars=%d", len(text))
+            yield _error_frame("local_tts_failed", "inference")
             await self._end_failed_context(context_id)
         finally:
             # Reached on completion and on a barge-in cancelling this generator:

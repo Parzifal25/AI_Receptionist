@@ -1,3 +1,4 @@
+import { beginSecurityAudit } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { AppError } from "@halo/core/errors/app-error";
 import { ReminderService } from "@halo/scheduling/reminder-service";
@@ -28,6 +29,7 @@ export const GET = withErrorHandling("cron.reminders", async (request: NextReque
     return fail(AppError.unauthorized());
   }
 
+  await beginSecurityAudit(true);
   const result = await new ReminderService().processDue();
   log.info("reminder run complete", result);
 

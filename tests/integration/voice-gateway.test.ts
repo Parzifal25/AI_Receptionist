@@ -67,15 +67,60 @@ describe("VoiceGateway", () => {
     expect(g.gateway.activeSessions).toBe(0);
   });
 
-  it("is idempotent per provider call id and re-attaches a second media socket", async () => {
+  it("is idempotent per provider call id and refuses a second socket while the first is live", async () => {
     const g = buildGateway({ handler: new ScriptedTurnHandler().then({ reply: "ok" }) });
     const first = await g.connect({ providerCallId: "CA-2" });
     await g.settle(2_000);
     const second = await g.connect({ providerCallId: "CA-2" });
-    expect(second.result).toMatchObject({ ok: true, reattached: true });
+    expect(second.result).toEqual({ ok: false, reason: "session_active" });
     expect(g.callStore.calls.size).toBe(1);
     expect(g.gateway.activeSessions).toBe(1);
     if (first.result.ok) await g.gateway.endSession(first.result.sessionId, "caller_hangup");
+  });
+
+  /**
+   * G1.4 / W1.2: a stream token is valid for its whole TTL, so anyone who
+   * captured it could open a second media socket during a live call. Before
+   * the fix that socket re-attached and the agent's audio went to it. Now a
+   * live socket is never displaced; only a dropped one can be replaced, and
+   * only inside the reconnect window.
+   */
+  it("never redirects a live call's audio to a replayed stream token", async () => {
+    const g = buildGateway({ handler: new ScriptedTurnHandler().then({ reply: "Your visit is booked for Tuesday." }) });
+    const legit = await g.connect({ providerCallId: "CA-REPLAY" });
+    if (!legit.result.ok) throw new Error("expected a session");
+    await g.settle(2_000);
+
+    const replay = await g.connect({ providerCallId: "CA-REPLAY" });
+    expect(replay.result).toEqual({ ok: false, reason: "session_active" });
+    const call = g.callStore.calls.get(legit.result.call.id)!;
+    expect(call.state).toBe("in_conversation");
+    expect(g.callStore.events.get(call.id)!.some((e) => e.type === "media_reconnected")).toBe(false);
+
+    await g.caller.say(legit.result.sessionId, "book a visit");
+    await g.settle(3_000);
+    expect(legit.output.sentBytes).toBeGreaterThan(0);
+    expect(replay.output.sentBytes).toBe(0);
+    await g.gateway.endSession(legit.result.sessionId, "caller_hangup");
+  });
+
+  it("refuses a replayed token after the reconnect window closes and after a successful reconnect", async () => {
+    const g = buildGateway({ limits: { mediaReconnectMs: 3_000 } });
+    const { result } = await g.connect({ providerCallId: "CA-WIN" });
+    if (!result.ok) throw new Error("expected a session");
+    await g.settle(2_000);
+
+    g.gateway.mediaDisconnected(result.sessionId);
+    const reconnect = await g.connect({ providerCallId: "CA-WIN" });
+    expect(reconnect.result).toMatchObject({ ok: true, reattached: true });
+    // The window is consumed by the reconnect: a third socket is refused.
+    expect((await g.connect({ providerCallId: "CA-WIN" })).result).toEqual({ ok: false, reason: "session_active" });
+
+    g.gateway.mediaDisconnected(result.sessionId);
+    await g.settle(4_000);
+    // The call was finalized when the window closed: no session to take over.
+    expect((await g.connect({ providerCallId: "CA-WIN" })).result).toEqual({ ok: false, reason: "already_ended" });
+    expect(g.gateway.activeSessions).toBe(0);
   });
 
   it("refuses new calls beyond the concurrency ceiling", async () => {
@@ -264,16 +309,18 @@ describe("VoiceGateway — duplicate start races", () => {
     ]);
     await g.settle(3000);
 
-    expect(a.result.ok && b.result.ok).toBe(true);
-    if (!a.result.ok || !b.result.ok) throw new Error("both starts should succeed");
-    // One session, one call row, one conversation — and exactly one reattach.
+    // One session, one call row, one conversation. The loser of the race is
+    // refused rather than attached: a live socket is never displaced (G1.4).
+    const results = [a.result, b.result];
+    const winner = results.find((r) => r.ok);
+    if (!winner || !winner.ok) throw new Error("one start should succeed");
+    expect(winner.reattached).toBe(false);
+    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, reason: "session_active" }]);
     expect(g.gateway.activeSessions).toBe(1);
-    expect(a.result.sessionId).toBe(b.result.sessionId);
     expect(g.callStore.calls.size).toBe(1);
-    expect([a.result.reattached, b.result.reattached].filter(Boolean)).toHaveLength(1);
     expect(g.callStore.conversations.size).toBe(1);
 
-    await g.gateway.endSession(a.result.sessionId, "caller_hangup");
+    await g.gateway.endSession(winner.sessionId, "caller_hangup");
     expect(g.gateway.activeSessions).toBe(0);
   });
 

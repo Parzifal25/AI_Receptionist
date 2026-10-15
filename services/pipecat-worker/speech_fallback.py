@@ -18,6 +18,7 @@ repeated.
 """
 
 from __future__ import annotations
+from correlation import CorrelationFilter
 
 import asyncio
 import logging
@@ -30,6 +31,7 @@ from pipecat.pipeline.service_switcher import ServiceSwitcher, ServiceSwitcherSt
 from pipecat.processors.frame_processor import FrameProcessor
 
 log = logging.getLogger("halo.worker.speech_fallback")
+log.addFilter(CorrelationFilter())
 
 _RECOVERABLE_STATUS = {408, 429}
 _NETWORK_ERRORS = (ConnectionError, TimeoutError, asyncio.TimeoutError, socket.gaierror)

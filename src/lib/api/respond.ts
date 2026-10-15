@@ -1,3 +1,5 @@
+import { withSecurityAudit, finishSecurityAudit, SecurityAuditUnavailable } from "@halo/platform/security-audit";
+import { securityAuditStore } from "@halo/tenancy/security-audit-store";
 import { observe, telemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import { NextResponse } from "next/server";
 import { unstable_rethrow } from "next/navigation";
@@ -47,6 +49,7 @@ export function withErrorHandling<Args extends unknown[]>(
       // them turned an unauthenticated API call into an opaque 500 and hid
       // the real outcome; rethrow so Next completes the navigation.
       unstable_rethrow(error);
+      if (error instanceof SecurityAuditUnavailable) return fail(AppError.serviceUnavailable("Security audit unavailable"));
       if (isAppError(error)) {
         if (error.status >= 500) log.error("request failed", { code: error.code, error });
         else log.warn("request rejected", { code: error.code, message: error.message });
@@ -64,7 +67,8 @@ export function withErrorHandling<Args extends unknown[]>(
       return fail(AppError.internal());
     }
   };
-  return (...args: Args) => withTelemetryContext(async () => {
+  return (...args: Args) => withTelemetryContext(() => withSecurityAudit(securityAuditStore,
+    args[0] instanceof Request && !["GET", "HEAD", "OPTIONS"].includes(args[0].method), async () => {
     const started = performance.now();
     let status = 500;
     try {
@@ -73,10 +77,11 @@ export function withErrorHandling<Args extends unknown[]>(
       response.headers.set("x-request-id", telemetryId()!);
       return response;
     } finally {
+      await finishSecurityAudit(status);
       observe("http.request", { component: "api", route: routeName.split(".")[0], operation: "request", status,
         outcome: status >= 500 ? "error" : status >= 400 ? "rejected" : "ok" }, performance.now() - started);
     }
-  });
+  }, args[0] instanceof Request ? args[0].method : "OTHER", routeName.split(".")[0]));
 }
 
 /** Extracts the caller IP for rate limiting, honoring proxy headers. */

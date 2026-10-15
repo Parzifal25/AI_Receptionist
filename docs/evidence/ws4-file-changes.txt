@@ -1,0 +1,190 @@
+Current whole-tree tracked git diff --stat (includes preserved pre-existing WS3/WS4 work):
+ docs/DECISIONS.md                                  | 31 +++++++-
+ docs/HALO_Architecture.md                          | 19 ++++-
+ docs/HALO_V1_GAP_ANALYSIS.md                       | 10 +++
+ docs/HALO_V1_STATUS.md                             | 11 +++
+ docs/HOSTED_MIGRATION_RUNBOOK.md                   | 26 ++++---
+ docs/TELEMETRY.md                                  | 26 ++++++-
+ infrastructure/hosted/preflight-readonly.sql       | 90 ++++++++++++++++++++--
+ packages/campaigns/engine.ts                       |  3 +
+ packages/core/domain/workflow.ts                   |  2 +
+ packages/lifecycle/no-show-sweep.ts                |  7 +-
+ packages/platform/logger.ts                        |  7 +-
+ packages/platform/telemetry.ts                     | 17 +++-
+ .../providers/calendar/google-calendar-provider.ts |  6 +-
+ .../calendar/outlook-calendar-provider.ts          |  7 +-
+ packages/providers/calendar/token-source.ts        |  4 +-
+ .../messaging/resend-messaging-provider.ts         |  3 +-
+ .../messaging/whatsapp-messaging-provider.ts       | 10 +--
+ packages/scheduling/reminder-service.ts            | 23 ++++--
+ packages/tenancy/auth.ts                           |  8 +-
+ packages/voice/call-store.ts                       |  1 +
+ packages/voice/gateway.ts                          |  4 +
+ packages/voice/in-memory-call-store.ts             |  2 +-
+ packages/voice/pipecat/bridge.ts                   |  2 +
+ packages/voice/stores/supabase-call-store.ts       |  1 +
+ packages/workflows/action-registry.ts              |  2 +
+ packages/workflows/engine.ts                       | 25 ++++--
+ packages/workflows/event-bus.ts                    |  2 +
+ packages/workflows/supabase-workflow-store.ts      |  5 ++
+ packages/workflows/types.ts                        | 10 +++
+ scripts/check-rls.mjs                              | 17 ++++
+ services/pipecat-worker/halo_client.py             | 18 +++--
+ services/pipecat-worker/local_speech.py            | 33 ++++----
+ services/pipecat-worker/speech_fallback.py         |  2 +
+ services/pipecat-worker/worker.py                  | 25 +++---
+ services/voice-gateway/pipecat-control.ts          | 21 ++++-
+ services/voice-gateway/server.ts                   |  7 ++
+ services/voice-gateway/stream-token.ts             | 17 ++--
+ services/voice-gateway/web-call.ts                 | 21 ++++-
+ services/voice-gateway/web-stt.ts                  | 19 ++++-
+ services/voice-gateway/web-tts.ts                  | 19 ++++-
+ src/app/api/cron/campaigns/route.ts                |  2 +
+ src/app/api/cron/no-shows/route.ts                 |  2 +
+ src/app/api/cron/reminders/route.ts                |  2 +
+ src/app/api/cron/retention/route.ts                |  2 +
+ src/app/api/cron/workflows/route.ts                |  2 +
+ src/app/api/hooks/[businessId]/route.ts            |  2 +
+ .../api/oauth/google-calendar/callback/route.ts    | 14 +++-
+ src/app/api/oauth/google-calendar/start/route.ts   |  8 ++
+ src/app/api/v1/widget/config/route.ts              |  2 +
+ src/app/api/v1/widget/conversations/route.ts       |  2 +
+ src/app/api/v1/widget/leads/route.ts               |  2 +
+ src/app/api/v1/widget/messages/route.ts            |  2 +
+ src/app/api/v1/widget/speech/route.ts              |  5 +-
+ src/app/api/v1/widget/synthesis/route.ts           |  5 +-
+ src/app/api/v1/widget/voice-call/route.ts          |  5 +-
+ src/app/auth/callback/route.ts                     | 12 ++-
+ src/features/appointments/actions.ts               | 51 +++++++-----
+ src/features/auth/actions.ts                       | 25 +++++-
+ src/features/business/actions.ts                   | 46 +++++++----
+ src/features/faqs/actions.ts                       | 76 +++++++++++-------
+ src/features/knowledge/actions.ts                  | 84 ++++++++++++--------
+ src/features/leads/actions.ts                      | 65 +++++++++-------
+ src/features/lifecycle/actions.ts                  | 51 ++++++------
+ src/features/receptionist/actions.ts               | 36 +++++----
+ src/features/settings/actions.ts                   | 51 +++++++-----
+ src/lib/api/respond.ts                             |  9 ++-
+ tests/integration/pipecat-gateway.test.ts          |  4 +-
+ tests/integration/web-stt-gateway.test.ts          |  7 +-
+ tests/integration/workflow-engine.test.ts          | 15 ++--
+ tests/mocks/in-memory-workflow-store.ts            |  5 +-
+ tests/setup-env.ts                                 |  9 +++
+ tests/unit/logger-privacy.test.ts                  |  4 +-
+ tests/unit/whatsapp-messaging.test.ts              | 22 +++++-
+ 73 files changed, 878 insertions(+), 314 deletions(-)
+
+New/untracked files (initial baseline membership marked):
+[pre-existing] docs/DATABASE_RECOVERY_RUNBOOK.md
+[pre-existing] docs/HOSTED_TARGET_PREFLIGHT.md
+[pre-existing] docs/KNOWLEDGE_ROLLOUT_RUNBOOK.md
+[pre-existing] docs/MIGRATION_DEPENDENCY_MAP.md
+[pre-existing] docs/WORKSTREAM_3_REPORT.md
+[WS4 new] docs/WORKSTREAM_4_PRESERVATION.json
+[pre-existing] docs/WORKSTREAM_4_REPORT.md
+[pre-existing] docs/WS3_OWNER_ACTIONS.md
+[WS4 new] docs/evidence/ws4-audit-concurrency-summary.log
+[WS4 new] docs/evidence/ws4-audit-http-summary.log
+[WS4 new] docs/evidence/ws4-command-ledger.json
+[WS4 new] docs/evidence/ws4-db-results.json
+[WS4 new] docs/evidence/ws4-file-changes.txt
+[WS4 new] docs/evidence/ws4-final-checks.py
+[WS4 new] docs/evidence/ws4-final-gates.py
+[WS4 new] docs/evidence/ws4-isolated-checks.py
+[WS4 new] docs/evidence/ws4-preservation-result.json
+[pre-existing] infrastructure/hosted/knowledge-inventory-readonly.sql
+[pre-existing] infrastructure/hosted/preflight-evidence.example.json
+[WS4 new] packages/platform/security-audit.ts
+[WS4 new] packages/tenancy/audited-action.ts
+[WS4 new] packages/tenancy/security-audit-store.ts
+[pre-existing] scripts/assess-hosted-preflight.mjs
+[pre-existing] scripts/check-offline-database.mjs
+[pre-existing] scripts/check-rollout-docs.mjs
+[pre-existing] scripts/check-rollout-rehearsal.mjs
+[WS4 new] scripts/check-security-audit-http.mjs
+[WS4 new] scripts/check-security-audit.mjs
+[pre-existing] scripts/compare-migration-ledger.mjs
+[pre-existing] scripts/recovery-security.mjs
+[WS4 new] services/pipecat-worker/correlation.py
+[WS4 new] services/pipecat-worker/test_ws4_correlation.py
+[pre-existing] services/pipecat-worker/test_ws4_log_privacy.py
+[pre-existing] supabase/migrations/0035_knowledge_backfill_source_ref_validation.sql
+[WS4 new] supabase/migrations/0036_security_authorization_audit.sql
+[pre-existing] tests/integration/knowledge-backfill-db.test.ts
+[WS4 new] tests/integration/ws4-audit-correlation.test.ts
+[WS4 new] tests/integration/ws4-boundary-audit-route.test.ts
+[WS4 new] tests/integration/ws4-scheduled-correlation.test.ts
+[pre-existing] tests/unit/compare-migration-ledger.test.ts
+[pre-existing] tests/unit/hosted-preflight-assessment.test.ts
+[pre-existing] tests/unit/knowledge-backfill-migration.test.ts
+[pre-existing] tests/unit/recovery-security.test.ts
+[WS4 new] tests/unit/security-audit-store.test.ts
+[pre-existing] tests/unit/ws4-security-telemetry.test.ts
+
+Tracked paths changed during finalization, against initial dirt or clean HEAD:
+docs/DECISIONS.md
+docs/HALO_Architecture.md
+docs/HALO_V1_GAP_ANALYSIS.md
+docs/HALO_V1_STATUS.md
+docs/TELEMETRY.md
+packages/campaigns/engine.ts
+packages/core/domain/workflow.ts
+packages/lifecycle/no-show-sweep.ts
+packages/platform/telemetry.ts
+packages/providers/messaging/resend-messaging-provider.ts
+packages/providers/messaging/whatsapp-messaging-provider.ts
+packages/scheduling/reminder-service.ts
+packages/tenancy/auth.ts
+packages/voice/call-store.ts
+packages/voice/gateway.ts
+packages/voice/in-memory-call-store.ts
+packages/voice/pipecat/bridge.ts
+packages/voice/stores/supabase-call-store.ts
+packages/workflows/action-registry.ts
+packages/workflows/engine.ts
+packages/workflows/event-bus.ts
+packages/workflows/supabase-workflow-store.ts
+packages/workflows/types.ts
+scripts/check-rls.mjs
+services/pipecat-worker/halo_client.py
+services/pipecat-worker/local_speech.py
+services/pipecat-worker/speech_fallback.py
+services/pipecat-worker/worker.py
+services/voice-gateway/pipecat-control.ts
+services/voice-gateway/server.ts
+services/voice-gateway/stream-token.ts
+services/voice-gateway/web-call.ts
+services/voice-gateway/web-stt.ts
+services/voice-gateway/web-tts.ts
+src/app/api/cron/campaigns/route.ts
+src/app/api/cron/no-shows/route.ts
+src/app/api/cron/reminders/route.ts
+src/app/api/cron/retention/route.ts
+src/app/api/cron/workflows/route.ts
+src/app/api/hooks/[businessId]/route.ts
+src/app/api/oauth/google-calendar/callback/route.ts
+src/app/api/oauth/google-calendar/start/route.ts
+src/app/api/v1/widget/config/route.ts
+src/app/api/v1/widget/conversations/route.ts
+src/app/api/v1/widget/leads/route.ts
+src/app/api/v1/widget/messages/route.ts
+src/app/api/v1/widget/speech/route.ts
+src/app/api/v1/widget/synthesis/route.ts
+src/app/api/v1/widget/voice-call/route.ts
+src/app/auth/callback/route.ts
+src/features/appointments/actions.ts
+src/features/auth/actions.ts
+src/features/business/actions.ts
+src/features/faqs/actions.ts
+src/features/knowledge/actions.ts
+src/features/leads/actions.ts
+src/features/lifecycle/actions.ts
+src/features/receptionist/actions.ts
+src/features/settings/actions.ts
+src/lib/api/respond.ts
+tests/integration/pipecat-gateway.test.ts
+tests/integration/web-stt-gateway.test.ts
+tests/integration/workflow-engine.test.ts
+tests/mocks/in-memory-workflow-store.ts
+tests/setup-env.ts
+tests/unit/whatsapp-messaging.test.ts

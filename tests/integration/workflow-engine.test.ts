@@ -1,3 +1,4 @@
+import { RetrySafeWorkflowError } from "@halo/workflows/types";
 import { describe, expect, it, vi } from "vitest";
 import type { BusinessEvent, WorkflowDefinition } from "@halo/core/domain/workflow";
 import { WorkflowEngine } from "@halo/workflows/engine";
@@ -128,7 +129,7 @@ describe("WorkflowEngine", () => {
     expect(store.allRuns()).toHaveLength(1);
   });
 
-  it("retries a flaky step in-run and succeeds", async () => {
+  it("retries only explicitly retry-safe failures in-run and succeeds", async () => {
     let calls = 0;
     const workflow = makeWorkflow({
       steps: [
@@ -144,7 +145,7 @@ describe("WorkflowEngine", () => {
       {
         call_webhook: async () => {
           calls += 1;
-          if (calls < 3) throw new Error("503 from upstream");
+          if (calls < 3) throw new RetrySafeWorkflowError();
           return { status: 200 };
         },
       },
@@ -174,7 +175,7 @@ describe("WorkflowEngine", () => {
         call_webhook: async () => {
           if (failOnce) {
             failOnce = false;
-            throw new Error("upstream down");
+            throw new RetrySafeWorkflowError();
           }
           return { status: 200 };
         },
@@ -187,7 +188,7 @@ describe("WorkflowEngine", () => {
     expect(run.status).toBe("failed");
     expect(run.currentStep).toBe(1);
     expect(run.nextAttemptAt).not.toBeNull();
-    expect(run.error).toContain("upstream down");
+    expect(run.error).toBe("step_failed");
 
     // Cron comes around after the backoff.
     store.now = () => Date.parse(run.nextAttemptAt as string) + 1;
@@ -207,7 +208,7 @@ describe("WorkflowEngine", () => {
     it(`dead-letters a retried run whose ${foreign} belongs to another tenant, without running a step`, async () => {
       let calls = 0;
       const workflow = makeWorkflow({ steps: [{ id: "hook", action: "call_webhook", params: { url: "https://x.example.com" } }] });
-      const { store, engine } = setup({ call_webhook: async () => { calls += 1; if (calls === 1) throw new Error("upstream down"); return { status: 200 }; } }, workflow);
+      const { store, engine } = setup({ call_webhook: async () => { calls += 1; if (calls === 1) throw new RetrySafeWorkflowError(); return { status: 200 }; } }, workflow);
       await engine.dispatch(makeEvent());
       const run = store.allRuns()[0];
       expect(run.status).toBe("failed");
@@ -225,7 +226,7 @@ describe("WorkflowEngine", () => {
   it("parks a persistently failing run in the dead letter queue after max attempts", async () => {
     const { store, engine } = setup({
       send_email: async () => {
-        throw new Error("permanently broken");
+        throw new RetrySafeWorkflowError();
       },
     });
 
@@ -268,7 +269,7 @@ describe("WorkflowEngine", () => {
 
       const run = store.allRuns()[0];
       expect(run.status).toBe("dead_letter");
-      expect(run.error).toContain("timed out");
+      expect(run.error).toBe("step_timeout_outcome_unknown");
       expect(run.nextAttemptAt).toBeNull();
       expect(signal?.aborted).toBe(true);
       finish?.(); // Late completion cannot turn an uncertain outcome into success.

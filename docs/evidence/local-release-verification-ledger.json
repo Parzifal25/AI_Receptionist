@@ -1,0 +1,358 @@
+{
+  "schema": 1,
+  "generated": "2026-10-15",
+  "report": "docs/LOCAL_RELEASE_READINESS_REPORT.md",
+  "note": "Session scratchpad logs are local artifacts of this run and are not committed. Evidence types: source, unit test, integration test, disposable DB. Nothing here is staging, production or provider evidence. Earlier failures are retained.",
+  "entries": [
+    {
+      "phase": "baseline",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "evidencePath": "session scratchpad logs/baseline-typecheck.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "baseline",
+      "command": "npm run lint",
+      "exit": 0,
+      "summary": "no errors",
+      "evidencePath": "session scratchpad logs/baseline-lint.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "baseline",
+      "command": "npm run check:architecture",
+      "exit": 0,
+      "summary": "OK",
+      "evidencePath": "session scratchpad logs/baseline-architecture.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "baseline",
+      "command": "npm run check:neutral",
+      "exit": 0,
+      "summary": "OK",
+      "evidencePath": "session scratchpad logs/baseline-neutral.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "baseline",
+      "command": "npm run preflight:ci",
+      "exit": 0,
+      "summary": "configuration checks passed; DB check skipped by design",
+      "evidencePath": "session scratchpad logs/baseline-preflight.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "baseline",
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 0,
+      "summary": "172 files passed, 3 skipped; 1748 passed, 31 skipped",
+      "evidencePath": "session scratchpad logs/baseline-tests.log",
+      "evidenceType": "unit test",
+      "note": "unshare -Urn (loopback only), synthetic env, HALO_OUTBOUND_ENABLED=false, MESSAGING_PROVIDER=log"
+    },
+    {
+      "phase": "baseline",
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+      "exit": 0,
+      "summary": "75 run, OK (1 skipped)",
+      "evidencePath": "session scratchpad logs/baseline-worker.log",
+      "evidenceType": "unit test",
+      "note": "unshare -Urn (loopback only), synthetic env, HALO_OUTBOUND_ENABLED=false, MESSAGING_PROVIDER=log"
+    },
+    {
+      "phase": "baseline",
+      "command": "npx tsx scripts/check-local-tts-text-parity.ts --lines 2000 --seed 20261015",
+      "exit": 0,
+      "summary": "0 mismatches, 0 crashes",
+      "evidencePath": "session scratchpad logs/baseline-tts-parity.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "baseline",
+      "command": "node scripts/check-rollout-docs.mjs",
+      "exit": 1,
+      "summary": "FAIL: migration map row missing/duplicated: 0036_security_authorization_audit.sql",
+      "evidencePath": "session scratchpad logs/baseline-rollout-docs.log",
+      "evidenceType": "source",
+      "note": "pre-existing cross-workstream regression (WS4 0036 vs WS3 docs); fixed (F3)"
+    },
+    {
+      "phase": "baseline",
+      "command": "git diff --check",
+      "exit": 0,
+      "summary": "clean",
+      "evidencePath": "terminal",
+      "evidenceType": "source"
+    },
+    {
+      "phase": "baseline",
+      "command": "node scripts/check-rollout-rehearsal.mjs",
+      "exit": 1,
+      "summary": "67/70; three checks hard-coded pending 0032-0035",
+      "evidencePath": "session scratchpad logs/rehearsal-1.log",
+      "evidenceType": "disposable DB",
+      "note": "pre-existing regression caused by WS4 0036; fixed (F3)"
+    },
+    {
+      "phase": "fail-before:W1.2",
+      "command": "npx vitest run tests/integration/voice-gateway.test.ts tests/integration/pipecat-gateway.test.ts (pre-fix gateway.ts/bridge.ts from baseline snapshot)",
+      "exit": 1,
+      "summary": "5 failed / 26 passed: the 5 new or updated replay and race tests",
+      "evidencePath": "terminal output; files restored and hash-checked afterwards",
+      "evidenceType": "unit test",
+      "note": "expected failure proving the regression test detects the defect"
+    },
+    {
+      "phase": "fail-before:W2.1",
+      "command": "npx vitest run tests/unit/retrieval-query.test.ts tests/integration/chat-service.test.ts (HEAD retrieval-query.ts)",
+      "exit": 1,
+      "summary": "4 failed / 22 passed",
+      "evidencePath": "terminal output; files restored and hash-checked afterwards",
+      "evidenceType": "unit test",
+      "note": "expected failure proving the regression test detects the defect"
+    },
+    {
+      "phase": "fail-before:W7.1",
+      "command": "npx vitest run tests/unit/llm-router-telemetry.test.ts (baseline telemetry.ts, HEAD fallback-router.ts)",
+      "exit": 1,
+      "summary": "6 failed / 1 passed",
+      "evidencePath": "terminal output; files restored and hash-checked afterwards",
+      "evidenceType": "unit test",
+      "note": "expected failure proving the regression test detects the defect"
+    },
+    {
+      "phase": "fail-before:W7.2",
+      "command": "npx vitest run tests/integration/log-leak-sweep.test.ts (baseline resend-messaging-provider.ts)",
+      "exit": 1,
+      "summary": "2 failed (leak printed; one cascade) / 4 passed",
+      "evidencePath": "terminal output; files restored and hash-checked afterwards",
+      "evidenceType": "unit test",
+      "note": "expected failure proving the regression test detects the defect"
+    },
+    {
+      "phase": "fail-before:W4.1",
+      "command": "python -m unittest test_speech_minimums (baseline worker.py, HEAD media_gate.py)",
+      "exit": 1,
+      "summary": "3 failures / 8 run",
+      "evidencePath": "terminal output; files restored and hash-checked afterwards",
+      "evidenceType": "unit test",
+      "note": "expected failure proving the regression test detects the defect"
+    },
+    {
+      "phase": "mid-run",
+      "command": "npm run typecheck",
+      "exit": 2,
+      "summary": "tests/unit/pii-rules-inert.test.ts: Object is possibly 'null'",
+      "evidencePath": "session scratchpad logs/mid1-typecheck.log",
+      "evidenceType": "unit test",
+      "note": "defect in new test; fixed"
+    },
+    {
+      "phase": "mid-run",
+      "command": "git diff --check",
+      "exit": 2,
+      "summary": "tests/unit/retrieval-query.test.ts: new blank line at EOF",
+      "evidencePath": "session scratchpad logs/mid1-diff-check.log",
+      "evidenceType": "source",
+      "note": "fixed"
+    },
+    {
+      "phase": "mid-run",
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 0,
+      "summary": "175 files passed, 3 skipped; 1776 passed, 31 skipped",
+      "evidencePath": "session scratchpad logs/mid1-tests.log",
+      "evidenceType": "unit test",
+      "note": "unshare -Urn (loopback only), synthetic env, HALO_OUTBOUND_ENABLED=false, MESSAGING_PROVIDER=log"
+    },
+    {
+      "phase": "disposable DB",
+      "command": "node scripts/check-offline-database.mjs",
+      "exit": 0,
+      "summary": "36 migrations applied; check:rls 669 ok / 0 FAIL; 26 opt-in cases passed (K1, governance, tenant PostgREST)",
+      "evidencePath": "session scratchpad logs/offline-db-1.log",
+      "evidenceType": "disposable DB",
+      "note": "own pgvector:pg16 + PostgREST v16.4, --network none, no ports; removed"
+    },
+    {
+      "phase": "disposable DB",
+      "command": "npm run check:supabase-image-chain",
+      "exit": 0,
+      "summary": "A fails (gen_random_bytes) as expected; P applies 36; C fails (vector operator) as expected",
+      "evidencePath": "session scratchpad logs/image-chain-1.log",
+      "evidenceType": "disposable DB"
+    },
+    {
+      "phase": "disposable DB",
+      "command": "node scripts/check-rollout-rehearsal.mjs",
+      "exit": 0,
+      "summary": "83/83 after compatibility change (new section 7: 0036 roll-forward and post-0036 restore)",
+      "evidencePath": "session scratchpad logs/rehearsal-2.log",
+      "evidenceType": "disposable DB"
+    },
+    {
+      "phase": "disposable DB",
+      "command": "docs/evidence/local-release-audit-db.sh (run 1)",
+      "exit": 4,
+      "summary": "identity check failed: readiness wait raced the image's init server",
+      "evidencePath": "session scratchpad logs/audit-db-1.log",
+      "evidenceType": "disposable DB",
+      "note": "environmental defect in the new harness; fixed by waiting for two consecutive host connections"
+    },
+    {
+      "phase": "disposable DB",
+      "command": "docs/evidence/local-release-audit-db.sh (run 2)",
+      "exit": 1,
+      "summary": "migrations 0, audit 5/5, collector 0036=t; HTTP harness SecurityAuditUnavailable",
+      "evidencePath": "session scratchpad logs/audit-db-2.log",
+      "evidenceType": "disposable DB",
+      "note": "HTTP harness needs check:rls fixtures (undocumented); fixed by WS4 order"
+    },
+    {
+      "phase": "disposable DB",
+      "command": "docs/evidence/local-release-audit-db.sh (run 3): check:migrations; check:rls; node scripts/check-security-audit.mjs; node --import tsx --conditions react-server scripts/check-security-audit-http.mjs",
+      "exit": 0,
+      "summary": "migrations 0; check:rls 669 ok / 0 FAIL; audit 5/5; HTTP 8/8; preflight objects line ends 0036=t",
+      "evidencePath": "session scratchpad logs/audit-db-3.log",
+      "evidenceType": "disposable DB",
+      "note": "pgvector:pg16 on 127.0.0.1:55481 + PostgREST v14.13 on 127.0.0.1:55482; removed"
+    },
+    {
+      "phase": "final",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "summary": "no diagnostics",
+      "evidencePath": "session scratchpad logs/final1-typecheck.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "final",
+      "command": "npm run lint",
+      "exit": 0,
+      "summary": "no errors",
+      "evidencePath": "session scratchpad logs/final1-lint.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "final",
+      "command": "npm run check:architecture",
+      "exit": 0,
+      "summary": "OK",
+      "evidencePath": "session scratchpad logs/final1-architecture.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "final",
+      "command": "npm run check:neutral",
+      "exit": 0,
+      "summary": "OK",
+      "evidencePath": "session scratchpad logs/final1-neutral.log",
+      "evidenceType": "unit test"
+    },
+    {
+      "phase": "final",
+      "command": "npm run preflight:ci",
+      "exit": 0,
+      "summary": "configuration checks passed",
+      "evidencePath": "session scratchpad logs/final1-preflight.log",
+      "evidenceType": "unit test",
+      "note": "unshare -Urn (loopback only), synthetic env, HALO_OUTBOUND_ENABLED=false, MESSAGING_PROVIDER=log"
+    },
+    {
+      "phase": "final",
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 0,
+      "summary": "176 files passed, 3 skipped; 1782 passed, 0 failed, 31 skipped",
+      "evidencePath": "session scratchpad logs/final1-tests.log",
+      "evidenceType": "unit test",
+      "note": "unshare -Urn (loopback only), synthetic env, HALO_OUTBOUND_ENABLED=false, MESSAGING_PROVIDER=log"
+    },
+    {
+      "phase": "final",
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+      "exit": 0,
+      "summary": "83 run, OK (1 skipped)",
+      "evidencePath": "session scratchpad logs/final1-worker.log",
+      "evidenceType": "unit test",
+      "note": "unshare -Urn (loopback only), synthetic env, HALO_OUTBOUND_ENABLED=false, MESSAGING_PROVIDER=log"
+    },
+    {
+      "phase": "final",
+      "command": "npx tsx scripts/check-local-tts-text-parity.ts --lines 2000 --seed 20261015",
+      "exit": 0,
+      "summary": "0 mismatches, 0 crashes",
+      "evidencePath": "session scratchpad logs/final1-tts-parity.log",
+      "evidenceType": "unit test",
+      "note": "unshare -Urn (loopback only), synthetic env, HALO_OUTBOUND_ENABLED=false, MESSAGING_PROVIDER=log"
+    },
+    {
+      "phase": "final",
+      "command": "npm run build",
+      "exit": 0,
+      "summary": "compiled; Google Fonts fetched from public CDN",
+      "evidencePath": "session scratchpad logs/final1-build.log",
+      "evidenceType": "integration test"
+    },
+    {
+      "phase": "final",
+      "command": "git diff --check",
+      "exit": 2,
+      "summary": "docs/API.md: new blank line at EOF",
+      "evidencePath": "session scratchpad logs/final1-diff-check.log",
+      "evidenceType": "source",
+      "note": "fixed; rerun below"
+    },
+    {
+      "phase": "final",
+      "command": "node scripts/check-rollout-docs.mjs",
+      "exit": 1,
+      "summary": "missing LOCAL_RELEASE_READINESS_REPORT.md (report not yet written)",
+      "evidencePath": "session scratchpad logs/final1-rollout-docs.log",
+      "evidenceType": "source",
+      "note": "rerun below after the report was written"
+    },
+    {
+      "phase": "final",
+      "command": "node scripts/check-offline-database.mjs",
+      "exit": 0,
+      "summary": "36 migrations; check:rls 669 ok / 0 FAIL; 26 opt-in cases passed",
+      "evidencePath": "session scratchpad logs/offline-db-2.log",
+      "evidenceType": "disposable DB"
+    },
+    {
+      "phase": "final",
+      "command": "sha256sum -c <baseline migration manifest>; git diff --quiet HEAD -- supabase/migrations",
+      "exit": 0,
+      "summary": "0001-0034 identical to HEAD; 0035 and 0036 identical to baseline",
+      "evidencePath": "terminal",
+      "evidenceType": "source"
+    },
+    {
+      "phase": "final",
+      "command": "git diff --no-index --check /dev/null <each new or edited untracked file>",
+      "exit": 0,
+      "summary": "no whitespace errors (edited WS3/WS4 files compared with baseline: 0 before, 0 after)",
+      "evidencePath": "terminal",
+      "evidenceType": "source"
+    },
+    {
+      "phase": "final",
+      "command": "node scripts/check-rollout-docs.mjs",
+      "exit": 0,
+      "summary": "PASS: 36 ordered migration rows, 7 linked rollout documents, 9 distinct owner IDs, 10 target evidence groups",
+      "evidencePath": "terminal",
+      "evidenceType": "source"
+    },
+    {
+      "phase": "final",
+      "command": "git diff --check",
+      "exit": 0,
+      "summary": "clean",
+      "evidencePath": "terminal",
+      "evidenceType": "source"
+    }
+  ]
+}

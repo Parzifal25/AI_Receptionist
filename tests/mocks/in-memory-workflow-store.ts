@@ -12,6 +12,7 @@ interface StoredTimer {
   eventType: BusinessEventType;
   payload: Record<string, unknown>;
   correlationId: string;
+  telemetryCorrelationId?: string;
   fireAt: string;
   fired: boolean;
 }
@@ -122,6 +123,7 @@ export class InMemoryWorkflowStore implements WorkflowStore {
     eventType: BusinessEventType;
     payload: Record<string, unknown>;
     correlationId: string;
+    telemetryCorrelationId?: string;
     fireAt: string;
   }): Promise<void> {
     this.timers.push({ ...timer, fired: false });
@@ -132,11 +134,12 @@ export class InMemoryWorkflowStore implements WorkflowStore {
       .filter((t) => !t.fired && Date.parse(t.fireAt) <= this.now())
       .slice(0, limit);
     for (const timer of due) timer.fired = true;
-    return due.map(({ businessId, eventType, payload, correlationId }) => ({
+    return due.map(({ businessId, eventType, payload, correlationId, telemetryCorrelationId }) => ({
       businessId,
       eventType,
       payload,
       correlationId,
+      telemetryCorrelationId,
     }));
   }
 

@@ -554,3 +554,23 @@ Under the owner's instruction "HALO Phase 2 — Workstream 2: Close Pending Deci
 - `check:migrations` and `check:rls`: no migration changed, and the real-image runs above replace a chain replay for this review.
 - The opt-in PostgREST suites.
 - Any hosted, staging, shared-database or provider check.
+
+
+## Phase 2 Workstream 3 — 2026-10-15
+
+**COMPLETE — ROLLOUT PREPARED (local package). Deployment NOT READY / NOT AUTHORIZED.** [Evidence and exact checks](WORKSTREAM_3_REPORT.md), [dependency map](MIGRATION_DEPENDENCY_MAP.md), [target preflight](HOSTED_TARGET_PREFLIGHT.md), [knowledge inventory/backfill](KNOWLEDGE_ROLLOUT_RUNBOOK.md), [recovery](DATABASE_RECOVERY_RUNBOOK.md), [owner/readiness register](WS3_OWNER_ACTIONS.md). Final-closure authorization covers K1 implementation in additive 0035, preserving 0033. Disposable dry/apply boundary, atomicity, tenant, provenance, approval and recovery regressions pass. All nine scoped owner decision IDs and ten actual-target evidence groups remain outstanding; no decision states ratified and no hosted/shared SQL or deployment occurred.
+
+## WS4 finalization — 2026-10-15
+
+**Local implementation evidence:** D7 now has locally authorized additive `0036` authorization auditing alongside `0032` tool audit. D18 has signed service/worker and persisted job correlation; export stays disabled/opt-in stdout locally, with hosted selection still pending operations approval. Failure/retry, redaction, tenant isolation and ambiguous-action quarantine are covered by deterministic tests. See [WORKSTREAM_4_REPORT.md](WORKSTREAM_4_REPORT.md) for the final disposition, exact counts and accepted limits.
+
+No hosted acceptance follows: target identity, real grants/Auth, backup/retention, provider idempotency, exporter/alerts and all WS3 T1–T10 evidence remain unverified. WS3's K1/recovery evidence stays local/disposable; `0035` and its recovery artifacts are unchanged. WS3 saved-ledger tests have one reviewed compatibility amendment so their 0001–0035 fixtures remain historical and current comparisons must account for 0036. No unrelated pending decision is ratified. New audit schema must precede matching code on a separately authorized target.
+
+## Local release-readiness audit — 2026-10-15
+
+Under the owner's "Autonomous Local Completion and Release-Readiness Audit" instruction. Branch `Phase-2-Security-Hardening`, HEAD `ad6a19d830633712b948ff5fc75972c2f61a17fa`, unchanged; nothing staged, committed, pushed or deployed. The ten criterion rows above are unchanged. **Disposition: PARTIALLY COMPLETE** — every locally completable, decision-free item that this run took on passes, but deferred local cards and owner/hosted gates remain. Full matrix, commands and results: [LOCAL_RELEASE_READINESS_REPORT.md](LOCAL_RELEASE_READINESS_REPORT.md); machine-readable status: [evidence/local-workstream-status.json](evidence/local-workstream-status.json).
+
+- **Fixed (local test):** W1.2 stream-token replay takeover (gateway and Pipecat bridge); W2.1 Telugu knowledge-gap gate; W4.1 worker VAD and barge-in minimums; W4.6 voice cooldown wait; W7.1 router telemetry; W7.2 log-leak sweep and a Resend recipient/subject log leak; W2.3 `piiRules` documented as inert; W0.8 API reference.
+- **Cross-workstream regressions fixed:** WS4's `0036` broke WS3's rollout rehearsal (67/70) and rollout-docs check. Both pass now (83/83 with a new post-0036 restore section; `disposable DB`). The hosted preflight collector now samples 0036.
+- **Re-verified (`disposable DB`):** 0001–0036 chain, 669 real-role RLS assertions, 26 opt-in PostgREST/governance/K1 cases, WS4 audit 5 + HTTP 8, Supabase-image chain A/P/C.
+- **Not done locally:** W4.3–W4.5, W4.7, W4.9 (deferred voice-latency cards), W4.8 (acceptance criteria need owner clarification), W4.2 (D17), W4.10 (D20), W0.2 (commit, not authorized here), W0.3 (Codex review), W1.3 (written write authorization).

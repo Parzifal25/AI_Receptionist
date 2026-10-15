@@ -1,6 +1,6 @@
 # API Reference
 
-> **Coverage note (2026-10-15):** this reference covers the original widget, cron, workflow and lifecycle endpoints. It does not cover routes added later: `/api/v1/widget/{voice-call,speech,synthesis}`, `/api/campaigns`, `/api/learning`, `/api/admin/system-status`, `/api/analytics/operations` and `/api/cron/campaigns`. Updating it is plan task W0.8 ([HALO_V1_IMPLEMENTATION_PLAN.md](HALO_V1_IMPLEMENTATION_PLAN.md)).
+> **Coverage note (2026-10-15, updated by the local release-readiness audit):** this reference now covers every route under `src/app/api` (30 `route.ts` files), including the later voice, campaign, learning, admin, analytics, no-show and calendar-OAuth routes in [Routes added after the original reference](#routes-added-after-the-original-reference) (plan task W0.8). Since Workstream 4, protected routes also write durable `audit_logs` rows ([WORKSTREAM_4_REPORT.md](WORKSTREAM_4_REPORT.md)); where a mandatory pre-execution audit write fails the route refuses the work. Descriptions are `source` evidence, not deployment proof.
 
 All application data access for the dashboard happens through Server Components and Server
 Actions under RLS — there is no private REST API. The endpoints below are the **public widget
@@ -215,3 +215,44 @@ the `reply` field in the existing response narrates the result. See
 [SCHEDULING.md](SCHEDULING.md) for the full flow and the `appointments`,
 `staff_members`, `scheduling_settings`, and `appointment_reminders` tables
 that back it (`supabase/migrations/0008_appointments.sql`).
+
+---
+
+## Routes added after the original reference
+
+Added 2026-10-15 for plan task W0.8 from the route handlers (`source`). Same envelope and error codes as above; `503 SERVICE_UNAVAILABLE` also appears where a dependency is not configured or unreachable.
+
+### Widget voice (public, widget-key or visitor-token authenticated)
+
+All three need a widget whose receptionist has voice enabled and an allowed origin, and they answer `OPTIONS` preflights. The browser never names a tenant, agent, number or provider: the server resolves them and calls the voice gateway (`VOICE_GATEWAY_INTERNAL_URL`) with an HMAC-signed body (`VOICE_STREAM_TOKEN_SECRET`, at least 32 characters). Without that configuration they return `503`.
+
+- `POST /api/v1/widget/speech` — `{ "widgetKey", "audio": "<base64>" }`, at most about ten seconds of audio (the body is bounded at 430,000 bytes as read, not by `Content-Length`). Transcribes through the gateway's `/web/stt`. Returns `{ "data": { "text" } }`. Limits: 20/min per IP and 20/min per tenant.
+- `POST /api/v1/widget/synthesis` — `{ "visitorToken" }` (body at most 1 KB). Synthesizes **only** the latest persisted assistant reply of that visitor's own conversation, through `/web/tts`; the client cannot supply text. `409` if the conversation ended or no reply is ready. Response is `no-store`. Limits: 20/min per IP and per tenant.
+- `POST /api/v1/widget/voice-call` — `{ "widgetKey" }`. Returns the gateway's live-call offer: the Pipecat media socket URL, wire format and a short-lived stream token bound to a fresh call id and the tenant's own voice route. Response is `no-store`. Limits: 10/min per IP and per tenant. The token is accepted only by the gateway, and since W1.2 it cannot take over a call that already has a live socket.
+
+### Dashboard APIs (session required)
+
+Tenant identity comes from the signed-in session (`requireBusiness()`), never from the request.
+
+- `GET /api/campaigns` — the business's campaigns, newest first (at most 100).
+- `POST /api/campaigns` — admin or owner only. A command, discriminated by `action`:
+  - `create` — `{ name, agentId, agentVersionId, phoneNumberId, policy }`; **201** `{ "data": { "id" } }`. Foreign agent, version or number references are refused by the database (`0025` guards).
+  - `enroll` — `{ campaignId, contacts: [{ customerId, consentAt }] }` (1–100 contacts; `consentAt` cannot be in the future). Only while the campaign is `draft` or `paused`; duplicates are ignored.
+  - `state` — `{ campaignId, state: "active" | "paused" | "cancelled" | "completed" }`.
+  - `dispatch` — `{ campaignId, limit: 1–10 }`. Dials only when `HALO_OUTBOUND_ENABLED` is exactly `"true"`; it is `false` under G2.
+- `GET /api/learning` — learning proposals (at most 100). `?view=outcomes` returns a disposition summary over the latest 1,000 call outcomes, with `truncated`.
+- `POST /api/learning` — admin or owner only. `{ action: "propose", … }` creates a proposal (**201** `{ "data": { "id" } }`); `{ action: "review", id, approve }` reviews it with the caller's own JWT, so the database re-checks admin membership and a passing evaluation, and returns `{ "data": { "draftVersionId" } }`. A review never publishes a live version.
+- `GET /api/admin/system-status` — admin or owner only. Operational counts for the caller's tenant only: reminder and workflow queues (pending, overdue, failed, dead-letter), 24-hour turn-latency p50/p95 from at most 500 samples, calendar connection count, LLM health and configuration readiness. `status` is `ok` or `degraded`. Missing counts or query errors return `503 MONITORING_UNAVAILABLE` instead of zeros. `failureRate` is always `null` (no durable provider-failure metric exists). Note: the LLM health check may contact the configured provider.
+- `GET /api/analytics/operations?days=30` — operations metrics for the caller's tenant over the trailing period (`days` 1–365, default 30).
+
+### Calendar OAuth (dashboard session, admin or owner)
+
+- `GET /api/oauth/google-calendar/start` — redirects to Google's consent screen with `access_type=offline` and `prompt=consent`. The `state` is HMAC-signed and bound to the business; a 10-minute HTTP-only nonce cookie binds it to this browser. Members, and deployments without Google client credentials or `CALENDAR_CREDENTIALS_ENCRYPTION_KEY`, are redirected to settings with an error.
+- `GET /api/oauth/google-calendar/callback` — verifies the state against the nonce cookie and requires the signed-in tenant to equal the state's tenant; otherwise nothing is exchanged or written. Exchanges the code, requires a refresh token, and stores the business-level Google connection with both tokens encrypted (`v1.` AES-256-GCM envelope). Always redirects to settings with `connected` or an error code. Known limit (recorded in [LOCAL_RELEASE_READINESS_REPORT.md](LOCAL_RELEASE_READINESS_REPORT.md)): the previous connection is deleted before the new one is inserted, without a transaction.
+
+### Cron (internal)
+
+Both need `Authorization: Bearer <CRON_SECRET>`, compared in constant time; without `CRON_SECRET` they return `500` and do nothing. Both require a durable pre-execution audit row.
+
+- `GET /api/cron/no-shows` — marks overdue appointments as no-shows for businesses that opted in, emitting `appointment.no_show` for the recovery journey. Re-runs are harmless (swept appointments are terminal). Scheduled every 15 minutes in `vercel.json`. Returns `{ "data": <sweep counts> }`.
+- `GET /api/cron/campaigns` — claims up to 20 due campaigns (`schedule_campaign_batch`) and dispatches one contact each. Returns `{ "data": { "dispatched", "failed" } }`, with `503` when any dispatch failed. **Not scheduled** in `vercel.json` (D4); dispatch stays inert while `HALO_OUTBOUND_ENABLED` is not `"true"`.

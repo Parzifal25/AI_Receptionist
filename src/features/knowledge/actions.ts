@@ -1,5 +1,9 @@
 "use server";
 
+import { rejectSecurityAudit } from "@halo/platform/security-audit";
+import { failSecurityAudit } from "@halo/platform/security-audit";
+import { withAuditedAction } from "@halo/tenancy/audited-action";
+
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBusiness } from "@halo/tenancy/auth";
@@ -78,38 +82,54 @@ async function saveRevision(documentId: string | null, formData: FormData): Prom
 }
 
 export async function createDocument(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return saveRevision(null, formData);
+  return withAuditedAction(async () => {
+
+    return saveRevision(null, formData);
+
+  }, { action: "createDocument" });
 }
 
 export async function updateDocument(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const id = uuid.safeParse(formData.get("id"));
-  if (!id.success) return { error: "Invalid document" };
-  return saveRevision(id.data, formData);
+  return withAuditedAction(async () => {
+
+    const id = uuid.safeParse(formData.get("id"));
+    if (!id.success) return { error: "Invalid document" };
+    return saveRevision(id.data, formData);
+
+  }, { action: "updateDocument" });
 }
 
 /** Approve (publish) or reject a pending revision. Owner/admin only. */
 export async function reviewDocumentRevision(formData: FormData): Promise<void> {
-  const { role } = await requireBusiness();
-  const revisionId = uuid.safeParse(formData.get("revisionId"));
-  if (!canApprove(role) || !revisionId.success) return;
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("knowledge_review_revision", {
-    p_revision_id: revisionId.data,
-    p_approve: formData.get("decision") === "approve",
+  return withAuditedAction(async () => {
+
+    const { role } = await requireBusiness();
+    const revisionId = uuid.safeParse(formData.get("revisionId"));
+    if (!canApprove(role) || !revisionId.success) { await rejectSecurityAudit(); return; }
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("knowledge_review_revision", {
+      p_revision_id: revisionId.data,
+      p_approve: formData.get("decision") === "approve",
   });
-  if (error) log.error("knowledge review failed", { revisionId: revisionId.data, error: error.message.slice(0, 200) });
+  if (error) { await failSecurityAudit(); log.error("knowledge review failed", { revisionId: revisionId.data, error: error.message.slice(0, 200) }); }
   revalidatePath("/dashboard/knowledge");
+
+  }, { action: "reviewDocumentRevision" });
 }
 
 /** Stop serving a document's published revision. Owner/admin only. */
 export async function withdrawDocument(formData: FormData): Promise<void> {
-  const { role } = await requireBusiness();
-  const id = uuid.safeParse(formData.get("id"));
-  if (!canApprove(role) || !id.success) return;
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("knowledge_withdraw_document", { p_document_id: id.data });
-  if (error) log.error("knowledge withdraw failed", { documentId: id.data, error: error.message.slice(0, 200) });
-  revalidatePath("/dashboard/knowledge");
+  return withAuditedAction(async () => {
+
+    const { role } = await requireBusiness();
+    const id = uuid.safeParse(formData.get("id"));
+    if (!canApprove(role) || !id.success) { await rejectSecurityAudit(); return; }
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("knowledge_withdraw_document", { p_document_id: id.data });
+    if (error) { await failSecurityAudit(); log.error("knowledge withdraw failed", { documentId: id.data, error: error.message.slice(0, 200) }); }
+    revalidatePath("/dashboard/knowledge");
+
+  }, { action: "withdrawDocument" });
 }
 
 /**
@@ -117,15 +137,19 @@ export async function withdrawDocument(formData: FormData): Promise<void> {
  * only; the database refuses published documents (withdraw first).
  */
 export async function deleteDocument(formData: FormData): Promise<void> {
-  const { businessId, role } = await requireBusiness();
-  const id = uuid.safeParse(formData.get("id"));
-  if (!canApprove(role) || !id.success) return;
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
-    .from("knowledge_documents")
-    .delete()
-    .eq("id", id.data)
-    .eq("business_id", businessId);
-  if (error) log.error("document delete failed", { documentId: id.data, error: error.message.slice(0, 200) });
-  revalidatePath("/dashboard/knowledge");
+  return withAuditedAction(async () => {
+
+    const { businessId, role } = await requireBusiness();
+    const id = uuid.safeParse(formData.get("id"));
+    if (!canApprove(role) || !id.success) { await rejectSecurityAudit(); return; }
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase
+      .from("knowledge_documents")
+      .delete()
+      .eq("id", id.data)
+      .eq("business_id", businessId);
+    if (error) { await failSecurityAudit(); log.error("document delete failed", { documentId: id.data, error: error.message.slice(0, 200) }); }
+    revalidatePath("/dashboard/knowledge");
+
+  }, { action: "deleteDocument" });
 }

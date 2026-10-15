@@ -1,3 +1,12 @@
+import { vi } from "vitest";
+
+// API wrappers now have a durable audit dependency. Existing route tests use
+// an explicit fake sink so they never make incidental database requests.
+// WS4 boundary tests inject failures; DB-role checks exercise real persistence.
+vi.mock("@halo/tenancy/security-audit-store", () => ({
+  securityAuditStore: { append: async () => {} },
+}));
+
 /**
  * Test-environment bootstrap (runs once before any test module loads).
  *

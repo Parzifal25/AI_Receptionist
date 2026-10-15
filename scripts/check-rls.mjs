@@ -1088,6 +1088,23 @@ index(bizB, docB, revB, ["kappaword tenant b text"], 0.3);
 psql(asUser(uB, `select knowledge_submit_revision('${revB}'); select knowledge_review_revision('${revB}', true);`));
 const [, faqRevB] = val(createFaq(uB, bizB, null, "Kappaword hours?", "Kappaword tenant b answer.")).split("|");
 psql(asUser(uB, `select faq_review_revision('${faqRevB}', true);`));
+// WS4 audit fixtures are required before the generic non-vacuous table sweep.
+psql(asService(`insert into audit_logs (operation_id,business_id,actor_id,action,outcome,reason,correlation_id) values
+ (gen_random_uuid(),'${bizA}','${uA}','api_access','attempted','authorized',gen_random_uuid()),
+ (gen_random_uuid(),'${bizB}','${uB}','api_access','denied','forbidden',gen_random_uuid()),
+ (gen_random_uuid(),null,null,'api_access','denied','unauthenticated',gen_random_uuid());`));
+expectNothing(asUser(uA, `select count(*) from audit_logs where business_id is null or business_id = '${bizB}';`), "audit: member cannot read unscoped or foreign security records");
+for (const role of ["anon", "authenticated", "service_role"]) {
+ for (const statement of ["update audit_logs set reason = 'completed'", "delete from audit_logs", "truncate audit_logs"]) {
+  expectRefused(`begin; set local role ${role}; ${statement}; rollback;`, /permission denied/, `audit: ${role} cannot ${statement.split(" ")[0]}`);
+ }
+}
+expectRefused(asUser(uA, `insert into audit_logs (operation_id,business_id,actor_id,action,outcome,reason,correlation_id) values
+ (gen_random_uuid(),'${bizA}','${uA}','api_access','succeeded','completed',gen_random_uuid());`), /permission denied/, "audit: clients cannot fabricate success records");
+expectRefused(asService(`insert into audit_logs (operation_id,action,outcome,reason,correlation_id) values
+ (gen_random_uuid(),'api_access','denied','synthetic-private-token',gen_random_uuid());`), /check constraint/, "audit: arbitrary reason strings refused");
+ok("audit: service-only append, immutable to application roles; server timestamps and bounded fields");
+
 ok("phase 2 fixture: both tenants own rows in every tenant table (same-tenant references accepted by the triggers)");
 
 const tenantTables = psql(

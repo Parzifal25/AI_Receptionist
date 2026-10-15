@@ -44,7 +44,7 @@ export interface InvokeModelParams {
   provider: LLMProvider;
   systemPrompt: string;
   messages: Array<ChatMessage | LLMMessage>;
-  options: Pick<LLMCompletionOptions, "temperature" | "maxTokens" | "jsonMode" | "routingTier">;
+  options: Pick<LLMCompletionOptions, "temperature" | "maxTokens" | "jsonMode" | "routingTier" | "maxCooldownWaitMs">;
   /** Offered only when the provider declares native tool support. */
   tools?: LLMToolDescriptor[];
   /** Absolute deadline (epoch ms). The call is abandoned when it passes. */

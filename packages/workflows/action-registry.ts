@@ -1,3 +1,4 @@
+import { telemetryId } from "@halo/platform/telemetry";
 import "server-only";
 import type { MessageChannel, MessagingProvider } from "@halo/ports/messaging-provider";
 import type { OpsProvider, OpsRecordKind } from "@halo/ports/ops-provider";
@@ -196,6 +197,7 @@ export function createActionRegistry(deps: {
       }
       const fireAt = new Date(Date.now() + delayMinutes * 60_000).toISOString();
       await store.scheduleTimer({
+        telemetryCorrelationId: telemetryId(),
         businessId: ctx.businessId,
         eventType: "followup.due",
         payload: {

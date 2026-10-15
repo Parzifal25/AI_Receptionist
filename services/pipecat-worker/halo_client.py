@@ -32,10 +32,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from correlation import canonical_id, correlation_id, CorrelationFilter
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 log = logging.getLogger("halo.client")
+log.addFilter(CorrelationFilter())
 
 PROTOCOL_VERSION = "1.0"
 
@@ -66,7 +68,7 @@ class SessionIdentity:
             call_id=payload["callId"],
             session_id=payload["sessionId"],
             conversation_id=payload["conversationId"],
-            correlation_id=payload["correlationId"],
+            correlation_id=canonical_id(payload.get("correlationId")),
         )
 
 
@@ -274,6 +276,13 @@ class HaloControlClient:
     # -- inbound ------------------------------------------------------------
 
     async def run(self) -> None:
+        token = correlation_id.set(None)
+        try:
+            await self._run_with_context()
+        finally:
+            correlation_id.reset(token)
+
+    async def _run_with_context(self) -> None:
         """Reads commands until the socket closes. Never raises on a bad frame."""
         await self.hello()
         while not self._closed:
@@ -299,12 +308,11 @@ class HaloControlClient:
         kind = command.get("type")
         if kind == "ready":
             self._identity = SessionIdentity.from_json(command["session"])
+            correlation_id.set(self._identity.correlation_id)
             voice = VoiceConfig.from_json(command["voice"])
             log.info(
-                "session ready call=%s correlation=%s language=%s",
-                self._identity.call_id,
+                "session ready correlation=%s",
                 self._identity.correlation_id,
-                voice.language,
             )
             await self._handlers.on_ready(self._identity, voice)
             return
@@ -327,7 +335,7 @@ class HaloControlClient:
             self._closed = True
             await self._handlers.on_hangup(command.get("reason", ""))
             return
-        log.warning("unknown command ignored: %s", kind)
+        log.warning("unknown command ignored")
 
     async def close(self) -> None:
         self._closed = True

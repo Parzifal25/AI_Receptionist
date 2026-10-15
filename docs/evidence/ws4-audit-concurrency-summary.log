@@ -1,0 +1,6 @@
+ok 40 concurrent durable appends, no lost writes
+ok no actor, tenant or correlation misattribution
+ok real-role cross-tenant read isolation
+ok real-role own-tenant visibility
+ok server timestamps persisted
+check-security-audit: 5 assertions passed

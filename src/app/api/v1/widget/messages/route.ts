@@ -1,3 +1,4 @@
+import { bindSecurityIdentity } from "@halo/platform/security-audit";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { AppError } from "@halo/core/errors/app-error";
@@ -55,6 +56,7 @@ export const POST = withErrorHandling("widget.messages", async (request: NextReq
   const { receptionist, business, allowedDomains } = await repository.getReceptionistById(
     conversation.receptionistId,
   );
+  await bindSecurityIdentity({ actorId: null, businessId: business.id });
   const unavailableAgentContext = () =>
     fail(AppError.conflict("This conversation's agent configuration is unavailable"), headers);
   if (conversation.businessId !== business.id) {

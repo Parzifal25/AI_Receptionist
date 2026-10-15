@@ -48,6 +48,7 @@ export interface CallRecord {
 }
 
 export interface NewCall {
+  correlationId?: string;
   businessId: string;
   agentId: string;
   agentVersionId: string;

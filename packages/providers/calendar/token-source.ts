@@ -117,8 +117,8 @@ export async function authedJsonFetch<T>(
     },
   });
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new HttpError(response.status, `${url} → ${response.status}: ${body.slice(0, 200)}`);
+    // Provider bodies and URLs may contain customer data or credentials.
+    throw new HttpError(response.status, `Calendar request failed (${response.status})`);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json().catch(() => undefined)) as T;

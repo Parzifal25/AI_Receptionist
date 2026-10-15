@@ -1,3 +1,4 @@
+import { telemetryId, newTelemetryId } from "@halo/platform/telemetry";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { BusinessEvent, BusinessEventType } from "@halo/core/domain/workflow";
@@ -53,6 +54,7 @@ export interface EmitInput {
 export async function emitBusinessEvent(input: EmitInput): Promise<void> {
   const event: BusinessEvent = {
     id: randomUUID(),
+    telemetryCorrelationId: telemetryId() ?? newTelemetryId(),
     businessId: input.businessId,
     type: input.type,
     correlationId: input.correlationId ?? randomUUID(),

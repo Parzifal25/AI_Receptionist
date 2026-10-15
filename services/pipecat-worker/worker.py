@@ -64,6 +64,7 @@ loop over real WebSockets with fake vendors).
 """
 
 from __future__ import annotations
+from correlation import correlation_id, CorrelationFilter
 
 import asyncio
 from uuid import uuid4
@@ -100,6 +101,7 @@ from halo_serializer import HaloMediaSerializer
 from media_gate import MediaGate
 
 log = logging.getLogger("halo.worker")
+log.addFilter(CorrelationFilter())
 
 MEDIA_PATH = "/media"
 
@@ -200,7 +202,7 @@ def _pipecat_language(code: Optional[str]):
     try:
         return Language(code)
     except ValueError:
-        log.warning("unknown language code %r; letting the vendor auto-detect", code)
+        log.warning("unknown language code; letting the vendor auto-detect")
         return None
 
 
@@ -350,8 +352,15 @@ def _make_tts(selected: dict, voice: VoiceConfig):
 
 
 def _build_vad(voice: VoiceConfig) -> SileroVADAnalyzer:
-    """Silero at the wire rate, endpointed from HALO's config."""
+    """Silero at the wire rate, endpointed from HALO's config.
+
+    `vad.minSpeechMs` is how long speech must last before it counts as the
+    caller speaking (Silero's start_secs), as HALO's in-process endpointer
+    applies it; `endHangoverMs` is the silence that ends an utterance.
+    """
     params = VADParams()
+    if voice.vad_min_speech_ms > 0:
+        params.start_secs = voice.vad_min_speech_ms / 1000.0
     if voice.vad_end_hangover_ms:
         params.stop_secs = voice.vad_end_hangover_ms / 1000.0
     return SileroVADAnalyzer(sample_rate=WIRE_SAMPLE_RATE, params=params)
@@ -451,6 +460,13 @@ class HaloWorkerSession:
         self._send_lock = asyncio.Lock()
 
     async def run(self) -> None:
+        token = correlation_id.set(None)
+        try:
+            await self._run_with_context()
+        finally:
+            correlation_id.reset(token)
+
+    async def _run_with_context(self) -> None:
         """Accept the media socket, run one session, clean up after it."""
         try:
             start_raw = await asyncio.wait_for(self._recv_start(), timeout=START_TIMEOUT_S)
@@ -466,11 +482,7 @@ class HaloWorkerSession:
             log.warning("invalid carrier start frame; refusing session")
             return
         self._start_params = dict(self._serializer.parameters)
-        log.info(
-            "media start call=%s stream=%s",
-            self._start_params.get("callId", ""),
-            start_raw.get("streamId", ""),
-        )
+        log.info("media start received")
 
         control_url = os.environ.get("HALO_CONTROL_URL", "")
         requested_url = self._start_params.get("haloControlUrl", "")
@@ -484,7 +496,7 @@ class HaloWorkerSession:
         try:
             await self._run_session(str(control_url))
         except Exception:
-            log.exception("session crashed")
+            log.error("session crashed")
             if self._control:
                 await self._control.error("pipeline", "configuration_or_provider_failure", False)
         finally:
@@ -541,6 +553,8 @@ class HaloWorkerSession:
             log.error("HALO never sent `ready` (bad token?); refusing to bridge audio")
             control_task.cancel()
             return
+        if self._control and self._control.identity:
+            correlation_id.set(self._control.identity.correlation_id)
         self._voice = voice
 
         # The pipeline starts only now: services are built from HALO's voice
@@ -666,7 +680,7 @@ class HaloWorkerSession:
                 if frame is not None and self._task is not None:
                     await self._task.queue_frame(frame)
         except Exception:
-            log.exception("media reader failed")
+            log.error("media reader failed")
         finally:
             self._media_closed.set()
 
@@ -739,7 +753,7 @@ class HaloWorkerSession:
         try:
             messages = self._serializer._serialize_audio(frame.audio)
         except Exception:
-            log.exception("audio serialization failed")
+            log.error("audio serialization failed")
             return
         if not messages:
             return

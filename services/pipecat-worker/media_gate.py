@@ -122,6 +122,16 @@ class MediaGate(FrameProcessor):
         # them: half-heard text must not be answered.
         self._pending_finals: list[_Final] = []
         self._speaking = False
+        # Barge-in waits for sustained speech (bargeIn.minSpeechMs), measured
+        # in caller audio from the moment speech began — the same rule as
+        # HALO's in-process session — so a cough or a backchannel does not
+        # cut the agent off. VAD has already heard vad.minSpeechMs of speech
+        # when it reports a start. A transcript during the utterance also
+        # proves speech and barges in at once.
+        self._vad_min_speech_ms = 0
+        self._barge_in_min_speech_ms = 0
+        self._barge_pending = False
+        self._speech_audio_ms = 0.0
 
         # --- usage accounting (cumulative) ----------------------------------
         self._inbound_audio_ms = 0.0
@@ -214,6 +224,8 @@ class MediaGate(FrameProcessor):
         # correlation. Media knobs are the worker's to apply.
         self._default_language = voice.language
         self._tts_language = voice.language
+        self._vad_min_speech_ms = max(0, voice.vad_min_speech_ms)
+        self._barge_in_min_speech_ms = max(0, voice.barge_in_min_speech_ms)
         self._session_id = identity.session_id
         self.mark("ready")
         self._usage_task = asyncio.create_task(self._usage_loop())
@@ -255,17 +267,23 @@ class MediaGate(FrameProcessor):
             self._speaking = True
             self.mark("vad_start")
             await self._client.speech_started()
-            await self._maybe_barge_in()
+            self._barge_pending = True
+            self._speech_audio_ms = float(self._vad_min_speech_ms)
+            await self._barge_in_if_sustained()
         elif isinstance(frame, VADUserStoppedSpeakingFrame):
             self._speaking = False
+            self._barge_pending = False
             self.mark("vad_stop")
             await self._client.speech_stopped()
             await self._commit_utterance()
         elif isinstance(frame, TranscriptionFrame):
+            if frame.text.strip():
+                await self._barge_in_on_transcript()
             await self._on_final_transcript(frame)
         elif isinstance(frame, InterimTranscriptionFrame):
             text = frame.text.strip()
             if text:
+                await self._barge_in_on_transcript()
                 await self._client.transcript(
                     text[:2000], final=False, language=_lang_str(frame.language)
                 )
@@ -281,7 +299,11 @@ class MediaGate(FrameProcessor):
         elif isinstance(frame, InputDTMFFrame):
             await self._client.dtmf(_digit(frame.button))
         elif isinstance(frame, InputAudioRawFrame):
-            self._inbound_audio_ms += _audio_ms(frame.audio, frame.sample_rate)
+            frame_ms = _audio_ms(frame.audio, frame.sample_rate)
+            self._inbound_audio_ms += frame_ms
+            if self._speaking and self._barge_pending:
+                self._speech_audio_ms += frame_ms
+                await self._barge_in_if_sustained()
         elif isinstance(frame, ErrorFrame):
             # pipecat ErrorFrame is not inherently fatal; a fatal one is.
             fatal = bool(getattr(frame, "fatal", False))
@@ -419,6 +441,18 @@ class MediaGate(FrameProcessor):
         """The TTS service was replaced by its fallback, which has seen none
         of the language switches: name the language again on the next line."""
         self._tts_language = None
+
+    async def _barge_in_if_sustained(self) -> None:
+        if self._barge_pending and self._speech_audio_ms >= self._barge_in_min_speech_ms:
+            self._barge_pending = False
+            await self._maybe_barge_in()
+
+    async def _barge_in_on_transcript(self) -> None:
+        # Before the text is held: the cut drops finals from before it, and
+        # this transcript is the speech that interrupted, so it must survive.
+        if self._speaking and self._barge_pending:
+            self._barge_pending = False
+            await self._maybe_barge_in()
 
     async def _maybe_barge_in(self) -> None:
         active = self._active

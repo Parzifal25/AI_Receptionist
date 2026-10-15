@@ -54,7 +54,7 @@ describe("WhatsappMessagingProvider", () => {
     });
   });
 
-  it("retries on transient errors", async () => {
+  it("does not replay an unkeyed create on ambiguous HTTP failures", async () => {
     let callCount = 0;
     global.fetch = vi.fn().mockImplementation(() => {
       callCount++;
@@ -71,12 +71,26 @@ describe("WhatsappMessagingProvider", () => {
       });
     });
 
-    await provider.send({
+    await expect(provider.send({
       channel: "whatsapp",
       to: "1234567890",
       body: "Retry test",
-    });
+    })).rejects.toThrow("WhatsApp API error: 500");
 
-    expect(global.fetch).toHaveBeenCalledTimes(3);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+  it("omits private recipients, content and upstream error bodies from logs", async () => {
+    const logs: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((line) => { logs.push(String(line)); });
+    vi.spyOn(console, "log").mockImplementation((line) => { logs.push(String(line)); });
+    const readBody = vi.fn(async () => "synthetic-private-oauth-secret");
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, text: readBody });
+    await expect(provider.send({ channel: "whatsapp", to: "synthetic-private-recipient", body: "synthetic-private-customer-content" })).rejects.toThrow();
+    expect(global.fetch).toHaveBeenCalledTimes(1); expect(readBody).not.toHaveBeenCalled();
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    await provider.send({ channel: "whatsapp", to: "synthetic-private-recipient", body: "synthetic-private-customer-content" });
+    expect(logs.join("\n")).not.toContain("synthetic-private");
+    expect(logs.join("\n")).toContain("delivery failed");
+  });
+
 });

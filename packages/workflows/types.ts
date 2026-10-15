@@ -52,11 +52,13 @@ export interface WorkflowStore {
     eventType: BusinessEventType;
     payload: Record<string, unknown>;
     correlationId: string;
+    telemetryCorrelationId?: string;
     fireAt: string;
   }): Promise<void>;
   claimDueTimers(limit: number): Promise<
     Array<{
       businessId: string;
+      telemetryCorrelationId?: string;
       eventType: BusinessEventType;
       payload: Record<string, unknown>;
       correlationId: string;
@@ -83,3 +85,11 @@ export type ActionExecutor = (
 ) => Promise<Record<string, unknown> | void>;
 
 export type ActionRegistry = Partial<Record<WorkflowActionType, ActionExecutor>>;
+
+/** Explicit executor proof that no consequential work began, or that replay is
+ * idempotent. Ordinary exceptions carry no such proof and are quarantined.
+ * This marker is internal code authority, never derived from provider text.
+ */
+export class RetrySafeWorkflowError extends Error {
+  constructor() { super("workflow_retry_safe"); }
+}

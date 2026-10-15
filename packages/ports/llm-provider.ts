@@ -56,6 +56,13 @@ export interface LLMCompletionOptions {
   tools?: LLMToolDescriptor[];
   /** Per-call ceiling; the adapter uses the smaller of this and its default. */
   timeoutMs?: number;
+  /**
+   * The longest a multi-candidate router may wait for a cooled-down
+   * candidate before skipping to the next one. Latency-sensitive (voice)
+   * turns pass 0: fail over at once rather than leave a caller in silence.
+   * Single-provider adapters ignore it.
+   */
+  maxCooldownWaitMs?: number;
   /** Provider/model attempt telemetry; contains no prompt or credentials. */
   onRouteEvent?: (event: LLMRouteEvent) => void;
   /**

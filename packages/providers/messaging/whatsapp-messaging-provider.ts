@@ -45,17 +45,13 @@ export class WhatsappMessagingProvider implements MessagingProvider {
       });
 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        logger.child({ service: "whatsapp" }).error(`WhatsApp API error: ${response.status} ${errorText}`);
+        logger.child({ service: "whatsapp" }).error("WhatsApp delivery failed", { status: response.status });
         throw new HttpError(response.status, `WhatsApp API error: ${response.status}`);
       }
 
-      const data = await response.json().catch(() => ({}));
-      logger.child({ service: "whatsapp" }).info(`Delivered WhatsApp message to ${message.to}`, {
-        messageId: data?.messages?.[0]?.id,
-      });
+      logger.child({ service: "whatsapp" }).info("WhatsApp delivery completed");
     };
 
-    await withRetry(attemptSend, { isRetryable: isTransientHttpError });
+    await withRetry(attemptSend, { attempts: 1, isRetryable: isTransientHttpError });
   }
 }

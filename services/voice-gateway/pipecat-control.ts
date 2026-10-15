@@ -1,3 +1,6 @@
+import { withSecurityAudit, beginSecurityAudit, bindSecurityIdentity, finishSecurityAudit, SecurityAuditUnavailable } from "@halo/platform/security-audit";
+import { withTelemetryContext } from "@halo/platform/telemetry";
+import { securityAuditStore } from "@halo/tenancy/security-audit-store";
 import type { WebSocket } from "ws";
 import { logger } from "@halo/platform/logger";
 import type { AttachedSession, PipecatBridge } from "@halo/voice/pipecat/bridge";
@@ -59,7 +62,14 @@ export function attachPipecatControl(ws: WebSocket, deps: PipecatControlDeps): v
     if (!session) {
       if (greeting) return; // a second hello while the first is in flight
       greeting = true;
-      void openSession(raw);
+      void withTelemetryContext(() => withSecurityAudit(securityAuditStore, true, async () => {
+        try { await openSession(raw); }
+        catch (error) {
+          if (error instanceof SecurityAuditUnavailable) ws.close(1011, "audit_unavailable");
+          else { log.warn("pipecat attach failed", { reason: "attach_failed" }); ws.close(1011, "attach_failed"); }
+          await finishSecurityAudit(500);
+        }
+      }, "OTHER", "widget"));
       return;
     }
     const parsed = parsePipecatEvent(raw);
@@ -80,6 +90,7 @@ export function attachPipecatControl(ws: WebSocket, deps: PipecatControlDeps): v
     const hello = parsePipecatHello(raw);
     if (!hello.ok) {
       log.warn("pipecat hello rejected", { reason: hello.error });
+      await finishSecurityAudit(403);
       ws.close(1008, "unauthorized");
       return;
     }
@@ -91,10 +102,14 @@ export function attachPipecatControl(ws: WebSocket, deps: PipecatControlDeps): v
     const verified = verifyStreamToken(deps.streamTokenSecret, hello.hello.token, claims, now());
     if (!verified.ok) {
       log.warn("pipecat stream token rejected", { reason: verified.reason });
+      await finishSecurityAudit(403);
       ws.close(1008, "unauthorized");
       return;
     }
+    return withTelemetryContext(() => withSecurityAudit(securityAuditStore, true, async () => {
+    await beginSecurityAudit();
     const attached = await deps.bridge.attach({
+      correlationId: verified.correlationId,
       provider: deps.provider,
       providerCallId: claims.providerCallId,
       from: claims.from,
@@ -103,6 +118,7 @@ export function attachPipecatControl(ws: WebSocket, deps: PipecatControlDeps): v
     });
     if (!attached.ok) {
       log.warn("pipecat session refused", { reason: attached.reason, providerCallId: claims.providerCallId });
+      await finishSecurityAudit(403);
       ws.close(1011, attached.reason);
       return;
     }
@@ -111,10 +127,13 @@ export function attachPipecatControl(ws: WebSocket, deps: PipecatControlDeps): v
       return;
     }
     session = attached.session;
+    await bindSecurityIdentity({ actorId: null, businessId: session.identity.tenantId }, true);
+    await finishSecurityAudit(200);
     log.info("pipecat session attached", {
       sessionId: session.sessionId,
       // Correlation only; never transcript text.
       correlationId: session.identity.correlationId,
     });
+    }, "OTHER", "widget"), verified.correlationId);
   }
 }
