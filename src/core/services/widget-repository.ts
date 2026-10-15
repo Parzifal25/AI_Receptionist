@@ -190,12 +190,15 @@ export class WidgetRepository {
   /**
    * Conversational rows only (user/assistant): tool-call transcript rows
    * (role = 'tool', migration 0016) are runtime records, never model history.
+   * Scoped to the trusted tenant as well as the conversation: this client
+   * bypasses RLS (the voice store does the same).
    */
-  async getRecentMessages(conversationId: string, limit = 20): Promise<ChatMessage[]> {
+  async getRecentMessages(conversationId: string, businessId: string, limit = 20): Promise<ChatMessage[]> {
     const { data, error } = await this.db
       .from("messages")
       .select("role, content")
       .eq("conversation_id", conversationId)
+      .eq("business_id", businessId)
       .in("role", ["user", "assistant"])
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -290,6 +293,7 @@ export class WidgetRepository {
       .from("leads")
       .select("id, name, email, phone, intent")
       .eq("conversation_id", conversationId)
+      .eq("business_id", businessId)
       .maybeSingle();
 
     if (fetchError) {
@@ -317,7 +321,8 @@ export class WidgetRepository {
           temperature: qualification.temperature,
           qualification,
         })
-        .eq("id", existing.id);
+        .eq("id", existing.id)
+        .eq("business_id", businessId);
       if (error) {
         log.error("lead update failed", { error: error.message });
         throw AppError.internal();

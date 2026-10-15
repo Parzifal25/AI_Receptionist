@@ -86,7 +86,7 @@ export class ChatService {
     if (this.runtime) return this.runtime;
     const leads = new LeadCaptureService(this.llm, this.notifications, this.repository, this.emitEvent);
     const conversations: ConversationStore = {
-      loadHistory: (conversationId, _businessId, limit) => this.repository.getRecentMessages(conversationId, limit),
+      loadHistory: (conversationId, businessId, limit) => this.repository.getRecentMessages(conversationId, businessId, limit),
       appendMessages: (conversationId, businessId, messages) =>
         this.repository.appendMessages(conversationId, businessId, messages),
       appendToolRecords: (conversationId, businessId, records) =>

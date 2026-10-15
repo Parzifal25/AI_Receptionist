@@ -276,10 +276,12 @@ describe("POST /api/v1/widget/messages — Phase 2 security and compatibility", 
     expect(upserts.filter((u) => u.table === "conversation_state")).toHaveLength(0);
   });
 
-  it("only user/assistant rows are read back as history (tool rows are runtime records)", async () => {
+  it("only user/assistant rows of the conversation's own tenant are read back as history (tool rows are runtime records)", async () => {
     tables.messages = [
-      { conversation_id: "conv-1", role: "tool", content: "", created_at: "2026-01-01T00:00:01Z" },
-      { conversation_id: "conv-1", role: "user", content: "earlier question", created_at: "2026-01-01T00:00:00Z" },
+      { conversation_id: "conv-1", business_id: "b1", role: "tool", content: "", created_at: "2026-01-01T00:00:01Z" },
+      { conversation_id: "conv-1", business_id: "b1", role: "user", content: "earlier question", created_at: "2026-01-01T00:00:00Z" },
+      // A row claiming the same conversation id under another tenant is never history.
+      { conversation_id: "conv-1", business_id: "b2", role: "user", content: "foreign tenant text", created_at: "2026-01-01T00:00:02Z" },
     ];
     await (await POST())(makeRequest({ visitorToken: "visitor-token-abcdef0123456789", message: "hello" }));
     expect(modelMessages[0].map((m) => m.role)).toEqual(["user", "user"]);

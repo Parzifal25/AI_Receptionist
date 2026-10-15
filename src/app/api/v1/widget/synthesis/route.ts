@@ -26,7 +26,7 @@ export const POST = withErrorHandling("widget.synthesis", async (request: NextRe
   const { receptionist, business, allowedDomains } = await repository.getReceptionistById(conversation.receptionistId);
   if (business.id !== conversation.businessId || !receptionist.voiceEnabled || !isOriginAllowed(origin, allowedDomains)) return fail(AppError.forbidden(), headers);
   if (!(await widgetMessageLimiter.check(`tts:tenant:${business.id}`)).allowed) return fail(AppError.rateLimited(), headers);
-  const messages = await repository.getRecentMessages(conversation.id, 1);
+  const messages = await repository.getRecentMessages(conversation.id, business.id, 1);
   const reply = messages[0];
   if (reply?.role !== "assistant" || !reply.content.trim()) return fail(AppError.conflict("No HALO reply ready for playback"), headers);
   const base = process.env.VOICE_GATEWAY_INTERNAL_URL, secret = process.env.VOICE_STREAM_TOKEN_SECRET;
