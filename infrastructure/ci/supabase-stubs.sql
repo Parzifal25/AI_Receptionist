@@ -27,6 +27,17 @@ do $$ begin
   end if;
 end $$;
 
+-- Supabase's default privileges, as read from pg_default_acl on the
+-- supabase/postgres 17.6.1.155 image (2026-10-15): every table, function and
+-- sequence the migration role creates in `public` is granted in full to
+-- anon, authenticated and service_role, unless a migration revokes it.
+-- Without this, a missing revoke would pass here and fail open on a hosted
+-- project. Issued by the role that then applies the migrations.
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+
 create schema if not exists auth;
 
 create table if not exists auth.users (
@@ -35,14 +46,19 @@ create table if not exists auth.users (
   created_at timestamptz not null default now()
 );
 
--- Mirrors Supabase's auth.uid() (JWT claim → uuid, null when absent). Enough
--- for RLS policy bodies to parse and execute; no real authentication here.
+-- Mirrors Supabase's auth.uid() as GoTrue defines it (JWT subject → uuid,
+-- null when absent). PostgREST 10+ sets only the JSON `request.jwt.claims`;
+-- the harnesses set the legacy per-claim GUC. Both are read, as on hosted
+-- Supabase. No real authentication here.
 create or replace function auth.uid()
 returns uuid
 language sql
 stable
 as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+  select coalesce(
+    nullif(current_setting('request.jwt.claim.sub', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+  )::uuid
 $$;
 
 create schema if not exists storage;

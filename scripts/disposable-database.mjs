@@ -15,3 +15,24 @@ export function requireDisposableDatabase(argument, env) {
       || url.search || url.hash) reject();
   return raw;
 }
+
+/**
+ * The disposable PostgREST in front of such a database. Loopback http only,
+ * never a Supabase CLI API port, and a locally generated JWT secret. No
+ * developer fallback and no URL or secret in errors.
+ */
+export function requireDisposablePostgrest(env) {
+  const reject = () => {
+    throw new Error("PostgREST checks require HALO_DISPOSABLE_POSTGREST_URL (loopback http, not a Supabase CLI port) and HALO_DISPOSABLE_JWT_SECRET (32+ characters) for a disposable instance.");
+  };
+  if (env.HALO_DISPOSABLE_DATABASE !== "1") reject();
+  let url;
+  try { url = new URL(env.HALO_DISPOSABLE_POSTGREST_URL); } catch { reject(); }
+  if (url.protocol !== "http:"
+      || !["127.0.0.1", "[::1]"].includes(url.hostname)
+      || !url.port || ["54321", "55321"].includes(url.port)
+      || url.pathname !== "/" || url.search || url.hash) reject();
+  const secret = env.HALO_DISPOSABLE_JWT_SECRET;
+  if (typeof secret !== "string" || secret.length < 32) reject();
+  return { url: url.origin, jwtSecret: secret };
+}

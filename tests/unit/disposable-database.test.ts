@@ -32,3 +32,29 @@ for (const script of ["check-migrations.mjs", "check-rls.mjs"]) {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 }
+
+it.each([
+  ["1", "http://127.0.0.1:55463", "x".repeat(32), true],
+  ["1", "http://[::1]:55463/", "x".repeat(32), true],
+  ["0", "http://127.0.0.1:55463", "x".repeat(32), false],
+  ["1", "http://127.0.0.1:55321", "x".repeat(32), false],
+  ["1", "http://127.0.0.1:54321", "x".repeat(32), false],
+  ["1", "https://example.invalid:443", "x".repeat(32), false],
+  ["1", "http://localhost:55463", "x".repeat(32), false],
+  ["1", "http://127.0.0.1:55463/rest/v1", "x".repeat(32), false],
+  ["1", "http://127.0.0.1", "x".repeat(32), false],
+  ["1", "http://127.0.0.1:55463", "synthetic-short-secret", false],
+  ["1", "", "x".repeat(32), false],
+])("the PostgREST guard (consent %s, %s) accepts only a loopback disposable target", async (consent, url, secret, accepted) => {
+  const { requireDisposablePostgrest } = await import("../../scripts/disposable-database.mjs");
+  const env = { HALO_DISPOSABLE_DATABASE: consent, HALO_DISPOSABLE_POSTGREST_URL: url, HALO_DISPOSABLE_JWT_SECRET: secret };
+  if (accepted) {
+    expect(requireDisposablePostgrest(env)).toEqual({ url: new URL(url).origin, jwtSecret: secret });
+  } else {
+    expect(() => requireDisposablePostgrest(env)).toThrow(/disposable instance/);
+    try { requireDisposablePostgrest(env); } catch (error) {
+      expect(String(error)).not.toContain("synthetic-short-secret");
+      if (url) expect(String(error)).not.toContain(url);
+    }
+  }
+});
