@@ -20,6 +20,7 @@
     "check:neutral": "node scripts/check-neutral.mjs",
     "check:rls": "node scripts/check-rls.mjs",
     "check:recovery:local": "node scripts/recovery-local.mjs",
+    "check:supabase-image-chain": "node scripts/check-supabase-image-chain.mjs",
     "check:architecture": "node scripts/check-architecture.mjs",
     "perf:baseline": "tsx scripts/perf-baseline.ts",
     "voice-gateway": "node --env-file-if-exists=.env.local --import tsx --conditions react-server services/voice-gateway/main.ts",
