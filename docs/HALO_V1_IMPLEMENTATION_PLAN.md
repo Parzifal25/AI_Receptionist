@@ -100,7 +100,7 @@
 | W1.2 | Allow stream-token re-attach only while a session is waiting for a reconnect | G1.4 | — | $0-local | Replay test; voice invariants pass | PIPECAT_INTEGRATION §6 carry-forward |
 | W7.1 | Emit allowlisted telemetry for LLM router attempts, cooldowns and fallbacks | G3.3 | — | $0-local | Telemetry tests; no payload fields | TELEMETRY "Not covered" |
 | W7.2 | Log-leak sweep test: synthetic suite with no message text, phone number or email in logs | G3.5 | — | $0-local | Test passes | — |
-| W2.2 | Review retention-function coverage against every personal-data table on a disposable DB (review only; any fix needs a migration approval) | G2.4 | — | $0-local | Coverage table recorded; gaps proposed as a D-entry if a migration is needed | POA gate 1 |
+| W2.2 | Review retention-function coverage against every personal-data table on a disposable DB (review only; any fix needs a migration approval) | G2.4 | — | $0-local | Coverage table recorded; gaps proposed as a D-entry if a migration is needed. **Review done 2026-10-15** ([HALO_DECISION_REVIEW.md §6](HALO_DECISION_REVIEW.md#6-retention-coverage-resolves-the-d6-unknown-opens-d23)); gap proposed as [D23](DECISIONS.md#d23--retention-coverage-beyond-conversations-and-calls) | POA gate 1 |
 | W2.3 | Document `guardrails.piiRules` as inert until enforcement is decided | G2.10 | — | $0-local | Documentation and a test pin the behaviour | — |
 | W1.3 | Authorized local calendar-credential backfill | G2.1 | Written write authorization | auth-local | Plaintext count = 0; `--verify-current` passes ([runbook](CALENDAR_CREDENTIALS_RUNBOOK.md)) | — |
 | W0.8 | Update the public API reference for routes added after 2026-07 | — | — | $0-local | [API.md](API.md) covers every route in `src/app/api` | Gap analysis §4 |
@@ -131,7 +131,7 @@ All S-3 tasks need: D19 and R8 decided; an identified, authorized target; $0 con
 | W8.1 | Provision the isolated staging target and record its identity, region and revision | — | D19, R8, W0.2 | target | Target record per [HALO_PHASE_BETA_READINESS.md](HALO_PHASE_BETA_READINESS.md) | ENG-08, RB-03, POA gate 3 |
 | W8.2 | Deploy the pinned candidate with outbound off, messaging in log mode and unsupported features disabled | — | W8.1 | target | Artifact checksum, configuration review, liveness | DEPLOYMENT zero-cost procedure |
 | W1.5 | Staging Auth, RLS and service-role verification; tenant A/B adversarial matrix | G1.1, G1.6 | W8.2 | target | Three-gate Gate 2 procedure passes | ENG-01, Gate 2 |
-| W1.6 | Read-only migration ledger and conversation-linkage audit | G1.5, G2.6 | W8.1, D15 (name) | target | Aggregate-only report; anomalies dispositioned | Database audit (SEC-04 scope; ENG-12 proposed) |
+| W1.6 | Read-only migration ledger and conversation-linkage audit, using `infrastructure/hosted/preflight-readonly.sql` ([runbook §3](HOSTED_MIGRATION_RUNBOOK.md#3-read-only-preflight-every-situation)) | G1.5, G2.6 | W8.1, D15 (name), D21 | target | Aggregate-only report; anomalies dispositioned | Database audit (SEC-04 scope; ENG-12 proposed) |
 | W8.3 | Restore and rollback drill against owner-approved RPO and RTO | G2.7 | W8.2, RPO/RTO approval | target (+ D8 if storage costs) | Measured RPO and RTO; post-restore tenant checks | Gate 3, ENG-08, CL-01 |
 | W7.4 | Alert destination, scheduler and responder drill | G3.7 | D18, W8.2, named responder | target | Synthetic incident delivered and acknowledged | Gate 3 |
 | W7.5 | Liveness-only uptime monitoring at $0 | G3.6 | W8.2 | target | Monitor active; cost evidence $0 | — |
@@ -217,7 +217,9 @@ S-6  W10.1 GA packet ─▶ W10.2 (R10)
 | D8 Spend | Every S-4 task; W8.3 and W8.4 if costed; W9.x |
 | D9 Numeric targets | W9.2 acceptance (set after W5.3) |
 | D10 Commit grouping and `0001` | Executed 2026-10-15 (W0.2; evidence in [HALO_V1_STATUS.md](HALO_V1_STATUS.md#d10-repository-baseline--2026-10-15)) |
-| D21 Running `0001` on hosted Supabase | W1.6, W8.1 and any hosted migration |
+| D21 Running `0001` on hosted Supabase | W1.6, W8.1 and any hosted migration (procedure: [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md)) |
+| D22 Migration `0034` | Applying `0034` on any target (W8.1) |
+| D23 Retention coverage | A retention migration; pilot data handling (W9.1) |
 | D11 Arunodhaya inputs | W6.1, W6.2, W6.4, W6.5, W9.1 |
 | D12 Optional infrastructure | W6.3 (object storage), multi-instance gateway |
 | D13 Workflow engine | W6.2 |

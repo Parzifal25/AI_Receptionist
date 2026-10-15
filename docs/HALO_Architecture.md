@@ -741,7 +741,8 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 - **Outreach consent (VERIFIED: `source`):** consent lives on campaign contacts, suppression in `phone_suppressions`, and DNC is terminal.
   - **PENDING (D11, R8):** the lawful basis, contact provenance and disclosure wording.
 - **AI disclosure (VERIFIED: `source`):** the greeting must carry the disclosure, and the platform never invents or translates one. Approved Arunodhaya wording is PENDING (D11).
-- **Sensitive data:** transcripts are stored in Postgres, and telemetry excludes text. A `piiRules` configuration field exists; its enforcement was not verified.
+- **Sensitive data:** transcripts are stored in Postgres, and telemetry excludes text. A `piiRules` configuration field exists, but nothing in `packages/` or `src/` reads it (`source`), so it enforces nothing (G2.10, W2.3).
+- **Retention coverage (VERIFIED: `disposable DB`, 2026-10-15):** the purge reaches calls, conversations and their cascades, and usage events. CRM, appointment, campaign and workflow tables are not purged (PENDING, [D23](DECISIONS.md#d23--retention-coverage-beyond-conversations-and-calls)).
 - **UNKNOWN:**
   - an export and deletion-on-request procedure;
   - Indian data-protection obligations;
@@ -749,8 +750,8 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
 
 ### 8.6 Migrations, backups and recovery
 
-- **Migrations (APPROVED: `AGENTS.md`, G1):** migrations are additive and numbered (`0001`–`0031`). A migration that may have been applied is never edited, and a new one needs owner approval.
-- **`0001`:** restored to its committed version on 2026-10-15, because it is applied locally ([D10](DECISIONS.md#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit)). How to run it on hosted Supabase is PENDING ([D21](DECISIONS.md#d21--running-migration-0001-on-hosted-supabase)).
+- **Migrations (APPROVED: `AGENTS.md`, G1):** migrations are additive and numbered (`0001`–`0034`). A migration that may have been applied is never edited, and a new one needs owner approval.
+- **`0001`:** restored to its committed version on 2026-10-15, because it is applied locally ([D10](DECISIONS.md#d10--dirty-tree-commit-grouping-and-the-uncommitted-0001-edit)). How to run it on hosted Supabase is PENDING ([D21](DECISIONS.md#d21--running-migration-0001-on-hosted-supabase)). On the real Supabase image, the unedited chain applies when the session has `extensions` on its `search_path` and `vector` is absent or in `public` (`disposable DB`, 2026-10-15). The procedure is [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md).
 - **Validation (VERIFIED: `source`, `disposable DB`):** `check:migrations` and `check:rls` refuse non-disposable targets, through guards in `scripts/disposable-database.mjs`.
 - **Backups and recovery:**
   - A local synthetic dump and restore was VERIFIED (`disposable DB`): 44 table fingerprints across the `public` schema (41 tables) plus the CI-stub `auth` and `storage` schemas, and 6 identity checks, taking 17–26 s on a fixture.
@@ -874,7 +875,8 @@ The authoritative list, with options, trade-offs, recommendations and required a
   - D12 optional infrastructure, D13 workflow engine, D18 telemetry backend, D19 hosting, D20 phone speech streaming.
   - D14: implemented locally on 2026-10-15; its design defaults (items 1–6) await owner ratification, and applying `0033` to a real database awaits R8, D19 and D21.
 - **Pending governance:** D15 tracking IDs; D16 the "Astra" role. D10 (commit grouping) was executed on 2026-10-15.
-- **Pending database operations:** D21, running `0001` on hosted Supabase.
+- **Pending database operations:** D21, running `0001` on hosted Supabase (method evidenced; see [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md)); D22, adopting `0034`; D23, retention coverage.
+- **Review dispositions (2026-10-15):** every entry was reviewed; see [HALO_DECISION_REVIEW.md](HALO_DECISION_REVIEW.md). Nothing was approved.
 
 ---
 
@@ -971,6 +973,8 @@ The archive index lists every superseded document and where its content now live
 | [HALO_REAL_INTEGRATION_VERIFICATION.md](HALO_REAL_INTEGRATION_VERIFICATION.md) | Integration verification and provider metadata (2026-10-13) |
 | [HALO_THREE_GATE_EXECUTION.md](HALO_THREE_GATE_EXECUTION.md) | Inference, Auth and operations gates (2026-10-13) |
 | [HALO_LAYER_1_REVIEW.md](HALO_LAYER_1_REVIEW.md) | Layer 1 review and closure; D14 migration proposal |
+| [HALO_DECISION_REVIEW.md](HALO_DECISION_REVIEW.md) | Decision review dispositions, release-gate matrix, unknowns and owner actions (2026-10-15) |
+| [TENANT_ISOLATION_EVIDENCE.md](TENANT_ISOLATION_EVIDENCE.md) | Phase 2 tenant-isolation evidence and `0034` findings (2026-10-15) |
 | [VOICE_LATENCY_COST_AUDIT.md](VOICE_LATENCY_COST_AUDIT.md) | Voice pipeline latency and cost audit (2026-10-14) |
 | JSON evidence | [HALO_THREE_GATE_LOCAL_EVIDENCE.json](HALO_THREE_GATE_LOCAL_EVIDENCE.json), [HALO_LOCAL_CHAT_INTEGRATION_RESULT.json](HALO_LOCAL_CHAT_INTEGRATION_RESULT.json), [HALO_INTEGRATION_PROVIDER_METADATA.json](HALO_INTEGRATION_PROVIDER_METADATA.json) |
 | [PHASE4_REPORT.md](PHASE4_REPORT.md) | Historical Phase 4 report; kept in place because code and tests cite it |
@@ -980,6 +984,7 @@ The archive index lists every superseded document and where its content now live
 | Document | Role |
 |---|---|
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Deployment and zero-cost release procedure (no deployment authorized) |
+| [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md) | First-hosting migration and database rollout (D21, D22, D14); read-only preflight; not an authorization |
 | [OPERATIONS.md](OPERATIONS.md) | Day-2 operations, incidents, restore procedure |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Symptom-first diagnosis |
 | [INSTALLATION.md](INSTALLATION.md) | Local setup. Its migration range is out of date; apply all files in `supabase/migrations/`. |

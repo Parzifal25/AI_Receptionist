@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> **Release gate:** these instructions are not authorization to deploy or migrate. For Phase Beta, first identify and obtain approval for a dedicated staging project and follow [HALO Phase Beta readiness](HALO_PHASE_BETA_READINESS.md). Never point migration/recovery checks at production, a shared developer database, or an unidentified target. The repository currently has 31 ordered migration files; verify the exact candidate's migration ledger rather than relying on the historical `0001`–`0009` list below.
+> **Release gate:** these instructions are not authorization to deploy or migrate. For Phase Beta, first identify and obtain approval for a dedicated staging project and follow [HALO Phase Beta readiness](HALO_PHASE_BETA_READINESS.md). Never point migration/recovery checks at production, a shared developer database, or an unidentified target. The repository currently has 34 ordered migration files; verify the exact candidate's migration ledger rather than relying on the historical `0001`–`0009` list below. **For any hosted Supabase target, follow [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md)** (D21): its read-only preflight, stop rules and `db push --db-url` path supersede the by-hand advice in §1 below.
 
 The app is a standard Next.js App Router project — it deploys anywhere Next.js runs. The
 reference deployment is **Vercel + Supabase**.
@@ -18,9 +18,10 @@ reference deployment is **Vercel + Supabase**.
      a mismatch there (fewer rows than files) means some migrations were never applied, even if
      earlier ones succeeded. Symptom in the app: `scheduling_settings`/`appointments`/
      `staff_members` lookups fail (relation does not exist) while everything from `0001`-`0006`
-     works fine. Apply the missing files directly with `psql -f supabase/migrations/000N_*.sql`
-     if `supabase db push` can't reach the project (e.g. local Postgres refusing the CLI's TLS
-     negotiation — connect with a plain `psql` URL instead).
+     works fine. **Hosted targets:** do not apply missing files with `psql -f`. Hand-applied files
+     leave no rows in `supabase_migrations.schema_migrations`, so a later `db push` tries to
+     re-run them. Stop and follow [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md)
+     (corrected 2026-10-15). For a disposable local database only, `psql -f` remains acceptable.
    - **PostgREST schema cache**: after applying migrations by hand (not through `supabase
      db push`/the dashboard, which do this for you), PostgREST needs to be told new
      tables/columns exist: run `NOTIFY pgrst, 'reload schema';` against the database, or

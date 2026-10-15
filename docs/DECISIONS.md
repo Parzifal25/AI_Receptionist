@@ -21,7 +21,8 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 **Rules**
 
 - Agents never change a state. Only the owner's explicit decision does. Record who decided, the date and the decision text.
-- A new architectural question gets the next free ID (currently **D23**) and starts as PENDING.
+- A new architectural question gets the next free ID (currently **D24**) and starts as PENDING.
+- A **review disposition** (see [below](#review-dispositions--2026-10-15)) is a reviewer's finding, not a state. It never approves anything.
 - "Blueprint §N" means the original blueprint v0.1, preserved verbatim at [archive/HALO_BLUEPRINT_v0.1.md](archive/HALO_BLUEPRINT_v0.1.md). Architecture sections ("Arch §N") refer to [HALO_Architecture.md](HALO_Architecture.md).
 - The original D1–D13 came from **HALO Phase 1 plan §9 (2026-10-14)**. That plan is a proposal and is not stored in the repository. Its step identifiers (S0–S13) appear in the "Blocks" fields. Their meaning is only partly recoverable; [HALO_V1_IMPLEMENTATION_PLAN.md §9](HALO_V1_IMPLEMENTATION_PLAN.md#9-legacy-identifier-crosswalk) maps them where the context allows and flags the rest as unknown.
 
@@ -65,6 +66,23 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D20](#d20--validated-speech-streaming-on-the-phone-path) | Validated speech streaming on the phone path | PENDING | — | Voice latency task W4.10 |
 | [D21](#d21--running-migration-0001-on-hosted-supabase) | Running migration `0001` on hosted Supabase | PENDING | — | Any hosted migration (W1.6, W8.1) |
 | [D22](#d22--migration-0034-tenant-reference-integrity) | Migration `0034`: tenant reference integrity and client privilege hardening | PENDING — implemented and verified on disposable databases under owner instruction; adoption needs owner approval | — | Applying `0034` to a real database: owner approval, R8, D19 |
+| [D23](#d23--retention-coverage-beyond-conversations-and-calls) | Retention coverage beyond conversations and calls | PENDING | — | Pilot personal-data handling (R8) |
+
+---
+
+## Review dispositions — 2026-10-15
+
+Phase 2 Workstream 2 reviewed every entry against the repository. The full matrix, with evidence, is in [HALO_DECISION_REVIEW.md](HALO_DECISION_REVIEW.md). No state changed.
+
+| Disposition | Entries |
+|---|---|
+| **Settled** (in force; no action) | G1–G4; R1–R7 (direction only); D10 (executed); D7 `tool_executions`; D14 items 1–2 (match the original proposal) |
+| **Engineering-resolved** (technical question answered; execution still needs authorization) | D21 method (`0001` runs unedited when the session has `extensions` on its `search_path` and `vector` is absent or in `public`); D7 audit-write failure policy |
+| **Owner approval required** | R8, R9, R10; D1–D6; D7 `audit_logs`; D8; D9; D11–D13; D14 items 3–6 (item 5 diverges from the original pinning text); D15–D20; D21 execution; D22; D23 |
+| **Environment evidence required** | D9 (measured baseline); D19 (hosting plan limits, region); D21 (preflight on the target connection); D22 (census on the target) |
+| **Superseded / obsolete** | None |
+
+First hosting is blocked by R8, D19, D21 and D22, by D14 if `0033` is applied, and by D8 if hosting costs money. The procedure is in [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md). It authorizes nothing.
 
 ---
 
@@ -154,7 +172,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - Next.js 16 App Router with TypeScript packages under `packages/*`.
   - A long-lived Node voice gateway in `services/voice-gateway`.
   - A Python Pipecat worker (`pipecat-ai` 0.0.108) in `services/pipecat-worker`.
-  - 156 TypeScript test files and 7 worker test files.
+  - 165 TypeScript test files and 7 worker test files (counted 2026-10-15; 156 at consolidation).
   - Architecture gates: `check:architecture` and `check:neutral`.
 - **Options:**
   1. Keep the current stack and record it as an approved deviation. No rewrite cost, and CI gates and tests are retained. Cost: two languages to operate.
@@ -233,7 +251,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - Audio recording is **not implemented**.
   - `calls.recording_ref` and `calls.recording_consent_at` exist, with a CHECK that a recording reference requires consent (migration `0020`).
   - Text transcripts (`call_transcript_turns`) are stored.
-  - The retention function (`0004`) purges conversations and analytics past each tenant's window. Its coverage of the call tables was not verified.
+  - The retention function (`0004`, redefined in `0020`) purges conversations and analytics past each tenant's window. **Verified 2026-10-15 (`disposable DB`, catalog cascade walk):** it also purges `calls`, with `call_events`, `call_transcript_turns` and `conversation_outcomes`. Tables outside conversations and calls are not covered; see [D23](#d23--retention-coverage-beyond-conversations-and-calls).
 - **Options:**
   1. Defer recording and record the deviation.
   2. Implement recording with an approved consent and retention policy. This needs object storage (D12) and an AI/recording disclosure (D11).
@@ -343,7 +361,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
 - `0001_init.sql` was restored to its committed blob `a96bb646`.
 - Migration files `0001`–`0031` remain contiguous and unique. No migration was added, executed or edited.
-- **Candidate:** branch `d10/baseline-candidate`, based on `cb6b7549`.
+- **Candidate:** branch `d10/baseline-candidate`, based on `cb6b7549`. It was later fast-forwarded into `main` and deleted locally, with every SHA preserved ([HALO_V1_STATUS.md](HALO_V1_STATUS.md#branch-integration-and-phase-2-tenant-isolation--2026-10-15)).
   - `8ea9fb20`: preserved code work.
   - `0dee2570`: pre-consolidation documentation.
   - `ce5816e4`: documentation consolidation.
@@ -423,6 +441,17 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 
 **Not done, by design:** no `audit_logs` table (D7 keeps it PENDING), no separation-of-duties rule, no conversation-level knowledge snapshot, no FAQ collection binding, no Telugu text-search configuration (W2.5), and no change to D5's tool model (no tool reads knowledge).
 
+**Review, 2026-10-15 (Phase 2 Workstream 2).** Each default was checked against the exact proposal wording in [HALO_LAYER_1_REVIEW.md](HALO_LAYER_1_REVIEW.md) and against source. The details are in [HALO_DECISION_REVIEW.md §3](HALO_DECISION_REVIEW.md#3-d14-items-16-checked-against-their-exact-wording). The state is unchanged.
+
+| Item | Matches the proposal? | Disposition | Owner question |
+|---|---|---|---|
+| 1 Composite keys | Yes | Settled | — (adopted with `0033`) |
+| 2 Approval separate from indexing | Yes | Settled | — (adopted with `0033`) |
+| 3 Roles | Yes on owner/admin; the proposal is silent on an author approving their own revision | Owner approval required | Keep single-approver (recommended; author and approver are both recorded), or add a per-tenant "approver ≠ author" rule (migration)? |
+| 4 Scope | Yes; no FAQ binding, as the proposal required | Owner approval required | Accept that collection-restricted agents never see FAQs (recommended for now: it fails toward less content), or add `faqs.collection_id` (migration)? |
+| 5 Pinning | **No.** The original D14 text says "Pin … the knowledge revision used by each conversation"; the default is per-turn. | Owner approval required | Keep per-turn (recommended: withdrawal works on the next turn, and no snippet persists in history or state)? And persist the served `revisionId` per answer for traceability (migration)? Until then, an answer cannot be traced to a revision after the fact. |
+| 6 Legacy rollout | Yes | Owner approval required | Accept that existing knowledge stops serving when `0033` lands, until it is backfilled and approved ([runbook §5.2](HOSTED_MIGRATION_RUNBOOK.md#52-sequence))? |
+
 ### D15 — Canonical tracking IDs: ENG-04 versus ENG-12
 
 - **State:** PENDING OWNER APPROVAL (recorded since 2026-10-12). **Required approver:** release owner.
@@ -498,6 +527,10 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - **Database:** a hosted Supabase project exists in the Sydney region ([HOSTED_SUPABASE_SETUP.md](HOSTED_SUPABASE_SETUP.md)). Hosted Auth and isolation have not been checked, and it is **not** an identified or authorized staging target ([HALO_PHASE_BETA_READINESS.md](HALO_PHASE_BETA_READINESS.md)).
   - **Latency impact:** the voice turn makes 3–4 sequential database round trips before the LLM and 2–3 after it. A database far from Indian callers adds an **estimated** 50–150 ms per trip ([VOICE_LATENCY_COST_AUDIT.md](VOICE_LATENCY_COST_AUDIT.md) §2.2).
   - **Data residency:** data-protection obligations for Indian callers were not assessed in this repository.
+  - **Added 2026-10-15 (`source`; [HALO_DECISION_REVIEW.md §7](HALO_DECISION_REVIEW.md#7-hosting-and-residency-phase-f-repository-evidence-only)):**
+    - `vercel.json` pins no `regions`, so the platform default applies to every function.
+    - It schedules reminders and workflows every 5 minutes and no-shows every 15 minutes. Whether a $0 plan permits sub-daily crons, or commercial use, was not verified (environment evidence; interacts with D8).
+    - Customer data would reach the LLM, speech, carrier, calendar and messaging vendors named there. None of their processing locations was verified, and no compliance claim follows from any region setting.
 - **Options:**
   1. Co-locate the gateway, worker and database in a region near the callers.
   2. Keep the existing project's region and accept the latency.
@@ -540,6 +573,26 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 - **Recommendation (not approved):** option 1. Before any hosted migration, read the hosted ledger read-only under an authorized target (plan task W1.6), so it is known whether `0001` was ever attempted or applied there.
 - **Depends on:** R8, D19 (target), D15 (audit naming). **Blocks:** any hosted migration or staging deployment (W8.1).
 
+**Evidence added 2026-10-15 (Phase 2 Workstream 2; `disposable DB`).** The committed chain was replayed on the real `public.ecr.aws/supabase/postgres:17.6.1.155` image in fresh, network-less containers. Reproduce with `npm run check:supabase-image-chain`. Details: [HALO_DECISION_REVIEW.md §4](HALO_DECISION_REVIEW.md#4-d21-and-migrations-00320034-together).
+
+| Session | Result |
+|---|---|
+| `search_path` without `extensions` (the reported CLI condition) | `0001` fails at line 151: `gen_random_bytes` not found. The reported failure is real. |
+| Plain login as `postgres` (role config `"$user", public, extensions`), or an explicit `set search_path = public, extensions` | `0001`–`0034` apply unedited. Governed retrieval runs as `service_role`, both censuses run, and the `0033` FKs validate. |
+| `vector` already installed in `extensions` | `0001` fails at line 273 **even with option 1**. The pinned `search_path = public` hides the `<=>` operator. |
+
+- **Disposition:** the method is engineering-resolved; execution still needs the approvals above.
+- **Refined recommendation (not approved):** option 1, made concrete:
+  - apply with `supabase db push --db-url` as `postgres`, not `--linked`;
+  - first run the read-only `infrastructure/hosted/preflight-readonly.sql` on that exact connection;
+  - stop if `extensions` is missing from its `search_path`, if `vector` is outside `public`, or if the ledger and the objects disagree.
+
+  The full procedure, including backup, the fresh and upgrade paths and the stop rules, is [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md).
+- **Still unknown (environment evidence):**
+  - the target's CLI-path `search_path` (the installed CLI wrapper has no binary to inspect);
+  - its `vector` placement;
+  - its ledger.
+
 ### D22 — Migration `0034`: tenant reference integrity
 
 - **State:** PENDING. Added 2026-10-15. **Required approver:** owner (`AGENTS.md`: a new migration needs owner approval).
@@ -548,10 +601,10 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 - **Confirmed gaps it closes** (`disposable DB`, reproduced as real roles before the fix; [TENANT_ISOLATION_EVIDENCE.md §3](TENANT_ISOLATION_EVIDENCE.md#3-confirmed-vulnerabilities-and-fixes)):
   - a tenant admin could insert a version under another tenant's agent (squatting its version numbers);
   - a tenant member could point its appointment at another tenant's staff member (blocking that tenant's slots through the cross-tenant no-overlap constraint), conversation or lead, and link its lead to another tenant's conversation;
-  - 15 further tenant-to-tenant references had no database ownership check;
+  - 14 further tenant-to-tenant references, written only by the service role, had no database ownership check (corrected 2026-10-15 from "15"; the migration's own comment still says 15);
   - under Supabase's default grants, client roles held TRUNCATE (which ignores RLS), REFERENCES, TRIGGER, MAINTAIN and sequence privileges.
 - **What it does:**
-  - one generic same-tenant reference trigger, `assert_tenant_reference()`, on 18 columns;
+  - one generic same-tenant reference trigger, `assert_tenant_reference()`, on 19 columns of 16 tables (5 client-writable, 14 service-role only; corrected 2026-10-15 from "18");
   - `tenant_reference_census()`, service role only, to report pre-existing mismatches (triggers check new writes only);
   - revokes those client privileges, including default privileges for future objects;
   - closes two `0029` trigger functions to clients.
@@ -567,6 +620,33 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   3. Reject it and keep the gaps documented.
 - **Recommendation (not approved):** option 1. Before applying it to any real database, run `tenant_reference_census()` read-only on the target and disposition any mismatch. Never auto-repair.
 - **Depends on:** R8, D19 (target), D21 (hosted migration path).
+- **Review, 2026-10-15 (Phase 2 Workstream 2; [HALO_DECISION_REVIEW.md §4.3](HALO_DECISION_REVIEW.md#43-d22-review-of-0034)):** no defect found.
+  - `0032`–`0034` apply together on the real Supabase image, including on top of a `0001`–`0031` database that holds legacy cross-tenant rows.
+  - A database that has not reached `0034` has no `tenant_reference_census()`. The read-only preflight therefore carries the same 19 column checks, and it found a planted mismatch.
+  - Rollback: dropping the triggers re-opens the references, and re-granting would re-open TRUNCATE, so prefer a forward fix.
+  - Order: migrate first, then deploy the matching application ([runbook §6](HOSTED_MIGRATION_RUNBOOK.md#6-application-and-schema-compatibility)).
+
+### D23 — Retention coverage beyond conversations and calls
+
+- **State:** PENDING. Added 2026-10-15 by Phase 2 Workstream 2. **Required approvers:** owner and privacy owner (R8). Any change is a new migration, which needs owner approval.
+- **Question:** which personal-data tables must the per-tenant retention window purge, which must be kept longer, and for how long?
+- **Evidence (`disposable DB`, catalog cascade walk after the full chain on the real Supabase image; [HALO_DECISION_REVIEW.md §6](HALO_DECISION_REVIEW.md#6-retention-coverage-resolves-the-d6-unknown-opens-d23)):**
+  - **Purged:** `purge_expired_data()` reaches `calls` and `conversations` with their cascades, plus `usage_events`.
+  - **Never purged:**
+    - `leads`, `lead_state_events`, `customers`, `customer_timeline`;
+    - `appointments`, `appointment_reminders`, `appointment_feedback`, `intake_responses`;
+    - `campaign_contacts`, `campaign_events`;
+    - the workflow event, run, log and timer tables;
+    - `learning_proposals`, `phone_suppressions`.
+
+    Several of these hold names, numbers, emails or free text. `leads` and `appointments` survive with their conversation link set to null.
+  - There is no export or deletion-on-request procedure (G2.4).
+- **Options:**
+  1. Extend the purge to the CRM, appointment, campaign and workflow tables with per-table windows. Keep `phone_suppressions` (DNC must outlive the window).
+  2. Keep business records (appointments, customers) indefinitely by policy, and purge only operational data (workflow payloads, campaign events, intake responses).
+  3. No change, and document the retention position.
+- **Recommendation (not approved):** decide before the pilot holds real personal data. Option 2 is the smallest safe change, but which tables count as business records is the privacy owner's call. Never delete DNC suppressions.
+- **Blocks:** pilot data handling (R8; release gate 9). Does not block first hosting with synthetic data.
 
 ---
 
@@ -580,3 +660,4 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 | 2026-10-15 | **D7 `tool_executions` implemented under owner instruction.** D7 is split: `tool_executions` APPROVED and implemented locally (migration `0032` written, not applied); `audit_logs` PENDING. D5's evidence line updated. No other state changed. | Owner instruction; Claude Code |
 | 2026-10-15 | **D7 verified and D14 completed under owner instruction** ("HALO Autonomous Engineering Loop — Complete D7 + D14"). D7: `0032` verified as real roles on a disposable database; two harness defects fixed; state text updated, `audit_logs` still PENDING. D14: migration `0033` and application changes implemented and verified on a disposable database; the defaults for items 1–6 are recorded for owner ratification, not approved. D5's evidence line updated. No other state changed. | Owner instruction; Claude Code |
 | 2026-10-15 | **Phase 2 Workstream 1 (tenant isolation) under owner instruction** ("Branch Integration + Phase 2 Tenant-Isolation Hardening"). D10, D7 and D14 work integrated into `main` by fast-forward; D22 added as PENDING for the new migration `0034` (implemented and verified on disposable databases only). No other state changed. | Owner instruction; Claude Code |
+| 2026-10-15 | **Phase 2 Workstream 2 (decision review) under owner instruction** ("Close Pending Decisions and Resolve Unknowns"). Every entry received a review disposition ([HALO_DECISION_REVIEW.md](HALO_DECISION_REVIEW.md)). D21 got real-image evidence and a refined recommendation, plus [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md). D14 items 1–6 were each reviewed; item 5 diverges from the original proposal. D6's retention unknown was resolved by evidence, and D23 was added as PENDING. Evidence corrections in D1, D10, D19 and D22. **No state changed and nothing was approved.** | Owner instruction; Claude Code |

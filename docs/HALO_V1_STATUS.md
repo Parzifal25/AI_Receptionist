@@ -495,7 +495,7 @@ Under the owner's instruction "HALO — Branch Integration + Phase 2 Tenant-Isol
 
 **Fixed (local).**
 - Migration `0034` (D22, PENDING):
-  - a same-tenant check on 18 references, including the agent-version squat and the appointment, lead and conversation relinks that clients could perform;
+  - a same-tenant check on 19 references (16 tables; corrected 2026-10-15 from 18), including the agent-version squat and the appointment, lead and conversation relinks that clients could perform;
   - client TRUNCATE, REFERENCES, TRIGGER, MAINTAIN and sequence privileges revoked.
 - Tenant-filtered history and lead queries in the web conversation store.
 - Tenant-consistency guards in the workflow-retry and reminder jobs.
@@ -505,3 +505,52 @@ Under the owner's instruction "HALO — Branch Integration + Phase 2 Tenant-Isol
 - `0034` is not applied to any shared or hosted database.
 - No staging or hosted verification.
 - The findings in the evidence document's §8 are recorded, not fixed.
+
+## Decision review — Phase 2 Workstream 2 — 2026-10-15
+
+Under the owner's instruction "HALO Phase 2 — Workstream 2: Close Pending Decisions and Resolve Unknowns".
+
+- **Starting point.** Branch `Phase-2-Security-Hardening` at `a4786683`, clean tree.
+- **Recovery bundle.** In the operator's local folder `~/halo-backups/phase2-ws2-preflight-20261015T041922Z/`.
+- **Unchanged.** The ten criterion rows, and every decision state.
+- **Dispositions, gate matrix and owner actions:** [HALO_DECISION_REVIEW.md](HALO_DECISION_REVIEW.md).
+
+**Status: review complete. Deployment NOT READY.** Every register entry has a disposition. First hosting remains blocked by owner approvals (R8, D19, D21, D22, and D14 if `0033` is included) and by environment evidence: the target's preflight, ledger and backup.
+
+**New evidence (`disposable DB`).** All of it comes from fresh `--network none` containers of the cached `public.ecr.aws/supabase/postgres:17.6.1.155` image, removed after use.
+
+- **D21.**
+  - The committed `0001`–`0034` apply unedited as a plain `postgres` login, or with `search_path = public, extensions`.
+  - `0001` fails without `extensions` on the path (line 151, `gen_random_bytes`).
+  - It also fails when `vector` is already in `extensions` (line 273, `<=>`).
+  - `npm run check:supabase-image-chain`: `ok A`, `ok P`, `ok C` (34 migrations, about 41 s).
+- **Upgrade path.** `0032`–`0034` apply on top of `0001`–`0031` even with a planted cross-tenant calendar connection and knowledge collection. Both censuses report them.
+- **Preflight.** `infrastructure/hosted/preflight-readonly.sql` (read-only transaction, rolled back) ran on fresh, pre-`0032` and full-chain databases. It found the planted mismatches. Client TRUNCATE/REFERENCES/TRIGGER grants were 72/144 before `0034` and 0/0 after.
+- **Retention coverage (W2.2).** The purge reaches calls, conversations and their cascades, plus `usage_events`. CRM, appointment, campaign and workflow tables are not purged ([D23](DECISIONS.md#d23--retention-coverage-beyond-conversations-and-calls)).
+
+**Fixed (documentation and configuration).**
+
+- The `DEPLOYMENT.md` `psql -f` advice for hosted targets, which would leave the ledger without those versions.
+- `0034` coverage counts: 19 columns on 16 tables, not 18.
+- Six runtime variables missing from `.env.example`.
+- A past disposable container password and an absolute home path in committed documents. Git history is unchanged.
+- Stale migration counts and `piiRules` wording.
+- The G2.2 traceability claim: an answer cannot be traced to a knowledge revision after the fact.
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npm test -- --maxWorkers=2` | exit 0; 163 files passed, 2 skipped; 1,689 tests passed, 24 skipped (the opt-in DB suites) |
+| `npm run check:architecture` | exit 0 |
+| `npm run check:neutral` | exit 0 |
+| `preflight:ci` equivalent (scratch directory, CI placeholder values, `.env.local` not loaded) | exit 0; warnings: `CRON_SECRET` missing, DB check skipped |
+| Worker `unittest` | exit 0; 70 run, 1 skipped |
+| `npm run check:supabase-image-chain` | exit 0; A, P and C as expected |
+
+**Not run.**
+
+- `npm run build`: it fetches Google Fonts.
+- `check:migrations` and `check:rls`: no migration changed, and the real-image runs above replace a chain replay for this review.
+- The opt-in PostgREST suites.
+- Any hosted, staging, shared-database or provider check.

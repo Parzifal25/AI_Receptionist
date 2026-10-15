@@ -191,7 +191,7 @@ matches the expected local target. No environment files were edited.
   local configuration and are not required for this REST table scan.
 - A local `BEGIN READ ONLY` aggregate returned **1 total row, 1 row requiring
   encryption, 0 rows containing ciphertext**. No credential values were selected.
-- Backup: `/home/parzifal/halo-backups/calendar-credentials/local-postgres-prechange-20261013T175128Z.dump`,
+- Backup: `~/halo-backups/calendar-credentials/local-postgres-prechange-20261013T175128Z.dump`,
   820995 bytes, mode `0600`. SHA-256 matches the existing sidecar; custom archive
   magic and container `pg_restore --list` pass, including calendar table schema
   and data entries. No restore was attempted. These checks establish archive

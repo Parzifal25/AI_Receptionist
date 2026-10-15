@@ -32,7 +32,7 @@ This document maps each owner-stated V1 outcome, and the architecture requiremen
 | # | V1 outcome | Current state | Most important gap | Blocking decisions | Local | Staging | Pilot |
 |---|---|---|---|---|---|---|---|
 | 1 | Tenant isolation | RLS on every table; every tenant-to-tenant reference ownership-checked (`0034`, D22 PENDING); service-role paths inventoried; pinned agent identity; Phase 2 sweep over all tables at the database and HTTP boundary (disposable DB) | Not verified in any deployed environment; `0034` not adopted | D14 (ratification), D15, D19, D22, R8 | VERIFIED | BLOCKED | BLOCKED |
-| 2 | Secure data, privacy, reliable database access | Secrets server-side; calendar credentials encrypted; retention cron; disposable restore | Consent, retention and deletion policy; knowledge approval applied only on a disposable database; hosted backup and RPO/RTO; data residency | D6, D10, D11, D14, D19, R8 | Partial | BLOCKED | BLOCKED |
+| 2 | Secure data, privacy, reliable database access | Secrets server-side; calendar credentials encrypted; retention cron; disposable restore | Consent, retention and deletion policy (retention misses CRM, appointment, campaign and workflow data); knowledge approval applied only on a disposable database; hosted backup and RPO/RTO; data residency | D6, D11, D14, D19, D21, D23, R8 | Partial | BLOCKED | BLOCKED |
 | 3 | Telemetry and observability | Allowlisted stdout telemetry; call-stage events; tenant-scoped system status; local alert evaluator | No cross-process correlation, export backend, alert delivery or real latency baseline | D8, D18, D19 | Partial | BLOCKED | BLOCKED |
 | 4 | Calendar integration | Race-safe booking engine; Google, Outlook and CalDAV adapters; voice visit booking wired | No real calendar write; voice cannot reschedule or cancel; visit rules unset | D2, D11, D17, R5, R8 | Partial | BLOCKED | BLOCKED |
 | 5 | Sales intelligence and tactics | Deterministic qualification and negotiation; act-then-narrate; 50/50 scripted golden conversations | No approved facts or commercial policy; no real-model Telugu quality evidence; English-only knowledge-gap and retrieval paths | D5, D9, D11, D17 | Partial | — | BLOCKED |
@@ -137,7 +137,7 @@ The largest block of work that needs no owner decision is local-only engineering
 - **Gap / risk:** not applied to any real database; existing knowledge stops serving when `0033` lands until it is backfilled, re-indexed and approved; the design defaults (no separation of duties, per-turn resolution, FAQs excluded from a nonempty scope) are unratified.
 - **Required change:** owner ratification of D14 items 1–6; then a planned rollout on an authorized target.
 - **Dependencies:** D14 ratification; R8, D19, D21 for any real database.
-- **Acceptance criteria:** **met on a disposable DB:** pending, rejected, withdrawn, superseded and foreign content never reaches a prompt by either path, and each approved answer traces to an approver, date and source. **Pending:** the same on an authorized target.
+- **Acceptance criteria:** **met on a disposable DB:** pending, rejected, withdrawn, superseded and foreign content never reaches a prompt by either path, and each served snippet carries the `revisionId` of a revision with an approver, a date and a source. **Not met (corrected 2026-10-15):** an answer cannot be traced to a revision after the fact, because the served `revisionId` is not persisted (owner question under [D14 item 5](DECISIONS.md#d14--layer-1-activation-and-approved-knowledge); needs a migration). **Pending:** the same on an authorized target.
 - **Blocking decisions:** D14 (ratification), R8, D19.
 
 #### G2.3 — Consent, disclosure and DNC policy
@@ -155,7 +155,7 @@ The largest block of work that needs no owner decision is local-only engineering
 - **Current implementation:** per-tenant `data_retention_days`, with a daily purge of conversations and analytics (`0004`).
 - **Evidence:** `source`.
 - **Gap / risk:**
-  - Coverage of `calls`, `call_transcript_turns`, `call_events`, `conversation_state` and CRM rows is **not verified**.
+  - **Coverage verified 2026-10-15 (`disposable DB`, catalog cascade walk):** calls, conversations and their cascades (`call_events`, `call_transcript_turns`, `conversation_outcomes`, `messages`, `conversation_state`, `booking_drafts`, `tool_executions`) and `usage_events` are purged. CRM, appointment, campaign and workflow tables are **not** purged ([D23](DECISIONS.md#d23--retention-coverage-beyond-conversations-and-calls)).
   - There is no export or deletion-on-request procedure.
   - Backups and provider copies are not covered.
 - **Required change:**
@@ -165,7 +165,7 @@ The largest block of work that needs no owner decision is local-only engineering
 - **Acceptance criteria:**
   - On a disposable DB, a synthetic tenant past its window has every in-scope personal-data table purged.
   - The request procedure is approved by the privacy owner.
-- **Blocking decisions:** R8.
+- **Blocking decisions:** R8, D23.
 
 #### G2.5 — Recording
 
@@ -183,6 +183,7 @@ The largest block of work that needs no owner decision is local-only engineering
 - **Evidence:** `source`, `disposable DB`.
 - **Gap / risk:** an edit to a migration that may already have been applied (hosted?), and an unknown hosted ledger.
 - **Required change:** decide D21 (how `0001` runs on hosted Supabase; an additive migration cannot carry the edit's intent). Read the hosted ledger before any hosted migration.
+- **Evidence added 2026-10-15 (`disposable DB`):** on the real Supabase image, the unedited chain `0001`–`0034` applies when the session's `search_path` includes `extensions` and `vector` is absent or in `public`. It fails without `extensions`, and also when `vector` is already in `extensions`. The procedure and the read-only preflight are in [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md); the check is `npm run check:supabase-image-chain`.
 - **Dependencies:** D10; G1.5.
 - **Acceptance criteria:** no applied migration is edited, and the target ledger equals the repository's set.
 - **Blocking decisions:** D21.
