@@ -119,6 +119,16 @@ export class WorkflowEngine {
         });
         continue;
       }
+      // The three rows are loaded by id: never run one tenant's steps on
+      // another tenant's event. (0034 refuses such rows; older ones may exist.)
+      if (workflow.businessId !== run.businessId || event.businessId !== run.businessId) {
+        await this.store.updateRun(run.id, {
+          status: "dead_letter",
+          error: "workflow, event and run belong to different tenants",
+          finishedAt: new Date().toISOString(),
+        });
+        continue;
+      }
       await this.executeRun(run, workflow, event);
     }
 

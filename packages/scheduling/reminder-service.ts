@@ -48,6 +48,15 @@ export class ReminderService {
     for (const reminder of due) {
       const appointment = await this.repository.getAppointment(reminder.appointmentId);
 
+      // The reminder's tenant picks the settings; the appointment's supplies
+      // the visitor. Never mix two tenants (0034 refuses such rows; older
+      // ones may exist). Left failed, not requeued, for an operator to see.
+      if (appointment && appointment.businessId !== reminder.businessId) {
+        await this.repository.recordReminderError(reminder.id, "reminder and appointment belong to different tenants");
+        failed += 1;
+        continue;
+      }
+
       // Cancelled/completed appointments (or ones already started) don't
       // get reminded — mark the row done without sending.
       if (

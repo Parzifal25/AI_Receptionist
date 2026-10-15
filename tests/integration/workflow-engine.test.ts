@@ -199,6 +199,29 @@ describe("WorkflowEngine", () => {
     expect(first).toHaveBeenCalledTimes(1);
   });
 
+  // Phase 2, Workstream 1: a retried run is rebuilt from three rows (run,
+  // workflow, event) loaded by id. If they disagree on the tenant, executing
+  // would run one tenant's steps on another tenant's event payload. 0034
+  // stops such rows being written; rows from before it must still not run.
+  for (const foreign of ["event", "workflow"] as const) {
+    it(`dead-letters a retried run whose ${foreign} belongs to another tenant, without running a step`, async () => {
+      let calls = 0;
+      const workflow = makeWorkflow({ steps: [{ id: "hook", action: "call_webhook", params: { url: "https://x.example.com" } }] });
+      const { store, engine } = setup({ call_webhook: async () => { calls += 1; if (calls === 1) throw new Error("upstream down"); return { status: 200 }; } }, workflow);
+      await engine.dispatch(makeEvent());
+      const run = store.allRuns()[0];
+      expect(run.status).toBe("failed");
+      if (foreign === "event") store.events.get(run.eventId)!.businessId = "biz-2";
+      else store.addWorkflow({ ...workflow, businessId: "biz-2" });
+
+      store.now = () => Date.parse(run.nextAttemptAt as string) + 1;
+      await engine.processDue({ emit: async () => undefined });
+
+      expect(calls).toBe(1);
+      expect(store.run(run.id)).toMatchObject({ status: "dead_letter", error: "workflow, event and run belong to different tenants" });
+    });
+  }
+
   it("parks a persistently failing run in the dead letter queue after max attempts", async () => {
     const { store, engine } = setup({
       send_email: async () => {
