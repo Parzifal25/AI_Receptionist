@@ -883,6 +883,381 @@ expectCount(search(bizT, "iotaword"), 1, "tenant T publishes a document");
 psql(`delete from businesses where id = '${bizT}';`);
 expectCount(`select count(*) from knowledge_document_revisions where business_id = '${bizT}';`, 0, "deleting a tenant cascades through published documents and revisions");
 
+// ---------------------------------------------------------------------------
+// Phase 2, Workstream 1 — tenant isolation across EVERY tenant-owned table.
+//
+// The sections above prove specific behaviour. This one is catalog-driven, so
+// a table, policy, foreign key or function added later is either covered or
+// fails the gate, without anyone remembering to extend the harness:
+//   a. structural invariants: RLS, policy predicates, foreign-key ownership
+//      coverage, the SECURITY DEFINER surface and client privileges;
+//   b. a symmetric two-tenant fixture for every table that had no rows yet;
+//   c. a generic sweep: tenant A reads, inserts, updates, deletes and
+//      relabels against tenant B in every tenant-owned table;
+//   d. targeted cross-tenant reference, calendar, session-reuse and
+//      missing-context cases.
+// Each refusal is matched against its expected reason: expectError above
+// accepts any failure, including a typo.
+// ---------------------------------------------------------------------------
+const rollback = (wrapped) => wrapped.replace(/commit;\s*$/, "rollback;");
+const errorLine = (error) => {
+  const text = String(error.stderr ?? error.message);
+  return (text.split("\n").find((line) => line.includes("ERROR:")) ?? text.trim()).replace(/^.*ERROR:\s*/, "");
+};
+// The wording of every tenant refusal in the schema: RLS, grants, the generic
+// 0034 trigger and the older dedicated guards (0018, 0020, 0021, 0025, 0027).
+const TENANT_REFUSAL = /row-level security|permission denied|same business|same agent and business|must reference a version of the same agent|of this tenant|does not match tenant|Invalid campaign (version|number)/;
+function expectRefused(sql, pattern, label) {
+  try {
+    psql(sql);
+    fail(label, "unexpectedly succeeded");
+  } catch (error) {
+    const reason = errorLine(error);
+    if (pattern.test(reason)) ok(`${label} (refused: ${reason.slice(0, 100)})`);
+    else fail(label, `refused for an unexpected reason: ${reason}`);
+  }
+}
+/** A count that must be 0, or a statement refused outright for a privilege/RLS reason. */
+function expectNothing(sql, label) {
+  try {
+    const out = psql(sql, true).trim();
+    if (out === "0") ok(`${label} = 0`);
+    else fail(label, `expected 0, got ${out}`);
+  } catch (error) {
+    const reason = errorLine(error);
+    if (/permission denied|row-level security/.test(reason)) ok(`${label} (refused: ${reason.slice(0, 100)})`);
+    else fail(label, `unexpected error: ${reason}`);
+  }
+}
+
+// --- a. structural invariants --------------------------------------------------
+expectCount(
+  `select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relrowsecurity;`,
+  0,
+  "every public table has RLS enabled",
+);
+expectCount(
+  `select coalesce(string_agg(c.relname, ',' order by c.relname), '') from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'r'
+     and not exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped);`,
+  "businesses,workflow_run_logs",
+  "only the tenant root and one parent-scoped child lack a business_id column",
+);
+// Every policy is a membership/admin predicate on the row's own tenant,
+// optionally narrowed by AND; none targets anon; none is unconditional.
+expectCount(
+  String.raw`select coalesce(string_agg(tablename || '.' || policyname, ', '), '') from pg_policies
+   where schemaname = 'public' and (
+     roles && array['anon']::name[]
+     or (qual is null and with_check is null)
+     or coalesce(qual, '') ~* ' OR ' or coalesce(with_check, '') ~* ' OR '
+     or (qual is not null and qual !~ '^\(?is_business_(member|admin)\((business_id|id)\)( AND .+)?\)?$'
+         and qual !~ '^\(EXISTS \( SELECT 1\s+FROM workflow_runs r\s+WHERE \(\(r\.id = workflow_run_logs\.run_id\) AND is_business_member\(r\.business_id\)\)\)\)$')
+     or (with_check is not null and with_check !~ '^\(?is_business_(member|admin)\((business_id|id)\)( AND .+)?\)?$'));`,
+  "",
+  "every RLS policy is a tenant-membership predicate (no anon, no OR-widening, no unconditional policy)",
+);
+// Every single-column foreign key between two tenant-owned tables must be
+// ownership-checked: a composite (column, business_id) key, the generic
+// assert_tenant_reference() trigger (0034), or one of the older dedicated
+// guards listed here, each of which the generic test below exercises.
+const dedicatedGuards = [
+  "agents.live_version_id", "calls.agent_id", "calls.agent_version_id", "calls.conversation_id", "calls.phone_number_id",
+  "call_events.call_id", "call_transcript_turns.call_id", "phone_suppressions.call_id", "phone_numbers.agent_id",
+  "campaigns.agent_id", "campaigns.agent_version_id", "campaigns.phone_number_id",
+  "conversation_outcomes.agent_id", "conversation_outcomes.agent_version_id", "conversation_outcomes.call_id", "conversation_outcomes.conversation_id",
+  "conversations.agent_id", "conversations.agent_version_id", "learning_proposals.source_version_id",
+  "tool_executions.agent_id", "tool_executions.agent_version_id", "tool_executions.conversation_id",
+];
+const tenantFkSql = String.raw`
+  with tenant_tables as (
+    select c.oid, c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r'
+      and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped)),
+  fk as (
+    select k.conrelid, s.relname src, d.relname dst, a.attname col
+    from pg_constraint k
+    join tenant_tables s on s.oid = k.conrelid join tenant_tables d on d.oid = k.confrelid
+    join pg_attribute a on a.attrelid = k.conrelid and a.attnum = k.conkey[1]
+    where k.contype = 'f' and array_length(k.conkey, 1) = 1),
+  composite as (
+    select k.conrelid, a.attname col from pg_constraint k join pg_attribute a on a.attrelid = k.conrelid and a.attnum = any(k.conkey)
+    where k.contype = 'f' and a.attname <> 'business_id'
+      and exists (select 1 from pg_attribute b where b.attrelid = k.conrelid and b.attnum = any(k.conkey) and b.attname = 'business_id')),
+  generic as (
+    select t.tgrelid conrelid, unnest(string_to_array(encode(t.tgargs, 'escape'), '\000')) arg
+    from pg_trigger t where t.tgfoid = to_regprocedure('public.assert_tenant_reference()'))
+  select fk.src, fk.col, fk.dst,
+    exists (select 1 from composite c where c.conrelid = fk.conrelid and c.col = fk.col) as composite,
+    exists (select 1 from generic g where g.conrelid = fk.conrelid and g.arg = fk.col) as generic
+  from fk order by 1, 2`;
+const tenantFks = psql(tenantFkSql, true).trim().split("\n").filter(Boolean).map((line) => {
+  const [src, col, dst, composite, generic] = line.split("|");
+  return { src, col, dst, composite: composite === "t", generic: generic === "t" };
+});
+const uncovered = tenantFks.filter((fk) => !fk.composite && !fk.generic && !dedicatedGuards.includes(`${fk.src}.${fk.col}`));
+if (uncovered.length === 0) ok(`every tenant-to-tenant foreign key (${tenantFks.length}) is ownership-checked`);
+else fail("tenant foreign keys without an ownership check", uncovered.map((fk) => `${fk.src}.${fk.col}->${fk.dst}`).join(", "));
+
+// The SECURITY DEFINER surface clients can reach is exactly this reviewed
+// list; each one checks auth.uid() membership itself (sections above).
+const clientDefinerAllowlist = [
+  "create_business_with_owner", "faq_create_revision", "faq_review_revision", "faq_withdraw", "is_business_admin",
+  "is_business_member", "knowledge_create_document_revision", "knowledge_review_revision", "knowledge_submit_revision",
+  "knowledge_withdraw_document", "review_learning_proposal",
+];
+const definerSql = (role, extra = "") => `select coalesce(string_agg(distinct p.proname, ',' order by p.proname), '') from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prosecdef and has_function_privilege('${role}', p.oid, 'execute') ${extra}
+     and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e');`;
+expectCount(definerSql("authenticated"), clientDefinerAllowlist.join(","), "authenticated can execute only the reviewed SECURITY DEFINER functions");
+expectCount(definerSql("anon"), "", "anon can execute no SECURITY DEFINER function (trigger functions included)");
+expectCount(
+  `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prosecdef
+     and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%');`,
+  0,
+  "every SECURITY DEFINER function pins its search_path",
+);
+// TRUNCATE ignores RLS; REFERENCES and TRIGGER are schema-level powers.
+// Supabase grants all three to clients by default (see the CI stubs).
+expectCount(
+  `select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace, (values ('anon'), ('authenticated')) r(name)
+   where n.nspname = 'public' and c.relkind in ('r', 'p')
+     and (has_table_privilege(r.name, c.oid, 'truncate') or has_table_privilege(r.name, c.oid, 'references') or has_table_privilege(r.name, c.oid, 'trigger'));`,
+  0,
+  "no client role holds TRUNCATE, REFERENCES or TRIGGER on any public table",
+);
+expectCount(
+  `select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'S'
+     and (has_sequence_privilege('anon', c.oid, 'usage') or has_sequence_privilege('anon', c.oid, 'select')
+          or has_sequence_privilege('anon', c.oid, 'update') or has_sequence_privilege('authenticated', c.oid, 'update'));`,
+  0,
+  "anon holds no sequence privilege and authenticated cannot setval",
+);
+
+// --- b. symmetric two-tenant fixture (table owner; triggers still fire, so
+//        every insert here is also a same-tenant positive control) -----------
+const pid = (kind, t, n = 1) => `${kind}0000000-0000-4000-8000-0000000000${t}${n}`;
+const tenantsP2 = [
+  { t: "a", biz: bizA, uid: uA },
+  { t: "b", biz: bizB, uid: uB },
+];
+for (const { t, biz } of tenantsP2) {
+  const conv = `(select id from conversations where visitor_token = 'rls-token-${t}')`;
+  const lead = `(select id from leads where business_id = '${biz}' order by created_at limit 1)`;
+  psql(`
+insert into staff_members (id, business_id, name) values ('${pid("5", t, 1)}', '${biz}', 'P2 staff ${t}1'), ('${pid("5", t, 2)}', '${biz}', 'P2 staff ${t}2');
+insert into appointments (id, business_id, staff_id, conversation_id, lead_id, service_name, visitor_name, starts_at, ends_at, status)
+  values ('${pid("6", t)}', '${biz}', '${pid("5", t, 1)}', ${conv}, ${lead}, 'P2 visit', 'P2 visitor', '2031-01-01T10:00Z', '2031-01-01T11:00Z', 'confirmed');
+insert into appointment_feedback (appointment_id, business_id, rating) values ('${pid("6", t)}', '${biz}', 5);
+insert into appointment_reminders (appointment_id, business_id, channel, send_at) values ('${pid("6", t)}', '${biz}', 'sms', '2031-01-01T09:00Z');
+insert into intake_responses (appointment_id, business_id, answers) values ('${pid("6", t)}', '${biz}', '{}');
+insert into booking_drafts (conversation_id, business_id) values (${conv}, '${biz}');
+insert into business_settings (business_id) values ('${biz}') on conflict (business_id) do nothing;
+insert into scheduling_settings (business_id) values ('${biz}') on conflict (business_id) do nothing;
+insert into calendar_connections (id, business_id, staff_id, provider, calendar_ref, access_token, refresh_token)
+  values ('${pid("c", t)}', '${biz}', '${pid("5", t, 1)}', 'google', 'p2-calendar-${t}', 'synthetic-ciphertext-${t}', 'synthetic-ciphertext-${t}');
+insert into customers (id, business_id, name) values ('${pid("7", t, 1)}', '${biz}', 'P2 customer ${t}'), ('${pid("7", t, 2)}', '${biz}', 'P2 duplicate ${t}');
+update customers set merged_into = '${pid("7", t, 1)}' where id = '${pid("7", t, 2)}';
+insert into customer_timeline (business_id, customer_id, kind) values ('${biz}', '${pid("7", t, 1)}', 'note');
+insert into usage_events (business_id, event_type) values ('${biz}', 'conversation_started');
+insert into messages (conversation_id, business_id, role, content) values (${conv}, '${biz}', 'user', 'p2 hello ${t}');
+insert into workflows (id, business_id, name, trigger) values ('${pid("8", t)}', '${biz}', 'P2 workflow ${t}', 'conversation.started');
+insert into workflow_events (id, business_id, type) values ('${pid("9", t)}', '${biz}', 'conversation.started');
+insert into workflow_runs (id, workflow_id, business_id, event_id) values ('${pid("a", t)}', '${pid("8", t)}', '${biz}', '${pid("9", t)}');
+insert into workflow_run_logs (run_id, step_id, status) values ('${pid("a", t)}', 'p2-step', 'succeeded');
+insert into workflow_timers (business_id, event_type, fire_at) values ('${biz}', 'p2.timer', '2031-01-01T00:00Z');
+`);
+}
+// Tenant B gets what only tenant A had: a campaign with a claimed contact,
+// lead events, a learning proposal and approved knowledge plus an FAQ.
+psql(asService(`
+insert into customers (id, business_id, name, phone) values ('${pid("7", "b", 3)}', '${bizB}', 'P2 callable b', '+15551230002');
+insert into campaigns (id, business_id, agent_id, agent_version_id, phone_number_id, name, state, weekdays, start_minute, end_minute)
+values ('${pid("d", "b")}', '${bizB}', ${agentOf(bizB)}, ${versionOf(bizB)}, (select id from phone_numbers where business_id = '${bizB}' limit 1), 'P2 B campaign', 'active', '{0,1,2,3,4,5,6}', 0, 1440);
+insert into campaign_contacts (id, business_id, campaign_id, customer_id, consent_at) values ('${pid("e", "b")}', '${bizB}', '${pid("d", "b")}', '${pid("7", "b", 3)}', now());
+select * from claim_campaign_contacts('${bizB}', '${pid("d", "b")}', 1);
+select transition_lead('${bizB}', '${pid("7", "b", 1)}', 'p2-b-event', 'CONTACTING', 'campaign');
+insert into learning_proposals (business_id, source_version_id, proposal_key, rationale, candidate_config, candidate_prompt)
+values ('${bizB}', ${versionOf(bizB)}, 'p2-b', 'P2 rationale', '{}', 'P2 candidate');
+`));
+const [docB, revB] = val(createDoc(uB, bizB, null, "P2 B doc", "kappaword tenant b text", colB1)).split("|");
+index(bizB, docB, revB, ["kappaword tenant b text"], 0.3);
+psql(asUser(uB, `select knowledge_submit_revision('${revB}'); select knowledge_review_revision('${revB}', true);`));
+const [, faqRevB] = val(createFaq(uB, bizB, null, "Kappaword hours?", "Kappaword tenant b answer.")).split("|");
+psql(asUser(uB, `select faq_review_revision('${faqRevB}', true);`));
+ok("phase 2 fixture: both tenants own rows in every tenant table (same-tenant references accepted by the triggers)");
+
+const tenantTables = psql(
+  `select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'r'
+     and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped)
+   order by 1;`,
+  true,
+).trim().split("\n").filter(Boolean);
+const gaps = tenantTables.filter((table) => val(`select count(*) filter (where business_id = '${bizA}') > 0 and count(*) filter (where business_id = '${bizB}') > 0 from public.${table};`) !== "t");
+if (gaps.length === 0) ok(`fixture is non-vacuous: tenants A and B both own rows in all ${tenantTables.length} tenant tables`);
+else fail("fixture gap (sweep would be vacuous)", gaps.join(", "));
+
+// Insertable copy of a row: every column except generated ones and a
+// defaulted id, so the copy gets a fresh primary key.
+const insertableColumns = (table) => val(`select string_agg(quote_ident(a.attname), ',' order by a.attnum) from pg_attribute a
+  where a.attrelid = 'public.${table}'::regclass and a.attnum > 0 and not a.attisdropped and a.attgenerated = '' and a.attidentity = ''
+    and not (a.attname = 'id' and a.atthasdef);`);
+const rowJson = (table, biz, where = "") => val(`select row_to_json(t)::text from public.${table} t where business_id = '${biz}' ${where} limit 1;`);
+const insertCopy = (table, json, overrides = {}) => {
+  const cols = insertableColumns(table);
+  return `insert into public.${table} (${cols}) select ${cols} from jsonb_populate_record(null::public.${table}, $p2json$${JSON.stringify({ ...JSON.parse(json), ...overrides })}$p2json$::jsonb);`;
+};
+
+// --- c. generic sweep: tenant A against tenant B, every tenant table -----------
+// The copy drops B's live-version pointer so RLS, not the 0018 trigger, is what
+// refuses it: this loop proves the policies; the loop after it, the triggers.
+const sweepOverrides = { agents: { live_version_id: null } };
+for (const table of tenantTables) {
+  expectNothing(asUser(uA, `select count(*) from public.${table} where business_id <> '${bizA}';`), `sweep ${table}: tenant A reads no other tenant's rows`);
+  expectNothing(asAnon(`select count(*) from public.${table};`), `sweep ${table}: authenticated without a JWT reads nothing`);
+  expectNothing(`begin; set local role anon; select count(*) from public.${table}; commit;`, `sweep ${table}: the anon role reads nothing`);
+  expectRefused(rollback(asUser(uA, insertCopy(table, rowJson(table, bizB), sweepOverrides[table]))), /row-level security|permission denied/, `sweep ${table}: tenant A cannot insert a tenant B row`);
+  expectNothing(rollback(asUser(uA, `with u as (update public.${table} set business_id = business_id where business_id = '${bizB}' returning 1) select count(*) from u;`)), `sweep ${table}: tenant A updates no tenant B row`);
+  expectNothing(rollback(asUser(uA, `with d as (delete from public.${table} where business_id = '${bizB}' returning 1) select count(*) from d;`)), `sweep ${table}: tenant A deletes no tenant B row`);
+  try {
+    const moved = psql(rollback(asUser(uA, `with u as (update public.${table} set business_id = '${bizB}' where business_id = '${bizA}' returning 1) select count(*) from u;`)), true).trim();
+    if (moved === "0") ok(`sweep ${table}: tenant A cannot relabel its rows as tenant B's = 0`);
+    else fail(`sweep ${table}: relabel`, `${moved} row(s) moved to tenant B`);
+  } catch (error) {
+    const reason = errorLine(error);
+    if (/row-level security|permission denied|same business|immutable|identity/.test(reason)) ok(`sweep ${table}: tenant A cannot relabel its rows as tenant B's (refused: ${reason.slice(0, 100)})`);
+    else fail(`sweep ${table}: relabel`, `unexpected error: ${reason}`);
+  }
+}
+expectNothing(asUser(uA, `select count(*) from businesses where id <> '${bizA}';`), "sweep businesses: tenant A reads no other tenant");
+expectNothing(rollback(asUser(uA, `with u as (update businesses set name = name where id = '${bizB}' returning 1) select count(*) from u;`)), "sweep businesses: tenant A updates no other tenant");
+expectNothing(rollback(asUser(uA, `with d as (delete from businesses where id = '${bizB}' returning 1) select count(*) from d;`)), "sweep businesses: tenant A deletes no other tenant");
+expectRefused(rollback(asUser(uA, `insert into businesses (name, slug) values ('Injected', 'injected-tenant');`)), /row-level security|permission denied/, "sweep businesses: a direct tenant insert is refused (create_business_with_owner only)");
+expectNothing(asUser(uA, `select count(*) from workflow_run_logs where run_id = '${pid("a", "b")}';`), "sweep workflow_run_logs: tenant A reads no log of tenant B's run");
+expectNothing(rollback(asUser(uA, `with d as (delete from workflow_run_logs where run_id = '${pid("a", "b")}' returning 1) select count(*) from d;`)), "sweep workflow_run_logs: tenant A deletes no log of tenant B's run");
+
+// Every tenant-to-tenant reference refuses a row that points at another
+// tenant's parent — even for service_role, which bypasses RLS entirely.
+const rowHints = { tool_executions: "and status in ('started', 'rejected')", customers: "and lead_state = 'NEW' and merged_into is null" };
+for (const fk of tenantFks.filter((f) => !f.composite)) {
+  const json = rowJson(fk.src, bizA, rowHints[fk.src] ?? "");
+  const foreignParent = val(`select id from public.${fk.dst} where business_id = '${bizB}' order by id limit 1;`);
+  if (!json || !foreignParent) {
+    fail(`cross-tenant ${fk.src}.${fk.col}`, "fixture lacks a tenant A row or a tenant B parent");
+    continue;
+  }
+  expectRefused(rollback(asService(insertCopy(fk.src, json, { [fk.col]: foreignParent }))), TENANT_REFUSAL, `service_role cannot point tenant A's ${fk.src}.${fk.col} at tenant B's ${fk.dst}`);
+}
+
+// --- d. targeted cases ------------------------------------------------------------
+// The confirmed client-reachable gaps, as the real roles that could exploit them.
+const agentB = val(asService(`select ${agentOf(bizB)};`));
+expectRefused(
+  rollback(asUser(uA, `insert into agent_versions (agent_id, business_id, version, prompt_template, prompt_version) values ('${agentB}', '${bizA}', 9001, 'squat', 'p2');`)),
+  /same business/,
+  "a tenant A admin cannot attach a version to tenant B's agent (would squat B's version numbers)",
+);
+// Foreign ids are resolved by service_role and passed as literals, exactly as
+// an attacker who learned them would; a subquery as the member would see
+// nothing through RLS and only set the column to NULL.
+const conversationB = val(asService(`select id from conversations where visitor_token = 'rls-token-b';`));
+expectRefused(
+  rollback(asUser(uC, `update leads set conversation_id = '${conversationB}' where business_id = '${bizA}';`)),
+  /same business/,
+  "a tenant A member cannot link a lead to tenant B's conversation",
+);
+const leadB = val(asService(`select id from leads where business_id = '${bizB}' limit 1;`));
+for (const [col, value, what] of [["staff_id", pid("5", "b", 2), "staff member"], ["conversation_id", conversationB, "conversation"], ["lead_id", leadB, "lead"]]) {
+  expectRefused(
+    rollback(asUser(uC, `update appointments set ${col} = '${value}' where id = '${pid("6", "a")}';`)),
+    /same business/,
+    `a tenant A member cannot point an appointment at tenant B's ${what}`,
+  );
+}
+expectCount(
+  rollback(asUser(uC, `with u as (update appointments set staff_id = '${pid("5", "a", 2)}' where id = '${pid("6", "a")}' returning 1) select count(*) from u;`)),
+  1,
+  "positive control: a member can still reassign an appointment to another staff member of the same tenant",
+);
+// The exclusion constraint is keyed on staff and time across tenants, so a
+// foreign appointment on B's staff member would block B's own booking. The
+// attempt commits if it is not refused, then B books that exact slot.
+try { psql(asUser(uC, `update appointments set staff_id = '${pid("5", "b", 2)}' where id = '${pid("6", "a")}';`)); } catch { /* refused: asserted above */ }
+try {
+  const booked = val(rollback(asService(`with i as (insert into appointments (business_id, staff_id, starts_at, ends_at, status) values ('${bizB}', '${pid("5", "b", 2)}', '2031-01-01T10:00Z', '2031-01-01T11:00Z', 'confirmed') returning 1) select count(*) from i;`)));
+  if (booked === "1") ok("tenant B can still book the slot tenant A tried to occupy on B's staff member");
+  else fail("tenant B booking after A's attempt", `inserted ${booked}`);
+} catch (error) {
+  fail("tenant B booking after A's attempt", `blocked: ${errorLine(error)}`);
+}
+// The conversation identity guard (0021) validates the receptionist only
+// through the agent's slug, and tenant admins choose agent slugs. An agent in
+// tenant A named after tenant B's receptionist passes that guard; the 0034
+// reference check is what refuses the conversation.
+const slugAgent = val(asUser(uA, `insert into agents (business_id, type, slug, display_name) values ('${bizA}', 'receptionist', '${rB}', 'Named after B') returning id;`));
+const slugVersion = val(asService(`insert into agent_versions (agent_id, business_id, version, prompt_template, prompt_version, published_at)
+  values ('${slugAgent}', '${bizA}', 1, 'slug squat', 'p2', now()) returning id;`));
+expectRefused(
+  rollback(asService(`insert into conversations (business_id, receptionist_id, visitor_token, channel, agent_id, agent_version_id)
+    values ('${bizA}', '${rB}', 'p2-slug-squat', 'chat', '${slugAgent}', '${slugVersion}');`)),
+  /conversations\.receptionist_id must reference a row of receptionists in the same business/,
+  "an agent named after tenant B's receptionist cannot open a tenant A conversation on B's receptionist",
+);
+expectCount(asService(`select count(*) from tenant_reference_census();`), 0, "census: no existing row references another tenant's parent");
+expectRefused(asUser(uA, `select * from tenant_reference_census();`), /permission denied for function tenant_reference_census/, "clients cannot run the tenant-reference census");
+
+// TRUNCATE ignores RLS: a client must not be able to empty a shared table.
+for (const role of ["anon", "authenticated"]) {
+  expectRefused(`begin; set local role ${role}; truncate public.usage_events; rollback;`, /permission denied/, `${role} cannot TRUNCATE a table holding every tenant's rows`);
+}
+expectCount(`select count(distinct business_id) from usage_events;`, 2, "both tenants' usage events survived the TRUNCATE attempts");
+
+// Calendar credentials never reach a client, even the owning tenant's admin.
+expectCount(asService(`select count(*) from calendar_connections where business_id in ('${bizA}', '${bizB}');`), 2, "service role sees both tenants' calendar connections");
+expectNothing(asUser(uA, `select count(*) from calendar_connections;`), "a tenant owner reads no calendar connection, not even its own");
+expectNothing(asUser(uA, `select count(*) from calendar_connections where access_token is not null or refresh_token is not null;`), "a tenant owner reads no calendar credential column");
+expectRefused(
+  rollback(asUser(uA, `insert into calendar_connections (business_id, provider, calendar_ref) values ('${bizA}', 'google', 'p2-injected');`)),
+  /row-level security|permission denied/,
+  "a tenant owner cannot create a calendar connection directly (server-side OAuth only)",
+);
+expectNothing(rollback(asUser(uA, `with u as (update calendar_connections set calendar_ref = 'hijacked' returning 1) select count(*) from u;`)), "a tenant owner updates no calendar connection");
+expectNothing(`begin; set local role anon; select count(*) from calendar_connections; commit;`, "the anon role reads no calendar connection");
+
+// A pooled connection carries no tenant context from one transaction into the
+// next: PostgREST sets the JWT claim and role per transaction (set local).
+const session = psql(`
+begin; do $$ begin perform set_config('request.jwt.claim.sub', '${uA}', true); end $$; set local role authenticated; select count(*) > 0 from leads; commit;
+select current_user = session_user;
+begin; set local role authenticated; select count(*) from leads; commit;
+begin; do $$ begin perform set_config('request.jwt.claim.sub', '${uB}', true); end $$; set local role authenticated; select count(*) from leads where business_id = '${bizA}'; commit;
+select coalesce(nullif(current_setting('request.jwt.claim.sub', true), ''), 'unset');
+`, true).trim().split("\n").map((line) => line.trim());
+if (JSON.stringify(session) === JSON.stringify(["t", "t", "0", "0", "unset"])) ok("one reused session: tenant context and role end with each transaction (A, then none, then B)");
+else fail("session reuse", `got ${JSON.stringify(session)}`);
+
+// Missing or invalid tenant context fails closed.
+expectRefused(asUser("not-a-uuid", `select count(*) from leads;`), /invalid input syntax for type uuid/, "a malformed JWT subject is refused, not read as anyone");
+expectCount(asUser("", `select count(*) from leads;`), 0, "an empty JWT subject reads nothing");
+expectCount(
+  asUser("22222222-2222-2222-2222-222222222222", `select (select count(*) from leads) + (select count(*) from conversations) + (select count(*) from knowledge_document_revisions) + (select count(*) from tool_executions) + (select count(*) from appointments);`),
+  0,
+  "an authenticated user with no membership reads nothing",
+);
+psql(`delete from business_members where business_id = '${bizA}' and user_id = '${uC}';`);
+expectCount(asUser(uC, `select count(*) from knowledge_document_revisions where business_id = '${bizA}';`), 0, "removing a membership revokes access on the next statement (no cached tenant)");
+psql(`insert into business_members (business_id, user_id, role) values ('${bizA}', '${uC}', 'member');`);
+
+// Knowledge: tenant B's approved content is served to B only, on both paths.
+expectCount(search(bizB, "kappaword"), 2, "tenant B's approved document and FAQ are served to tenant B (keyword)");
+expectCount(search(bizA, "kappaword"), 0, "tenant A never retrieves tenant B's approved content (keyword)");
+expectCount(vsearch(bizA, "'{}'::uuid[]", 0.3), 0, "tenant A never retrieves tenant B's approved chunks (vector)");
+expectRefused(search(bizA, "kappaword", `array['${colB1}']::uuid[]`), /scope names an unknown collection/, "tenant A naming tenant B's collection is denied as unknown (no existence oracle), not widened");
+
 if (failures > 0) {
   console.error(`\ncheck-rls FAILED with ${failures} assertion(s).`);
   process.exit(1);
