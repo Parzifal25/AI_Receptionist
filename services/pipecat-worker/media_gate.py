@@ -39,6 +39,8 @@ import logging
 import os
 import sys
 import time
+from uuid import uuid4
+from policy_audio_cache import PolicyAudioCache
 from typing import Any, Callable, Optional
 
 from halo_client import HaloControlClient, SessionIdentity, SpeakRequest, VoiceConfig
@@ -94,9 +96,13 @@ class MediaGate(FrameProcessor):
         super().__init__(**kwargs)
         self._client = client
         self._task: Any = None
+        self._task_ready = asyncio.Event()
+        self._policy_audio = PolicyAudioCache()
+        self._cache_scope = None
         self._closed = False
         self._completion_callback = None
         self._playout_waiter = None
+        self._playout_starter = None
         # Called when a playback is cut (barge-in / stop_playback): the media
         # writer uses this to drop already-buffered audio out-of-band, the
         # same contract pipecat's websocket output transport implements.
@@ -156,10 +162,19 @@ class MediaGate(FrameProcessor):
     def bind_task(self, task: Any) -> None:
         """Give the gate a PipelineTask so it can queue frames into the pipeline."""
         self._task = task
+        self._task_ready.set()
 
     def set_playout_waiter(self, callback) -> None:
         """Wait for the transport/carrier to acknowledge a fully sent chunk."""
         self._playout_waiter = callback
+
+    def set_playout_starter(self, callback) -> None:
+        """Synchronously enqueue a carrier mark; return its confirmation awaitable.
+
+        Unlike the legacy async waiter, this guarantees the marker precedes
+        the next chunk's audio in the transport FIFO, enabling one-chunk overlap.
+        """
+        self._playout_starter = callback
 
     def set_completion_callback(self, callback) -> None:
         """Called with no arguments when the session ends (hangup or failure)."""
@@ -188,6 +203,7 @@ class MediaGate(FrameProcessor):
         if self._closed:
             return
         self._closed = True
+        self._policy_audio.clear()
         active = self._active
         if active is not None and not active.settled:
             # The caller heard nothing more after this point. Not "interrupted":
@@ -196,6 +212,8 @@ class MediaGate(FrameProcessor):
                 active.request.playback_id, "failed", audio_ms=active.played_ms
             )
             active.settled = True
+        if active is not None and active.playout_task is not None:
+            active.playout_task.cancel()
         self._cancel_speak_loop()
         await self._stop_background_tasks()
         await self._client.bye(reason)
@@ -222,6 +240,8 @@ class MediaGate(FrameProcessor):
         # Identity is logged, never acted on: the tenant was resolved by HALO
         # from the dialled number, and the worker has no use for it beyond
         # correlation. Media knobs are the worker's to apply.
+        self._policy_audio.clear()
+        self._cache_scope = (identity.tenant_id, identity.agent_version_id, voice.profile_id, voice.voice_id, voice.speaking_rate)
         self._default_language = voice.language
         self._tts_language = voice.language
         self._vad_min_speech_ms = max(0, voice.vad_min_speech_ms)
@@ -236,7 +256,6 @@ class MediaGate(FrameProcessor):
     async def on_speak(self, request: SpeakRequest) -> None:
         if self._closed:
             return
-        self._tts_characters += sum(len(chunk) for chunk in request.chunks)
         self.mark("speak_received", playbackId=request.playback_id, chunks=len(request.chunks),
                   chars=sum(len(chunk) for chunk in request.chunks))
         await self._speak_queue.put(request)
@@ -302,7 +321,13 @@ class MediaGate(FrameProcessor):
             frame_ms = _audio_ms(frame.audio, frame.sample_rate)
             self._inbound_audio_ms += frame_ms
             if self._speaking and self._barge_pending:
-                self._speech_audio_ms += frame_ms
+                if frame.metadata.get("halo_vad_speech") is False:
+                    self._speech_audio_ms = 0.0
+                elif not frame.metadata.get("halo_vad_start"):
+                    # Start already includes the VAD minimum; do not count the
+                    # onset frame twice. Untagged unit fixtures retain the
+                    # legacy speech-interval contract.
+                    self._speech_audio_ms += frame_ms
                 await self._barge_in_if_sustained()
         elif isinstance(frame, ErrorFrame):
             # pipecat ErrorFrame is not inherently fatal; a fatal one is.
@@ -331,16 +356,26 @@ class MediaGate(FrameProcessor):
             playback = _Playback(request)
             self._active = playback
             try:
+                # Own the queued playback while speech services start, so a
+                # stop/hangup during startup cancels it before any synthesis.
+                if self._task is None:
+                    await asyncio.wait_for(self._task_ready.wait(), CHUNK_START_TIMEOUT_S)
+                if self._closed or request.playback_id in self._interrupted_ids:
+                    continue
                 await self._play_chunks(playback)
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001 — a vendor failure must not kill the pipeline
-                log.exception("playback %s failed: %s", request.playback_id, exc)
+            except Exception:  # noqa: BLE001 — never log vendor text or a raw traceback
+                log.error("playback failed reason=media_pipeline_failure")
                 await self._client.playback_stopped(
                     request.playback_id, "failed", audio_ms=playback.played_ms
                 )
                 playback.settled = True
+                await self._interrupt_playback(playback, report=False)
             finally:
+                if playback.playout_task is not None:
+                    playback.playout_task.cancel()
+                self._interrupted_ids.discard(request.playback_id)
                 if self._active is playback:
                     self._active = None
 
@@ -364,18 +399,9 @@ class MediaGate(FrameProcessor):
                 playback.settled = True
                 return
 
-            # ONE TTSSpeakFrame per HALO chunk. The TTS service assigns its own
-            # context id; the gate binds it to this chunk when the context's
-            # TTSStartedFrame passes through (strict FIFO: one at a time).
-            # Arm FIRST, queue SECOND: the loop is idle until the wait, so a
-            # start-frame can only be seen after the chunk is armed.
-            playback.chunk_index = index
-            playback.awaiting_context = True
-            playback.context_id = None
-            playback.chunk_audio_ms = 0.0
-            playback.chunk_event = asyncio.Event()
-            self.mark("chunk_queued", playbackId=request.playback_id, chunk=index, chars=len(chunk))
-            await self._task.queue_frame(TTSSpeakFrame(text=chunk, append_to_context=False))
+            # One chunk ahead at most; a prefetched chunk is already armed.
+            if playback.chunk_index != index:
+                await self._queue_chunk(playback, index)
 
             synthesis_completed = False
             try:
@@ -403,10 +429,30 @@ class MediaGate(FrameProcessor):
 
             self.mark("chunk_synthesized", playbackId=request.playback_id, chunk=index,
                       audioMs=round(playback.chunk_audio_ms, 1))
-            if self._playout_waiter is not None:
-                confirmed = await self._playout_waiter(request.playback_id, index)
-                if not confirmed or self._closed or request.playback_id in self._interrupted_ids:
+            if self._playout_starter is not None or self._playout_waiter is not None:
+                if self._playout_starter is not None:
+                    # The starter enqueues the current marker synchronously.
+                    # Only then may the next synthesis put audio in the FIFO.
+                    playback.playout_task = asyncio.ensure_future(self._playout_starter(request.playback_id, index))
+                    if index + 1 < len(request.chunks):
+                        await self._queue_chunk(playback, index + 1)
+                else:
+                    playback.playout_task = asyncio.ensure_future(self._playout_waiter(request.playback_id, index))
+                try:
+                    confirmed = await playback.playout_task
+                except asyncio.CancelledError:
+                    if self._closed or request.playback_id in self._interrupted_ids:
+                        return
+                    raise
+                finally:
+                    playback.playout_task = None
+                if self._closed or request.playback_id in self._interrupted_ids:
                     break
+                if not confirmed:
+                    await self._client.playback_stopped(request.playback_id, "failed", audio_ms=playback.played_ms)
+                    playback.settled = True
+                    await self._interrupt_playback(playback, report=False)
+                    return
                 self.mark("chunk_playout_confirmed", playbackId=request.playback_id, chunk=index)
             # Production transport waits for a carrier mark after all audio.
             # Synthesis completion alone is not evidence of delivery.
@@ -425,6 +471,38 @@ class MediaGate(FrameProcessor):
             self.mark("playback_completed", playbackId=request.playback_id, audioMs=round(playback.played_ms, 1))
         self._interrupted_ids.discard(request.playback_id)
 
+    async def _queue_chunk(self, playback: _Playback, index: int) -> None:
+        playback.chunk_index = index
+        playback.awaiting_context = True
+        playback.context_id = None
+        playback.chunk_audio_ms = 0.0
+        playback.chunk_event = asyncio.Event()
+        chunk = playback.request.chunks[index]
+        self.mark("chunk_queued", playbackId=playback.request.playback_id, chunk=index, chars=len(chunk))
+        request = playback.request
+        playback.cache_key = None
+        playback.cache_frames = []
+        if self._cache_scope is not None and request.kind == "policy" and request.turn_id is None:
+            playback.cache_key = (*self._cache_scope, request.language or self._default_language, chunk)
+            cached = self._policy_audio.get(playback.cache_key)
+            if cached is not None:
+                self.mark("policy_cache_hit", playbackId=request.playback_id, chunk=index)
+                context = "cache-" + uuid4().hex
+                self._on_tts_started(TTSStartedFrame(context_id=context))
+                for audio, rate, channels, encoding in cached:
+                    if self._closed or request.playback_id in self._interrupted_ids:
+                        return
+                    frame = TTSAudioRawFrame(audio=audio, sample_rate=rate, num_channels=channels, context_id=context)
+                    frame.metadata["halo_audio_encoding"] = encoding
+                    if encoding == "mulaw":
+                        frame.num_frames = len(audio) // channels
+                    await self.process_frame(frame, FrameDirection.DOWNSTREAM)
+                playback.context_id = None
+                playback.chunk_event.set()
+                return
+        self._tts_characters += len(chunk)
+        await self._task.queue_frame(TTSSpeakFrame(text=chunk, append_to_context=False))
+
     async def _apply_language(self, language: Optional[str]) -> None:
         """Point the TTS service at the language HALO named for this line.
 
@@ -441,16 +519,22 @@ class MediaGate(FrameProcessor):
         """The TTS service was replaced by its fallback, which has seen none
         of the language switches: name the language again on the next line."""
         self._tts_language = None
+        self._policy_audio.clear()  # a fallback or new service has different audio
+        if self._active is not None:
+            self._active.cache_key = None
+            self._active.cache_frames = None
 
     async def _barge_in_if_sustained(self) -> None:
         if self._barge_pending and self._speech_audio_ms >= self._barge_in_min_speech_ms:
             self._barge_pending = False
+            await self._client.speech_progress(self._speech_audio_ms)
             await self._maybe_barge_in()
 
     async def _barge_in_on_transcript(self) -> None:
         # Before the text is held: the cut drops finals from before it, and
         # this transcript is the speech that interrupted, so it must survive.
-        if self._speaking and self._barge_pending:
+        active = self._active
+        if self._speaking and self._barge_pending and active is not None and active.request.interruptible:
             self._barge_pending = False
             await self._maybe_barge_in()
 
@@ -472,6 +556,8 @@ class MediaGate(FrameProcessor):
         caller's perspective.
         """
         self._interrupted_ids.add(playback.request.playback_id)
+        if playback.playout_task is not None:
+            playback.playout_task.cancel()
         self.mark("interrupt_start", playbackId=playback.request.playback_id, chunk=playback.chunk_index)
         # Out-of-band first: the media writer drops audio it has already
         # buffered, so nothing queued before the cut reaches the caller.
@@ -522,7 +608,12 @@ class MediaGate(FrameProcessor):
         playback = self._active
         if playback is None or playback.context_id != frame.context_id:
             return
-        ms = _audio_ms(frame.audio, frame.sample_rate)
+        encoding = frame.metadata.get("halo_audio_encoding", "pcm16")
+        ms = _audio_ms(frame.audio, frame.sample_rate, encoding)
+        if playback.cache_key is not None and playback.cache_frames is not None:
+            playback.cache_frames.append((bytes(frame.audio), frame.sample_rate, frame.num_channels, encoding))
+            if len(playback.cache_frames) > 256 or sum(len(f[0]) for f in playback.cache_frames) > 128000:
+                playback.cache_frames = None
         playback.played_ms += ms
         if playback.chunk_audio_ms == 0.0:
             self.mark("chunk_first_audio", playbackId=playback.request.playback_id, chunk=playback.chunk_index)
@@ -534,10 +625,14 @@ class MediaGate(FrameProcessor):
 
     async def _on_tts_stopped(self, frame: TTSStoppedFrame) -> None:
         playback = self._active
-        if playback is None or playback.awaiting_context:
+        if playback is None or playback.awaiting_context or playback.settled or self._closed:
             return
         if playback.context_id != frame.context_id:
             return
+        # Cache synthesis only, never a claim that it was delivered. A replay
+        # still goes through this playback's own mark and interruption path.
+        if playback.cache_key is not None and playback.cache_frames:
+            self._policy_audio.put(playback.cache_key, playback.cache_frames)
         # The context drained: its audio is on its way to the transport.
         if playback.chunk_event is not None:
             playback.chunk_event.set()
@@ -655,6 +750,9 @@ class _Playback:
         self.context_id: Optional[str] = None
         self.awaiting_context = False
         self.chunk_event: Optional[asyncio.Event] = None
+        self.playout_task: Optional[asyncio.Future] = None
+        self.cache_key = None
+        self.cache_frames = []
 
 
 def _digit(button) -> str:
@@ -668,7 +766,9 @@ def _lang_str(language) -> Optional[str]:
     return str(getattr(language, "value", language))[:16]
 
 
-def _audio_ms(audio: bytes, sample_rate: int) -> float:
+def _audio_ms(audio: bytes, sample_rate: int, encoding: str = "pcm16") -> float:
     if not audio or not sample_rate:
         return 0.0
-    return (len(audio) / 2) * 1000.0 / sample_rate
+    if encoding not in ("pcm16", "mulaw"):
+        raise ValueError("unsupported output audio encoding")
+    return (len(audio) / (1 if encoding == "mulaw" else 2)) * 1000.0 / sample_rate

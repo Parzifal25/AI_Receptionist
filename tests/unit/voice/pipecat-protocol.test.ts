@@ -49,6 +49,7 @@ describe("pipecat protocol", () => {
     const frames = [
       { type: "speech_started" },
       { type: "speech_stopped" },
+      { type: "speech_progress", speechMs: 250 },
       { type: "transcript", final: false, text: "naaku", language: "te-IN", confidence: null },
       { type: "transcript", final: true, text: "naaku solar kavali", utteranceId: "u1", language: "te-IN", confidence: 0.9 },
       { type: "playback", playbackId: "pb-1", phase: "first_audio" },
@@ -93,4 +94,8 @@ describe("pipecat protocol", () => {
   it("encodes commands as compact JSON", () => {
     expect(encodeCommand({ type: "hangup", reason: "agent_completed" })).toBe('{"type":"hangup","reason":"agent_completed"}');
   });
+});
+
+it.each([-1, 3600001, "250", null])("refuses invalid speech duration %s", (speechMs) => {
+  expect(parsePipecatEvent(JSON.stringify({ type: "speech_progress", speechMs })).ok).toBe(false);
 });

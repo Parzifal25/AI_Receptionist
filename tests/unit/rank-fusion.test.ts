@@ -73,3 +73,14 @@ describe("normalizeQuery", () => {
     expect(normalizeQuery("   \n\t  ")).toBe("");
   });
 });
+
+// W4.8 characterization only: preserve current RRF semantics while prompt
+// prefix requirements await the owner. This does not approve a new ranking rule.
+it("RRF ties retain first-appearance order without mutating provider lists", () => {
+  const keyword = [snip("a"), snip("b")];
+  const vector = [snip("c"), snip("d")];
+  const before = JSON.stringify([keyword, vector]);
+  expect(fuseByReciprocalRank([keyword, vector], 4).map((s) => s.refId)).toEqual(["a", "c", "b", "d"]);
+  expect(JSON.stringify([keyword, vector])).toBe(before);
+  expect(fuseByReciprocalRank([keyword, vector], 0)).toEqual([]);
+});

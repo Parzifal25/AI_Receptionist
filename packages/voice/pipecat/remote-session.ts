@@ -1,3 +1,4 @@
+import { isBackchannel } from "@halo/language/backchannels";
 import { observeVoiceEvent } from "../telemetry";
 import { observe, newTelemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import type {
@@ -218,6 +219,9 @@ export class RemoteVoiceSession implements VoiceMediaSession {
     switch (event.type) {
       case "speech_started":
         return this.onSpeechStart();
+      case "speech_progress":
+        if (this.inSpeech && event.speechMs >= this.config.bargeIn.minSpeechMs) this.maybeInterruptThinking();
+        return;
       case "speech_stopped":
         return this.onSpeechEnd();
       case "transcript":
@@ -250,10 +254,8 @@ export class RemoteVoiceSession implements VoiceMediaSession {
     this.clearTimer("finalGraceTimer");
     this.emit("speech_started", null, { source: "remote_vad" });
     if (this.state === "listening") this.setState("user_speaking");
-    // Pipecat has already gated this on its own sustained-speech threshold,
-    // so a reported speech start during generation IS a barge-in. Playback
-    // barge-in needs no action here: Pipecat cut it and will report it.
-    else if (this.state === "thinking" && this.config.bargeIn.enabled) this.interrupt("caller_speech");
+    // A raw VAD start reports presence, not duration. Wait for worker-measured
+    // speech progress or a substantive transcript before cancelling a turn.
   }
 
   private onSpeechEnd(): void {
@@ -277,7 +279,12 @@ export class RemoteVoiceSession implements VoiceMediaSession {
     }, this.config.finalWaitMs);
   }
 
+  private maybeInterruptThinking(): void {
+    if (this.inSpeech && this.state === "thinking" && this.config.bargeIn.enabled) this.interrupt("caller_speech");
+  }
+
   private onTranscript(event: Extract<PipecatEvent, { type: "transcript" }>): void {
+    if (event.text.trim() && !isBackchannel(event.text, event.language ?? this.config.language)) this.maybeInterruptThinking();
     if (!event.final) {
       this.emit("stt_partial", null, { chars: event.text.length });
       return;

@@ -29,7 +29,7 @@ function streamOptions(overrides: Partial<SttStreamOptions> = {}): SttStreamOpti
 
 function open(options: Partial<SttStreamOptions> = {}, harness: SocketHarness = socketHarness()) {
   const events: SttEvent[] = [];
-  const provider = new SarvamSttProvider({ apiKey: "test-key", connect: harness.factory });
+  const provider = new SarvamSttProvider({ apiKey: "test-key", model: "synthetic-stt-model", connect: harness.factory });
   const stream = provider.open(streamOptions(options), (event) => events.push(event));
   return { events, stream, harness };
 }
@@ -39,7 +39,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 describe("SarvamSttProvider", () => {
   it("uses manual endpointing for bounded web audio without changing phone defaults", async () => {
     const harness = socketHarness();
-    const provider = new SarvamSttProvider({ apiKey: "test-key", endpointing: "manual", connect: harness.factory });
+    const provider = new SarvamSttProvider({ apiKey: "test-key", model: "synthetic-stt-model", endpointing: "manual", connect: harness.factory });
     const stream = provider.open(streamOptions({ format: { encoding: "pcm16le", sampleRate: 16000, channels: 1 } }), () => {});
     expect(new URL(harness.last.url).searchParams.get("endpointing")).toBe("manual");
     expect(provider.capabilities().providerEndpointing).toBe(false);
@@ -50,21 +50,24 @@ describe("SarvamSttProvider", () => {
   });
 
   it("sends the shared deployment model under the name the realtime socket accepts", () => {
-    const model = (configured?: string) => {
+    const model = (configured: string) => {
       const harness = socketHarness();
-      new SarvamSttProvider({ apiKey: "test-key", connect: harness.factory, ...(configured ? { model: configured } : {}) }).open(streamOptions(), () => {});
+      new SarvamSttProvider({ apiKey: "test-key", connect: harness.factory, model: configured }).open(streamOptions(), () => {});
       return new URL(harness.last.url).searchParams.get("model");
     };
     // The Pipecat worker reads the same VOICE_STT_MODEL and needs `saaras:v3`.
     expect(model("saaras:v3")).toBe("saaras:v3-realtime");
     expect(model("saaras:v3-realtime")).toBe("saaras:v3-realtime");
     expect(model("saaras:v4")).toBe("saaras:v4");
-    expect(model()).toBe("saaras:v3-realtime");
+  });
+
+  it("has no built-in model: the pair is configuration (W4.2), never a silent default", () => {
+    expect(() => new SarvamSttProvider({ apiKey: "k", model: "" })).toThrow(/requires a model/);
   });
 
   it("buffers bounded 16 kHz web PCM through a delayed handshake", async () => {
     const harness = socketHarness({ autoOpen: false }); const events: SttEvent[] = [];
-    const provider = new SarvamSttProvider({ apiKey: "test-key", endpointing: "manual", connect: harness.factory });
+    const provider = new SarvamSttProvider({ apiKey: "test-key", model: "synthetic-stt-model", endpointing: "manual", connect: harness.factory });
     const stream = provider.open(streamOptions({ format: { encoding: "pcm16le", sampleRate: 16000, channels: 1 } }), event => events.push(event));
     stream.write(new Uint8Array(96000)); // Three seconds, beyond the phone buffer.
     expect(events.some(event => event.type === "error")).toBe(false);
@@ -75,7 +78,7 @@ describe("SarvamSttProvider", () => {
   });
 
   it("declares capabilities honestly — telephony audio in, no invented confidence", () => {
-    const caps = new SarvamSttProvider({ apiKey: "k" }).capabilities();
+    const caps = new SarvamSttProvider({ apiKey: "k", model: "synthetic-stt-model" }).capabilities();
     expect(caps.languages).toContain("te-IN");
     expect(caps.languages).toContain("en-IN");
     expect(caps.formats).toContainEqual({ encoding: "mulaw", sampleRate: 8000, channels: 1 });
@@ -87,7 +90,7 @@ describe("SarvamSttProvider", () => {
   });
 
   it("refuses to construct without a credential", () => {
-    expect(() => new SarvamSttProvider({ apiKey: "" })).toThrow(/API key/i);
+    expect(() => new SarvamSttProvider({ apiKey: "", model: "synthetic-stt-model" })).toThrow(/API key/i);
   });
 
   it("sends the telephony format, the language and the key in a header — never in the URL", async () => {
@@ -125,7 +128,7 @@ describe("SarvamSttProvider", () => {
 
   it("drops the oldest buffered audio rather than growing without bound", async () => {
     const harness = socketHarness({ autoOpen: false });
-    const provider = new SarvamSttProvider({ apiKey: "k", connect: harness.factory, maxPendingBytes: 300 });
+    const provider = new SarvamSttProvider({ apiKey: "k", model: "synthetic-stt-model", connect: harness.factory, maxPendingBytes: 300 });
     const stream = provider.open(streamOptions(), () => {});
     for (let i = 0; i < 10; i++) stream.write(new Uint8Array(100).fill(i));
     harness.last.open();

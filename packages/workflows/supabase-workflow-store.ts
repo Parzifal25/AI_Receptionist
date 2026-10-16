@@ -331,6 +331,7 @@ export class SupabaseWorkflowStore implements WorkflowStore {
     if (error) throw new Error(`claim due timers: ${error.message}`);
     return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
       businessId: row.business_id as string,
+      telemetryCorrelationId: (row.telemetry_correlation_id as string) ?? undefined,
       eventType: row.event_type as BusinessEventType,
       payload: (row.payload as Record<string, unknown>) ?? {},
       correlationId: (row.correlation_id as string) ?? "",

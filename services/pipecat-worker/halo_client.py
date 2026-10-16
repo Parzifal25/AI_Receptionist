@@ -190,6 +190,9 @@ class HaloControlClient:
     async def speech_started(self) -> None:
         await self._send({"type": "speech_started"})
 
+    async def speech_progress(self, speech_ms: float) -> None:
+        await self._send({"type": "speech_progress", "speechMs": speech_ms})
+
     async def speech_stopped(self) -> None:
         await self._send({"type": "speech_stopped"})
 

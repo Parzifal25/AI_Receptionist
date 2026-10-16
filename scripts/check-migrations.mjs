@@ -14,7 +14,7 @@
  * Exits non-zero on the first failure. Requires `psql` on PATH.
  */
 import { requireDisposableDatabase } from "./disposable-database.mjs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,9 +41,46 @@ const psql = (sql, capture = false) =>
 
 console.log(`check:migrations — applying ${files.length} migrations to a throwaway database`);
 
+const FIXTURE_BUSINESS = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"; // created after 0013 below
+
+/**
+ * P2-R1 / 0037 on a database that already holds duplicate business-level
+ * calendar connections: the guard must abort the whole file, report a count
+ * only (no tenant identifier), create no index and change no row. The
+ * duplicates are then removed by this harness — never by the migration — so
+ * the chain continues.
+ */
+function refuseCalendarDuplicates(sql) {
+  psql(`insert into calendar_connections (business_id, staff_id, provider, calendar_ref) values
+    ('${FIXTURE_BUSINESS}', null, 'google', 'p2r1-duplicate-1'), ('${FIXTURE_BUSINESS}', null, 'google', 'p2r1-duplicate-2');`);
+  let refusal = "";
+  try { psql(`BEGIN;\n${sql}\nCOMMIT;`); } catch (err) { refusal = String(err.stderr ?? err.message); }
+  const rows = psql(`select count(*) from calendar_connections where business_id = '${FIXTURE_BUSINESS}' and staff_id is null;`, true).trim();
+  const index = psql(`select count(*) from pg_indexes where indexname = 'calendar_connections_business_level_unique';`, true).trim();
+  if (!/0037: 1 business-level calendar connection group\(s\) are duplicated/.test(refusal) || refusal.includes(FIXTURE_BUSINESS) || rows !== "2" || index !== "0") {
+    console.error(`  ❌ 0037 did not refuse existing duplicates cleanly: rows=${rows} index=${index} refusal=${refusal.trim().slice(0, 200)}`);
+    process.exit(1);
+  }
+  console.log("  ✅ 0037 refuses pre-existing duplicate business-level calendar connections: count only, no index, no row changed");
+  psql(`delete from calendar_connections where business_id = '${FIXTURE_BUSINESS}' and calendar_ref like 'p2r1-duplicate-%';`);
+}
+
+/** One psql session; resolves with its exit code, stderr and wall time. */
+function session(sql) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const child = spawn("psql", [databaseUrl, "--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--quiet"], { stdio: ["pipe", "ignore", "pipe"] });
+    let stderr = "";
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("close", (code) => resolve({ code, stderr, ms: Date.now() - started }));
+    child.stdin.end(sql);
+  });
+}
+
 for (const file of files) {
   const sql = readFileSync(path.join(migrationsDir, file), "utf8");
   try {
+    if (file.startsWith("0037_")) refuseCalendarDuplicates(sql);
     psql(`BEGIN;\n${sql}\nCOMMIT;`);
     console.log(`  ✅ ${file}`);
     if (file === "0013_agents.sql") {
@@ -251,6 +288,60 @@ if (unvalidated !== "0") {
   failed = true;
 } else {
   console.log("  ✅ 0033 composite tenant foreign keys are validated on a clean database");
+}
+
+// P2-R1 / 0037: hold the winner's transaction open until PostgreSQL
+// confirms that the losing insert is blocked on it. Process startup time
+// cannot substitute for observed lock contention.
+{
+  const winner = spawn("psql", [databaseUrl, "--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--quiet"], { stdio: ["pipe", "pipe", "pipe"] });
+  let winnerError = "";
+  winner.stderr.on("data", chunk => { winnerError += chunk; });
+  const winnerDone = new Promise(resolve => winner.on("close", code => resolve({ code, stderr: winnerError })));
+  let readyTimer;
+  const ready = new Promise((resolve, reject) => {
+    let output = "";
+    winner.stdout.on("data", chunk => {
+      output += chunk;
+      if (output.includes("halo_calendar_winner_ready")) { clearTimeout(readyTimer); resolve(); }
+    });
+    winner.on("error", reject);
+    winner.on("close", () => { clearTimeout(readyTimer); reject(new Error("calendar race winner exited before release")); });
+    readyTimer = setTimeout(() => reject(new Error("calendar race winner readiness timed out")), 10000);
+  });
+  winner.stdin.write(`begin;
+    insert into calendar_connections (business_id, staff_id, provider, calendar_ref) values ('${FIXTURE_BUSINESS}', null, 'google', 'p2r1-race-1');
+    \\echo halo_calendar_winner_ready
+`);
+  let loserDone;
+  let observedBlocking = false;
+  try {
+    await ready;
+    const application = `halo_calendar_loser_${process.pid}`;
+    loserDone = session(`set application_name = '${application}';
+      set statement_timeout = '15s';
+      insert into calendar_connections (business_id, staff_id, provider, calendar_ref) values ('${FIXTURE_BUSINESS}', null, 'google', 'p2r1-race-2');`);
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline) {
+      observedBlocking = psql(`select exists (select 1 from pg_stat_activity where application_name = '${application}' and wait_event_type = 'Lock' and cardinality(pg_blocking_pids(pid)) > 0);`, true).trim() === "t";
+      if (observedBlocking) break;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+  } finally {
+    clearTimeout(readyTimer);
+    winner.stdin.end("commit;\n");
+  }
+  const results = [await winnerDone, ...(loserDone ? [await loserDone] : [])];
+  const won = results.filter(r => r.code === 0).length;
+  const lost = results.filter(r => r.code !== 0 && /calendar_connections_business_level_unique/.test(r.stderr)).length;
+  const rows = psql(`select count(*) from calendar_connections where business_id = '${FIXTURE_BUSINESS}' and staff_id is null and provider = 'google';`, true).trim();
+  if (!observedBlocking || won !== 1 || lost !== 1 || rows !== "1") {
+    console.error(`  ❌ 0037 concurrent first connects: won=${won} lost=${lost} observed-lock-wait=${observedBlocking} rows=${rows}`);
+    failed = true;
+  } else {
+    console.log(`  ✅ 0037 concurrent first connects: observed PostgreSQL lock wait before winner commit; loser refused by unique index; one row remains`);
+  }
+  psql(`delete from calendar_connections where business_id = '${FIXTURE_BUSINESS}' and calendar_ref like 'p2r1-race-%';`);
 }
 
 if (failed) {

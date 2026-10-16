@@ -1245,6 +1245,42 @@ expectRefused(
 expectNothing(rollback(asUser(uA, `with u as (update calendar_connections set calendar_ref = 'hijacked' returning 1) select count(*) from u;`)), "a tenant owner updates no calendar connection");
 expectNothing(`begin; set local role anon; select count(*) from calendar_connections; commit;`, "the anon role reads no calendar connection");
 
+// 0037: one business-level (staff_id IS NULL) connection per business and
+// provider. Every case runs as the service role, the only writer, and rolls back.
+const businessLevel = (biz, provider, ref) =>
+  `insert into calendar_connections (business_id, staff_id, provider, calendar_ref) values ('${biz}', null, '${provider}', '${ref}');`;
+expectCount(
+  `select count(*) from pg_indexes where schemaname = 'public' and tablename = 'calendar_connections'
+     and indexname = 'calendar_connections_business_level_unique'
+     and indexdef like 'CREATE UNIQUE INDEX%(business_id, provider) WHERE (staff_id IS NULL)';`,
+  1,
+  "0037: business-level calendar uniqueness is a partial unique index on (business_id, provider)",
+);
+expectRefused(
+  rollback(asService(`${businessLevel(bizA, "google", "first")}\n${businessLevel(bizA, "google", "second")}`)),
+  /duplicate key value violates unique constraint "calendar_connections_business_level_unique"/,
+  "0037: a second business-level google connection for one business is rejected",
+);
+expectCount(
+  rollback(asService(`${businessLevel(bizA, "google", "a-google")}\n${businessLevel(bizA, "outlook", "a-outlook")}\n${businessLevel(bizB, "google", "b-google")}
+select count(*) from calendar_connections where staff_id is null and business_id in ('${bizA}', '${bizB}');`)),
+  3,
+  "0037: other providers and other tenants keep their own business-level connection",
+);
+expectCount(
+  rollback(asService(`${businessLevel(bizA, "google", "business")}
+insert into calendar_connections (business_id, staff_id, provider, calendar_ref) values ('${bizA}', '${pid("5", "a", 2)}', 'google', 'second-staff');
+with u as (update calendar_connections set calendar_ref = 'reconnected' where business_id = '${bizA}' and provider = 'google' and staff_id is null returning 1)
+select (select count(*) from u) || ',' || (select count(*) from calendar_connections where business_id = '${bizA}' and provider = 'google');`)),
+  "1,3",
+  "0037: staff-level rows beside the business-level row stay allowed, and an in-place reconnect updates it",
+);
+expectRefused(
+  rollback(asService(`insert into calendar_connections (business_id, staff_id, provider, calendar_ref) values ('${bizA}', '${pid("5", "a", 1)}', 'google', 'duplicate-staff');`)),
+  /duplicate key value violates unique constraint "calendar_connections_business_id_staff_id_provider_key"/,
+  "0008: a duplicate staff-level connection is still rejected by the original constraint",
+);
+
 // A pooled connection carries no tenant context from one transaction into the
 // next: PostgREST sets the JWT claim and role per transaction (set local).
 const session = psql(`

@@ -28,6 +28,10 @@
  *      audit rows, grants and schema must survive. Added by the 2026-10-15
  *      local release-readiness audit when 0036 made the 0032–0035 pending-set
  *      expectations stale (docs/LOCAL_RELEASE_READINESS_REPORT.md).
+ *   8. 0037 (P2-R1 calendar business-level uniqueness, owner-approved for
+ *      local use 2026-10-16): a legacy duplicate is visible in the preflight
+ *      census and aborts 0037 with ledger and data unchanged; after the
+ *      (separately authorized) disposition it applies on source and copy.
  *
  * Safety: like check-supabase-image-chain.mjs, every container is started
  * from a locally cached image (`--pull=never`) with `--network none` and no
@@ -53,12 +57,13 @@ const stubs = readFileSync(join(root, "infrastructure/ci/supabase-stubs.sql"), "
 const storageStub = stubs.slice(stubs.indexOf("create schema if not exists storage;"));
 const migrations = readdirSync(migrationsDir).filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort();
 const repo = repositoryMigrations(migrationsDir);
-const PENDING = ["0032", "0033", "0034", "0035", "0036"];
+const PENDING = ["0032", "0033", "0034", "0035", "0036", "0037"];
 const upTo = (v) => migrations.filter((f) => f.slice(0, 4) <= v);
 const pending = migrations.filter((f) => PENDING.includes(f.slice(0, 4)));
 const beforeK1 = pending.filter((f) => f.slice(0,4) < "0035");
 const k1 = pending.filter((f) => f.slice(0,4) === "0035");
 const auditSchema = pending.filter((f) => f.slice(0,4) === "0036");
+const calendarUnique = pending.filter((f) => f.slice(0,4) === "0037");
 
 const docker = (args, input) => spawnSync("docker", args, { input, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
 const containers = [];
@@ -183,7 +188,7 @@ try {
   const fresh = preflight(src);
   const freshLedger = compareLedger({ repo, preflightText: fresh });
   check(`fresh: preflight runs read-only; ledger absent; nothing applied; all ${migrations.length} pending`,
-    /ledger\|absent/.test(fresh) && /objects\|0001=f\|0017=f\|0032=f\|0033=f\|0034=f\|0035=f\|0036=f/.test(fresh)
+    /ledger\|absent/.test(fresh) && /objects\|0001=f\|0017=f\|0032=f\|0033=f\|0034=f\|0035=f\|0036=f\|0037=f/.test(fresh)
       && freshLedger.verdict === VERDICT.CONSISTENT && freshLedger.pending.length === migrations.length);
 
   // 2. The hosted 2026-10-13 shape: 0001–0031 under public, extensions, with a ledger.
@@ -196,7 +201,7 @@ try {
   // 3. Preflight and offline comparison at 0031.
   const at31 = preflight(src);
   const ledger31 = compareLedger({ repo, preflightText: at31, expectPending: PENDING });
-  check("0031: ledger CONSISTENT, pending exactly 0032–0036", ledger31.verdict === VERDICT.CONSISTENT, ledger31.findings.join("; "));
+  check("0031: ledger CONSISTENT, pending exactly 0032–0037", ledger31.verdict === VERDICT.CONSISTENT, ledger31.findings.join("; "));
   check("0031: preflight finds the cross-tenant calendar row (pre-0034 section)", /calendar_connections\s*\|\s*staff_id\s*\|\s*staff_members\s*\|\s*1\b/.test(at31));
   check("0031: every public table and sequence owned by the applying role",
     query(src, "select count(*) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','S') and c.relowner <> 'postgres'::regrole;") === "0");
@@ -218,7 +223,7 @@ try {
       select pg_temp.ws3_normalize_check((select oid from pg_constraint where conrelid='pg_temp.ws3_logic_a'::regclass))
        <> pg_temp.ws3_normalize_check((select oid from pg_constraint where conrelid='pg_temp.ws3_logic_b'::regclass));`) === "t");
   const rehearse = psql(src, `begin;\nset local search_path = "$user", public;\n${pending.map((f) => `\\i /tmp/mig/${f}`).join("\n")}\nrollback;`);
-  check("0032–0036 apply together in one transaction under \"$user\", public (then rolled back)", rehearse.status === 0, errorOf(rehearse));
+  check("0032–0037 apply together in one transaction under \"$user\", public (then rolled back)", rehearse.status === 0, errorOf(rehearse));
   check("rolled-back rehearsal leaves catalog, grants, ledger and data unchanged",
     query(src, CATALOG_FINGERPRINT) === catalogBefore && query(src, DATA_FINGERPRINT) === dataBefore);
 
@@ -315,8 +320,8 @@ try {
   check("0032–0034 rewrite no legacy row", query(src, DATA_FINGERPRINT) === dataBefore);
 
   const at34 = preflight(src);
-  const ledger34 = compareLedger({ repo, preflightText: at34, expectPending: ["0035", "0036"] });
-  check("0034: ledger CONSISTENT, only 0035 and 0036 pending", ledger34.verdict === VERDICT.CONSISTENT, ledger34.findings.join("; "));
+  const ledger34 = compareLedger({ repo, preflightText: at34, expectPending: ["0035", "0036", "0037"] });
+  check("0034: ledger CONSISTENT, only 0035, 0036 and 0037 pending", ledger34.verdict === VERDICT.CONSISTENT, ledger34.findings.join("; "));
   check("0034: tenant_reference_census reports exactly the legacy calendar row",
     query(src, asService("select table_name || '.' || column_name || '=' || mismatched from public.tenant_reference_census();")) === "calendar_connections.staff_id=1");
   check("0034: no client TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, no anon sequence access, no client setval",
@@ -360,8 +365,8 @@ try {
   const replayK1=psql(src,`begin;\n\\i /tmp/mig/${k1[0]}\ncommit;`);
   check("0035 function replacement can be replayed without data/privilege changes", replayK1.status===0 && query(src,SECURITY_SNAPSHOT)===aclBeforeK1);
   check("0035 source and recovered copy schema and security match", query(src,SCHEMA_SNAPSHOT)===query(safe,SCHEMA_SNAPSHOT) && query(src,SECURITY_SNAPSHOT)===query(safe,SECURITY_SNAPSHOT));
-  const ledger35=compareLedger({repo,preflightText:preflight(src),expectPending:["0036"]});
-  check("0035 ledger consistent with only 0036 pending",ledger35.verdict===VERDICT.CONSISTENT, ledger35.findings.join("; "));
+  const ledger35=compareLedger({repo,preflightText:preflight(src),expectPending:["0036","0037"]});
+  check("0035 ledger consistent with only 0036 and 0037 pending",ledger35.verdict===VERDICT.CONSISTENT, ledger35.findings.join("; "));
   const fixedDryA=query(src,asService(`select count(*) from public.knowledge_backfill_legacy('${A}',false) where action='quarantined_source_ref_too_long';`));
   const fixedApplyA=query(src,asService(`select count(*) from public.knowledge_backfill_legacy('${A}',true) where action='quarantined_source_ref_too_long';`));
   check("K1 fixed: dry/apply quarantine the same overlong source and valid A items proceed",fixedDryA==="1" && fixedApplyA==="1"
@@ -453,8 +458,8 @@ try {
     query(src, SCHEMA_SNAPSHOT) === query(safe, SCHEMA_SNAPSHOT) && query(src, SECURITY_SNAPSHOT) === query(safe, SECURITY_SNAPSHOT));
   check("0036 rewrites no existing row", query(src, DATA_FINGERPRINT) === dataBefore36);
   const at36 = preflight(src);
-  const ledger36 = compareLedger({ repo, preflightText: at36, expectPending: [] });
-  check("0036: preflight samples its objects and the ledger is complete with no pending files",
+  const ledger36 = compareLedger({ repo, preflightText: at36, expectPending: ["0037"] });
+  check("0036: preflight samples its objects and the ledger leaves only 0037 pending",
     /objects\|[^\n]*\|0036=t/.test(at36) && ledger36.verdict === VERDICT.CONSISTENT, ledger36.findings.join("; "));
   check("0036: application roles hold only authenticated SELECT and service_role INSERT/SELECT on audit_logs",
     query(src, `select string_agg(grantee || ':' || privilege_type, ',' order by grantee, privilege_type) from information_schema.role_table_grants
@@ -491,10 +496,44 @@ try {
   check("post-0036 restore preserves ownership, normalized ACL, effective rights and creator defaults", verdict36.accepted, verdict36.categories.join(","));
   check("post-0036 restore preserves every audit row byte for byte, including server timestamps", query(r36, AUDIT_FINGERPRINT) === auditBefore);
   check("post-0036 restored schema definitions match source", query(r36, SCHEMA_SNAPSHOT) === query(src, SCHEMA_SNAPSHOT));
-  const restoredLedger = compareLedger({ repo, preflightText: preflight(r36), expectPending: [] });
-  check("post-0036 restored ledger is complete and agrees with its objects", restoredLedger.verdict === VERDICT.CONSISTENT, restoredLedger.findings.join("; "));
+  const restoredLedger = compareLedger({ repo, preflightText: preflight(r36), expectPending: ["0037"] });
+  check("post-0036 restored ledger agrees with its objects (only 0037 pending)", restoredLedger.verdict === VERDICT.CONSISTENT, restoredLedger.findings.join("; "));
   const restoredUpdate = psql(r36, asService("update public.audit_logs set outcome = 'failed';"));
   check("post-0036 restored audit rows stay append-only for the service role", restoredUpdate.status !== 0);
+
+  // 8. 0037 — business-level calendar uniqueness. A legacy duplicate (two
+  // first connects that raced before 0037) must be visible in the census and
+  // must abort 0037 without touching the ledger or any row. Removing one row
+  // stands in for the operator's separately authorized disposition.
+  query(src, `insert into public.calendar_connections (id, business_id, staff_id, provider, calendar_ref) values
+    ('${id("d", "a1")}', '${A}', null, 'google', 'raced-1'), ('${id("d", "a2")}', '${A}', null, 'google', 'raced-2');`);
+  const duplicateCensus = (text) => text.match(/calendar_business_level_duplicate_groups\s*\n[-+]+\s*\n\s*(\d+)/)?.[1];
+  const at36dup = preflight(src);
+  check("0037 preflight census counts the legacy duplicate business-level group", duplicateCensus(at36dup) === "1");
+  const dataBefore37 = query(src, DATA_FINGERPRINT);
+  const refused37 = applyFiles(src, calendarUnique, '"$user", public');
+  const ledgerRefused = compareLedger({ repo, preflightText: preflight(src), expectPending: ["0037"] });
+  check("0037 aborts on the duplicate with a count only; ledger, objects and rows unchanged",
+    calendarUnique.length === 1 && refused37.status !== 0 && /0037: 1 business-level calendar connection group/.test(errorOf(refused37))
+      && !errorOf(refused37).includes(A) && ledgerRefused.verdict === VERDICT.CONSISTENT && query(src, DATA_FINGERPRINT) === dataBefore37,
+    errorOf(refused37).slice(0, 160));
+  query(src, `delete from public.calendar_connections where id = '${id("d", "a2")}';`);
+  const dataBeforeUp37 = query(src, DATA_FINGERPRINT);
+  const up37 = applyFiles(src, calendarUnique, '"$user", public');
+  const up37Copy = applyFiles(safe, calendarUnique, '"$user", public');
+  check("0037 applies after the disposition on source and on the recovered copy (which never held the duplicate)",
+    up37.status === 0 && up37Copy.status === 0, errorOf(up37) || errorOf(up37Copy));
+  check("0037 rewrites no row and source/copy schema and security match", query(src, DATA_FINGERPRINT) === dataBeforeUp37
+    && query(src, SCHEMA_SNAPSHOT) === query(safe, SCHEMA_SNAPSHOT) && query(src, SECURITY_SNAPSHOT) === query(safe, SECURITY_SNAPSHOT));
+  const at37 = preflight(src);
+  const ledger37 = compareLedger({ repo, preflightText: at37, expectPending: [] });
+  check("0037: preflight samples its index, census is clean and the ledger is complete with no pending files",
+    /objects\|[^\n]*\|0037=t/.test(at37) && duplicateCensus(at37) === "0" && ledger37.verdict === VERDICT.CONSISTENT, ledger37.findings.join("; "));
+  const second37 = psql(src, asService(`insert into public.calendar_connections (business_id, staff_id, provider) values ('${A}', null, 'google');`));
+  check("0037: a further business-level google connection for the tenant is refused by the index",
+    second37.status !== 0 && /calendar_connections_business_level_unique/.test(errorOf(second37)), errorOf(second37).slice(0, 160));
+  check("0037: the service role can still add another tenant's or provider's business-level connection",
+    query(src, asService(`insert into public.calendar_connections (business_id, staff_id, provider) values ('${B}', null, 'google'), ('${A}', null, 'outlook') returning 'ok';`)) === "ok\nok");
 
   const after = preflight(src);
   check("post-rollout preflight: serving state and legacy blockers visible",

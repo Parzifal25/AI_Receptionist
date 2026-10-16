@@ -87,7 +87,7 @@ export function compareLedger({ repo, preflightText, dryRunText = undefined, exp
   }
   if (ledger.error) return { verdict: VERDICT.STOP, findings: [ledger.error], applied: [], pending: [] };
   const objects = parseObjects(preflightText);
-  if (!objects || ["0001","0017","0032","0033","0034","0035"].some((v) => !(v in objects))) {
+  if (!objects || ["0001","0017","0032","0033","0034","0035","0036","0037"].some((v) => !(v in objects))) {
     return { verdict: VERDICT.NOT_VERIFIED, findings: ["preflight output has no §4 objects line; rerun the current preflight"], applied: [], pending: [] };
   }
 

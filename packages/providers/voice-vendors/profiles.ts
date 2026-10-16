@@ -5,7 +5,12 @@ const common = { apiKey: z.string().optional(), baseUrl: z.url().optional(), mod
   modelDir: z.string().max(1000).optional(), threads: z.int().min(1).max(64).optional() };
 const stt = z.object({ ...common, provider: z.enum(STT_PROVIDER_NAMES), mode: z.enum(["transcribe", "verbatim", "translit", "codemix"]).optional() }).strict();
 const tts = z.object({ ...common, provider: z.enum(TTS_PROVIDER_NAMES), defaultSpeaker: z.string().max(100).optional() }).strict();
-const profile = z.object({ sampleRate: z.int().min(8000).max(48000), stt: stt.extend({ fallback: stt.optional() }), tts: tts.extend({ fallback: tts.optional() }) }).strict();
+// A Sarvam entry names its model (W4.2): checked when the gateway parses the
+// profiles at startup rather than when a tenant's first call builds them.
+const named = (s: { provider: string; model?: string | undefined }) => s.provider !== "sarvam" || Boolean(s.model?.trim());
+const modelRequired = { message: "a sarvam speech profile requires a model" };
+const profile = z.object({ sampleRate: z.int().min(8000).max(48000), stt: stt.extend({ fallback: stt.refine(named, modelRequired).optional() }).refine(named, modelRequired),
+  tts: tts.extend({ fallback: tts.refine(named, modelRequired).optional() }).refine(named, modelRequired) }).strict();
 const profiles = z.record(z.string(), z.record(z.string(), profile));
 /** Deployment-owned profiles, scoped by tenant and referenced by immutable
  * agent config. Credentials and endpoints never cross the control protocol. */

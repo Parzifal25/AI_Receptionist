@@ -50,7 +50,7 @@ export class Endpointer {
 
   /** Sustained speech so far in the current speech run (for barge-in gating). */
   get currentSpeechMs(): number {
-    return this.speaking ? this.streamMs - this.speechStartMs : this.speechRunMs;
+    return this.speechRunMs;
   }
 
   /** Feed one PCM16LE frame; returns at most one signal. */
@@ -76,9 +76,11 @@ export class Endpointer {
     }
 
     if (isSpeech) {
+      this.speechRunMs += frameMs;
       this.silenceRunMs = 0;
       return null;
     }
+    this.speechRunMs = 0;
     this.silenceRunMs += frameMs;
     if (this.silenceRunMs >= this.config.endHangoverMs) {
       const endAt = this.streamMs - this.silenceRunMs;

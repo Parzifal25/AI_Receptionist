@@ -52,7 +52,7 @@ export interface VoiceTurnTimings {
   modelMs: number;
   /** Time validating the draft reply (act-then-narrate and the repair ladder). */
   validationMs: number;
-  /** Awaited transcript + state writes after validation, before the reply is returned. */
+  /** Transcript/state persistence admission before reply; phone writes may finish asynchronously. */
   persistenceMs?: number;
   /** Awaited after-turn hooks, also before the reply is returned. */
   hooksMs?: number;

@@ -33,7 +33,7 @@ const input = (userMessage: string) => ({ trusted: makeTrusted(), business: BUSI
 
 describe("read-back when the recognizer reports no confidence", () => {
   it("no real recognizer, alone or as a fallback chain, reports transcript confidence", async () => {
-    const sarvam = new SarvamSttProvider({ apiKey: "unused", connect: () => ({ send() {}, close() {} }) });
+    const sarvam = new SarvamSttProvider({ apiKey: "unused", model: "synthetic-stt-model", connect: () => ({ send() {}, close() {} }) });
     const local = new LocalSttProvider(new StandInSpeechEngine());
     for (const provider of [sarvam, local, new FallbackSttProvider([sarvam, local])]) expect(provider.capabilities().reportsConfidence).toBe(false);
 

@@ -246,6 +246,12 @@ class LocalTtsContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(of(down, TTSStoppedFrame)), 1)
 
 
+# Fixture values only: the pinned SDK validates model names, so these are
+# names it accepts. Which pair the pilot uses is the open decision D17.
+SARVAM_ENV = {"SARVAM_API_KEY": "k", "VOICE_TTS_DEFAULT_VOICE": "anushka",
+              "VOICE_STT_MODEL": "saaras:v3", "VOICE_TTS_MODEL": "bulbul:v3"}
+
+
 class ProviderRoutingTests(unittest.TestCase):
     def build(self, env, profile=None):
         with patch.dict(os.environ, env, clear=True), patch.object(worker, "_local_engine", lambda *a, **k: StandInEngine()):
@@ -266,8 +272,8 @@ class ProviderRoutingTests(unittest.TestCase):
         from pipecat.services.sarvam.stt import SarvamSTTService
         from pipecat.services.sarvam.tts import SarvamTTSService
 
-        for env in ({"SARVAM_API_KEY": "k", "VOICE_TTS_DEFAULT_VOICE": "anushka"},
-                    {"SARVAM_API_KEY": "k", "VOICE_TTS_DEFAULT_VOICE": "anushka", "VOICE_STT_PROVIDER": "sarvam", "VOICE_TTS_PROVIDER": "sarvam"}):
+        for env in ({**SARVAM_ENV},
+                    {**SARVAM_ENV, "VOICE_STT_PROVIDER": "sarvam", "VOICE_TTS_PROVIDER": "sarvam"}):
             stt, tts = self.build(env)
             # Bare vendor services: no switcher, no wrapper, nothing local loaded.
             self.assertIs(type(stt), SarvamSTTService)
@@ -275,7 +281,7 @@ class ProviderRoutingTests(unittest.TestCase):
             self.assertEqual(stt.sample_rate or RATE, RATE)
 
     def test_fallback_is_a_switcher_with_the_primary_active(self):
-        stt, tts = self.build({"SARVAM_API_KEY": "k", "VOICE_TTS_DEFAULT_VOICE": "anushka",
+        stt, tts = self.build({**SARVAM_ENV,
                                "VOICE_STT_FALLBACK_PROVIDER": "local", "VOICE_TTS_FALLBACK_PROVIDER": "local"})
         for switcher, local in ((stt, LocalSTTService), (tts, LocalTTSService)):
             self.assertIsInstance(switcher, ServiceSwitcher)
@@ -283,6 +289,70 @@ class ProviderRoutingTests(unittest.TestCase):
             self.assertIs(switcher.strategy.active_service, switcher.services[0])
             self.assertIn("Sarvam", type(switcher.services[0]).__name__)
             self.assertIsInstance(switcher.services[1], local)
+
+    def test_sarvam_has_no_built_in_model(self):
+        # W4.2 (owner decision 2026-10-16): the worker used to fall back to
+        # saarika:v2.5 / bulbul:v2 while the gateway used v3 models.
+        for missing in ("VOICE_STT_MODEL", "VOICE_TTS_MODEL"):
+            env = {k: v for k, v in SARVAM_ENV.items() if k != missing}
+            with self.assertRaisesRegex(RuntimeError, f"{missing} is required"):
+                self.build(env)
+        # The configured pair is what reaches the vendor services.
+        stt, tts = self.build(SARVAM_ENV)
+        self.assertEqual((stt._settings.model, tts._settings.model), ("saaras:v3", "bulbul:v3"))
+        # A tenant profile's own model wins over the deployment's.
+        profile = {"stt": {"provider": "sarvam", "model": "saarika:v2.5"},
+                   "tts": {"provider": "sarvam", "model": "bulbul:v2"}}
+        stt, tts = self.build(SARVAM_ENV, profile)
+        self.assertEqual((stt._settings.model, tts._settings.model), ("saarika:v2.5", "bulbul:v2"))
+        # The older worker-only names are gone: the gateway never read them,
+        # so they could not keep the two paths on one pair. Blank is unset.
+        legacy = {**{k: v for k, v in SARVAM_ENV.items() if not k.endswith("_MODEL")},
+                  "HALO_STT_MODEL": "saarika:v2.5", "HALO_TTS_MODEL": "bulbul:v3-beta"}
+        with self.assertRaisesRegex(RuntimeError, "VOICE_STT_MODEL is required"):
+            self.build(legacy)
+        with self.assertRaisesRegex(RuntimeError, "VOICE_STT_MODEL is required"):
+            self.build({**SARVAM_ENV, "VOICE_STT_MODEL": "   "})
+
+    def test_worker_refuses_to_start_when_the_deployment_selects_sarvam_without_a_model(self):
+        for env in ({k: v for k, v in SARVAM_ENV.items() if k != "VOICE_TTS_MODEL"},
+                    {"VOICE_STT_PROVIDER": "local", "VOICE_STT_FALLBACK_PROVIDER": "sarvam", "VOICE_TTS_PROVIDER": "fake"}):
+            with patch.dict(os.environ, env, clear=True):
+                with self.assertRaisesRegex(RuntimeError, "_MODEL is required"):
+                    worker._check_speech_models()
+        # Fake or local speech needs no vendor model; a configured pair passes.
+        for env in ({"HALO_SPEECH_PROVIDER": "fake"}, {"VOICE_STT_PROVIDER": "local", "VOICE_TTS_PROVIDER": "local"}, SARVAM_ENV):
+            with patch.dict(os.environ, env, clear=True):
+                worker._check_speech_models()
+
+    def test_per_kind_sarvam_credentials_match_gateway_precedence(self):
+        env = {"VOICE_STT_API_KEY": "synthetic-stt", "VOICE_TTS_API_KEY": "synthetic-tts",
+               "SARVAM_API_KEY": "synthetic-common", "SARVAM_API": "synthetic-legacy"}
+        with patch.dict(os.environ, env, clear=True):
+            self.assertEqual(worker._sarvam_key({}, "stt"), "synthetic-stt")
+            self.assertEqual(worker._sarvam_key({}, "tts"), "synthetic-tts")
+            self.assertEqual(worker._sarvam_key({"apiKey": "synthetic-profile"}, "stt"), "synthetic-profile")
+        with patch.dict(os.environ, {"SARVAM_API": "synthetic-legacy"}, clear=True):
+            self.assertEqual(worker._sarvam_key({}, "tts"), "synthetic-legacy")
+
+    def test_worker_startup_rejects_missing_profile_models_without_env_inheritance(self):
+        import json
+        for kind in ("stt", "tts"):
+            for model in (None, "", "   "):
+                for fallback in (False, True):
+                    candidate = {"provider": "sarvam"}
+                    if model is not None:
+                        candidate["model"] = model
+                    definition = {"sampleRate": 8000, "stt": {"provider": "fake"}, "tts": {"provider": "fake"}}
+                    definition[kind] = {"provider": "fake", "fallback": candidate} if fallback else candidate
+                    env = {**SARVAM_ENV, "VOICE_PROFILES_JSON": json.dumps({"tenant": {"profile": definition}})}
+                    with self.subTest(kind=kind, model=model, fallback=fallback), patch.dict(os.environ, env, clear=True):
+                        with self.assertRaisesRegex(RuntimeError, "profile.*model"):
+                            worker._check_speech_models()
+        valid = {"sampleRate": 8000, "stt": {"provider": "sarvam", "model": "explicit-stt"},
+                 "tts": {"provider": "sarvam", "model": "explicit-tts"}}
+        with patch.dict(os.environ, {"HALO_SPEECH_PROVIDER": "fake", "VOICE_PROFILES_JSON": json.dumps({"tenant": {"profile": valid}})}, clear=True):
+            worker._check_speech_models()
 
     def test_configuration_errors_never_fall_back(self):
         # No Sarvam credential: the fallback must not paper over it.

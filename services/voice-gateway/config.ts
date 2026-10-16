@@ -85,6 +85,14 @@ export const gatewayConfigSchema = z
   .refine((c) => !uses(c.ttsProvider, c.ttsFallbackProvider, "sarvam") || Boolean(c.ttsDefaultVoice), {
     message: "VOICE_TTS_DEFAULT_VOICE is required when the sarvam TTS provider is selected",
   })
+  // No built-in Sarvam models: the worker reads the same two variables, so
+  // an explicit pair is the only way both paths agree (W4.2; pair is D17).
+  .refine((c) => !uses(c.sttProvider, c.sttFallbackProvider, "sarvam") || Boolean(c.sttModel?.trim()), {
+    message: "VOICE_STT_MODEL is required when the sarvam STT provider is selected",
+  })
+  .refine((c) => !uses(c.ttsProvider, c.ttsFallbackProvider, "sarvam") || Boolean(c.ttsModel?.trim()), {
+    message: "VOICE_TTS_MODEL is required when the sarvam TTS provider is selected",
+  })
   .refine((c) => !(uses(c.sttProvider, c.sttFallbackProvider, "local") || uses(c.ttsProvider, c.ttsFallbackProvider, "local")) || Boolean(c.localModelDir), {
     message: "VOICE_LOCAL_MODEL_DIR is required when the local speech provider is selected",
   })

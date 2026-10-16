@@ -25,6 +25,11 @@ import { SarvamTtsProvider } from "./sarvam-tts-provider";
  * optional `fallback`. A fallback is for a provider that FAILS AT RUN TIME
  * with a recoverable error; it never stands in for a provider that was
  * configured wrong. A missing credential or model directory throws here.
+ *
+ * Sarvam models are required too (owner decision 2026-10-16, W4.2): the
+ * gateway and the Pipecat worker used to fall back to different built-in
+ * models, so one deployment could run two model pairs. The pair itself is
+ * still the open pilot decision D17; nothing here chooses it.
  */
 
 const log = logger.child({ component: "local-speech" });
@@ -69,7 +74,7 @@ export function createSttProvider(config: SttFactoryConfig): StreamingSttProvide
         endpointing: config.endpointing,
         apiKey: requireValue(config.apiKey, "VOICE_STT_API_KEY", "sarvam"),
         ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
-        ...(config.model ? { model: config.model } : {}),
+        model: requireValue(config.model?.trim(), "VOICE_STT_MODEL", "sarvam"),
         ...(config.mode ? { mode: config.mode } : {}),
       });
     case "local":
@@ -87,8 +92,8 @@ export function createTtsProvider(config: TtsFactoryConfig): StreamingTtsProvide
       return new SarvamTtsProvider({
         apiKey: requireValue(config.apiKey, "VOICE_TTS_API_KEY", "sarvam"),
         defaultSpeaker: requireValue(config.defaultSpeaker, "VOICE_TTS_DEFAULT_VOICE", "sarvam"),
+        model: requireValue(config.model?.trim(), "VOICE_TTS_MODEL", "sarvam"),
         ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
-        ...(config.model ? { model: config.model } : {}),
       });
     case "local":
       return new LocalTtsProvider(getLocalSpeechEngine(requireValue(config.modelDir, "VOICE_LOCAL_MODEL_DIR", "local"), config.threads),

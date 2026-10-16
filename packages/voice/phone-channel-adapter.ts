@@ -1,3 +1,5 @@
+import { OrderedVoicePersistence } from "./ordered-persistence";
+import { CallContextCache } from "./call-context-cache";
 import { DEFAULT_BRANDING, type ChatMessage } from "@halo/core/domain/types";
 import type { TranscriptDelivery } from "@halo/core/domain/voice";
 import { agentActivationErrors, type AgentVersion } from "@halo/core/domain/agents";
@@ -211,6 +213,7 @@ export function deliveredContent(reply: string, status: TranscriptDelivery, deli
 }
 
 export class PhoneTurnHandler implements VoiceTurnHandler {
+  private readonly persistence = new OrderedVoicePersistence();
   private readonly runtime: AgentRuntime;
   private readonly store: DeferredAssistantStore;
   private signals: VoiceTurnSignals = { sttConfidence: null, language: null, turnIndex: 0 };
@@ -221,13 +224,15 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
   private readonly transferReasons: Set<EscalationReason>;
 
   constructor(private readonly options: PhoneTurnHandlerOptions) {
-    this.store = new DeferredAssistantStore(options.store);
+    const cache = new CallContextCache(options.agent.business.id, options.conversationId,
+      options.store, options.stateStore, options.policy?.contextLimits?.maxHistoryFetch ?? VOICE_CONTEXT_LIMITS.maxHistoryFetch, this.persistence);
+    this.store = new DeferredAssistantStore(cache);
     this.transferReasons = new Set(options.transferReasons ?? ["explicit_human_request"]);
     this.runtime = new AgentRuntime({
       llm: options.llm,
       knowledge: options.knowledge,
       conversations: this.store,
-      stateStore: options.stateStore,
+      stateStore: cache,
       ...(options.toolAudit ? { toolAudit: options.toolAudit } : {}),
       registry: new ToolRegistry(BUILTIN_TOOLS, {
         ...(options.toolExecutors ?? {}),
@@ -303,7 +308,7 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
         ...(output.usage.inputTokens !== undefined ? { inputTokens: output.usage.inputTokens } : {}),
         ...(output.usage.outputTokens !== undefined ? { outputTokens: output.usage.outputTokens } : {}),
       },
-      degraded: output.degraded.provider || output.degraded.knowledge || output.degraded.state,
+      degraded: output.degraded.provider || output.degraded.knowledge || output.degraded.state || this.persistence.status().failures > 0,
       timings: this.timingsFor(output),
       // From the words about to be spoken, not from the decision that asked
       // for them: the tenant's fallback line is in the agent's own language
@@ -349,6 +354,8 @@ export class PhoneTurnHandler implements VoiceTurnHandler {
       if (this.store.hasPending()) await this.store.resolve(null, "not_delivered", "");
     } catch {
       // close never throws
+    } finally {
+      await this.persistence.close();
     }
   }
 

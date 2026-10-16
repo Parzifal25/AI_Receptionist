@@ -31,7 +31,6 @@ import { wsSocketFactory, type SocketFactory, type VendorSocket } from "./websoc
  */
 
 const DEFAULT_BASE_URL = "wss://api.sarvam.ai";
-const DEFAULT_MODEL = "bulbul:v3";
 const DEFAULT_CONNECT_TIMEOUT_MS = 5_000;
 /** How long the vendor gets to produce the first audio frame after `flush`. */
 const DEFAULT_FIRST_AUDIO_TIMEOUT_MS = 8_000;
@@ -60,7 +59,11 @@ const SUPPORTED_SAMPLE_RATES = [8000, 16000, 22050, 24000] as const;
 export interface SarvamTtsOptions {
   apiKey: string;
   baseUrl?: string;
-  model?: string;
+  /**
+   * Required, like the speaker: the model pair is the pilot route decision
+   * (D17) and must match the speaker's family, so there is no default.
+   */
+  model: string;
   /**
    * Speaker used when the agent version configures no `ttsVoice`. There is
    * no built-in default: which voice a tenant's callers hear is a decision,
@@ -84,6 +87,7 @@ export class SarvamTtsProvider implements StreamingTtsProvider {
   constructor(private readonly options: SarvamTtsOptions) {
     if (!options.apiKey) throw new Error("SarvamTtsProvider requires an API key");
     if (!options.defaultSpeaker) throw new Error("SarvamTtsProvider requires a default speaker");
+    if (!options.model?.trim()) throw new Error("SarvamTtsProvider requires a model");
   }
 
   capabilities(): TtsCapabilities {
@@ -219,7 +223,7 @@ async function* synthesizeStream(
 function url(vendor: SarvamTtsOptions): string {
   const base = (vendor.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
   const target = new URL(`${base}/text-to-speech/ws`);
-  target.searchParams.set("model", vendor.model ?? DEFAULT_MODEL);
+  target.searchParams.set("model", vendor.model);
   // Without the completion event there is no way to tell "done" from "slow",
   // and the iterator would hang until the first-audio timeout on every reply.
   target.searchParams.set("send_completion_event", "true");
@@ -228,7 +232,7 @@ function url(vendor: SarvamTtsOptions): string {
 
 function configFor(vendor: SarvamTtsOptions, request: TtsRequest): Record<string, unknown> {
   return {
-    model: vendor.model ?? DEFAULT_MODEL,
+    model: vendor.model,
     target_language_code: request.language,
     speaker: request.voiceId || vendor.defaultSpeaker,
     // The vendor reference client sends this as a string.

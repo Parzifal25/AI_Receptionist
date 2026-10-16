@@ -24,6 +24,8 @@ export interface LanguagePack {
   lexicon: IntentLexicon;
   /** Cues for the knowledge-gap question gate (question-cues.ts). */
   questionCues: QuestionCues;
+  /** Whole-utterance acknowledgements for short thinking interruptions. */
+  backchannels: readonly string[];
   detect(text: string): LanguageDetection;
   intents(text: string): IntentMatch[];
   has(text: string, intent: IntentName): boolean;
@@ -44,6 +46,9 @@ function pack(code: LanguageCode, tags: string[], lexicon: IntentLexicon, questi
     tags,
     lexicon,
     questionCues,
+    backchannels: code === "te"
+      ? ["hmm", "hm", "mm", "okay", "ok", "yes", "అవును", "సరే", "ఊ", "హ్మ్", "avunu", "sare"]
+      : ["hmm", "hm", "mm", "okay", "ok", "yes", "uh huh", "mhm"],
     detect: detectLanguage,
     intents: (text) => matchIntents(text, lexicon),
     has: (text, intent) => matchIntents(text, lexicon).some((m) => m.intent === intent),

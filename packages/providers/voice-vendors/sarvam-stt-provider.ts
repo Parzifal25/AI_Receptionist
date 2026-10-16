@@ -42,7 +42,6 @@ import { wsSocketFactory, type SocketFactory, type VendorSocket } from "./websoc
  */
 
 const DEFAULT_BASE_URL = "wss://api.sarvam.ai";
-const DEFAULT_MODEL = "saaras:v3-realtime";
 const DEFAULT_CONNECT_TIMEOUT_MS = 5_000;
 /** Audio accepted while the socket is still opening (~2 s of μ-law 8 kHz). */
 const DEFAULT_MAX_PENDING_BYTES = 16_000;
@@ -75,7 +74,12 @@ export interface SarvamSttOptions {
   /** Web utterance capture supplies its own endpoint. Phone calls retain VAD. */
   endpointing?: "vad" | "manual";
   baseUrl?: string;
-  model?: string;
+  /**
+   * Required. The model pair is the pilot route decision (D17), so there is
+   * no built-in default: an unset model is a refusal to start, never a
+   * silent choice that can differ from the Pipecat worker's.
+   */
+  model: string;
   mode?: SarvamSttMode;
   streamType?: "fast" | "balanced";
   connectTimeoutMs?: number;
@@ -101,6 +105,7 @@ export class SarvamSttProvider implements StreamingSttProvider {
 
   constructor(private readonly options: SarvamSttOptions) {
     if (!options.apiKey) throw new Error("SarvamSttProvider requires an API key");
+    if (!options.model?.trim()) throw new Error("SarvamSttProvider requires a model");
   }
 
   capabilities(): SttCapabilities {
@@ -188,7 +193,7 @@ class SarvamSttStream implements SttStream {
   private url(): string {
     const base = (this.vendor.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     const url = new URL(`${base}/speech-to-text-realtime/ws`);
-    url.searchParams.set("model", realtimeModel(this.vendor.model ?? DEFAULT_MODEL));
+    url.searchParams.set("model", realtimeModel(this.vendor.model));
     url.searchParams.set("language_code", this.languageCode());
     url.searchParams.set("mode", this.vendor.mode ?? "transcribe");
     url.searchParams.set("encoding", wireEncoding(this.stream.format));

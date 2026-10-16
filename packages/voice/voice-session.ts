@@ -1,3 +1,4 @@
+import { isBackchannel } from "@halo/language/backchannels";
 import { observeVoiceEvent } from "./telemetry";
 import { observe, newTelemetryId, withTelemetryContext } from "@halo/platform/telemetry";
 import type {
@@ -390,7 +391,7 @@ export class VoiceSession {
         return;
       case "partial":
         this.emit("stt_partial", null, { chars: event.text.length });
-        if (event.text.trim()) this.maybeBargeIn(true);
+        if (event.text.trim()) this.maybeBargeIn(true, event.text, event.language);
         return;
       case "final": {
         if (this.seenUtteranceIds.has(event.utteranceId)) return;
@@ -404,6 +405,7 @@ export class VoiceSession {
           language: event.language,
         });
         if (!text || this.state === "ending") return;
+        this.maybeBargeIn(true, text, event.language);
         this.finals.push({ utteranceId: event.utteranceId, text, confidence: event.confidence, language: event.language });
         this.onFinal();
         return;
@@ -890,10 +892,12 @@ export class VoiceSession {
     return heard;
   }
 
-  private maybeBargeIn(fromTranscript = false): void {
+  private maybeBargeIn(fromTranscript = false, text = "", language: string | null = null): void {
     if (!this.config.bargeIn.enabled || this.state === "ending") return;
     const sustained = this.endpointer.currentSpeechMs >= this.config.bargeIn.minSpeechMs;
-    if (!sustained && !(fromTranscript && this.endpointer.inSpeech)) return;
+    const transcriptInterrupts = fromTranscript && this.endpointer.inSpeech
+      && (this.state !== "thinking" || !isBackchannel(text, language ?? this.config.language));
+    if (!sustained && !transcriptInterrupts) return;
     if (this.state === "speaking" && this.playback && !this.playback.settled) {
       this.cutPlayback("caller_speech");
     } else if (this.state === "thinking") {

@@ -12,7 +12,7 @@ const currentRepo = repositoryMigrations(path.resolve(__dirname, "../../supabase
 const repo = currentRepo.filter((migration) => Number(migration.version) <= 35);
 const ledgerLines = (count: number) => repo.slice(0, count).map((m) => ` ledger|${m.version}|${m.name}`).join("\n");
 const objectsFor = (count: number) =>
-  ` objects|${["0001", "0017", "0032", "0033", "0034", "0035"].map((v) => `${v}=${Number(v) <= count ? "t" : "f"}`).join("|")}`;
+  ` objects|${["0001", "0017", "0032", "0033", "0034", "0035", "0036", "0037"].map((v) => `${v}=${Number(v) <= count ? "t" : "f"}`).join("|")}`;
 // Object flags follow the number of applied versions unless a test overrides them.
 const preflight = (body: string, objects = objectsFor((body.match(/ledger\|\d{4}/g) ?? []).length)) =>
   `== 4. HALO objects\n objects_row\n${objects}\n== 5. Migration ledger\n ledger_row\n------------\n${body}\n(rows)\npreflight|complete\n`;
@@ -112,7 +112,7 @@ it("requires 0036 in the current pending set rather than silently adopting WS3 a
 it("stops when 0036's objects and the ledger disagree", () => {
   const current = currentRepo;
   const flags = (n: number, has0036: boolean) =>
-    ` objects|${["0001", "0017", "0032", "0033", "0034", "0035"].map((v) => `${v}=${Number(v) <= n ? "t" : "f"}`).join("|")}|0036=${has0036 ? "t" : "f"}`;
+    ` objects|${["0001", "0017", "0032", "0033", "0034", "0035"].map((v) => `${v}=${Number(v) <= n ? "t" : "f"}`).join("|")}|0036=${has0036 ? "t" : "f"}|0037=${n >= 37 ? "t" : "f"}`;
   const lines = (n: number) => current.slice(0, n).map((m) => ` ledger|${m.version}|${m.name}`).join("\n");
   const handApplied = compareLedger({ repo: current, preflightText: `${lines(35)}\n${flags(35, true)}\npreflight|complete\n` });
   expect(handApplied.verdict).toBe(VERDICT.STOP);
@@ -122,4 +122,21 @@ it("stops when 0036's objects and the ledger disagree", () => {
   expect(missingObjects.findings.join(" ")).toContain("the ledger records 0036, but its objects are missing");
   const consistent = compareLedger({ repo: current, preflightText: `${lines(36)}\n${flags(36, true)}\npreflight|complete\n` });
   expect(consistent.verdict).toBe(VERDICT.CONSISTENT);
+});
+
+// 2026-10-16 (P2-R1 / 0037): the collector samples the business-level calendar
+// index, and the comparator now requires the 0036 and 0037 flags, so an older
+// or truncated collector output is NOT VERIFIED rather than a silent pass.
+it("requires the 0036 and 0037 flags and stops when 0037's index and the ledger disagree", () => {
+  const lines = (n: number) => currentRepo.slice(0, n).map((m) => ` ledger|${m.version}|${m.name}`).join("\n");
+  const flags = (n: number, has0037: boolean) =>
+    ` objects|${["0001", "0017", "0032", "0033", "0034", "0035", "0036"].map((v) => `${v}=${Number(v) <= n ? "t" : "f"}`).join("|")}|0037=${has0037 ? "t" : "f"}`;
+  const withoutFlag = compareLedger({ repo: currentRepo, preflightText: `${lines(36)}\n${flags(36, false).replace("|0037=f", "")}\npreflight|complete\n` });
+  expect(withoutFlag.verdict).toBe(VERDICT.NOT_VERIFIED);
+  const handApplied = compareLedger({ repo: currentRepo, preflightText: `${lines(36)}\n${flags(36, true)}\npreflight|complete\n` });
+  expect(handApplied.verdict).toBe(VERDICT.STOP);
+  expect(handApplied.findings.join(" ")).toContain("objects of 0037 exist, but the ledger does not record 0037");
+  const missingIndex = compareLedger({ repo: currentRepo, preflightText: `${lines(37)}\n${flags(37, false)}\npreflight|complete\n` });
+  expect(missingIndex.findings.join(" ")).toContain("the ledger records 0037, but its objects are missing");
+  expect(compareLedger({ repo: currentRepo, preflightText: `${lines(36)}\n${flags(36, false)}\npreflight|complete\n`, expectPending: ["0037"] }).verdict).toBe(VERDICT.CONSISTENT);
 });

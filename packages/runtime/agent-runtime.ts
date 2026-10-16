@@ -245,27 +245,37 @@ export class AgentRuntime {
       checkpoint("start");
       // ---- state + history ------------------------------------------------
       const contextStart = Date.now();
+      // Launch independent tenant-scoped reads together. Observe history
+      // rejection immediately, but preserve the state/budget short-circuit:
+      // an exhausted budget must not wait for a hung history store.
+      const historyReadPromise = Promise.resolve().then(() => this.deps.conversations.loadHistory(
+        trusted.conversationId, trusted.businessId, limits.maxHistoryFetch,
+      )).then(
+        (value) => ({ status: "fulfilled" as const, value }),
+        (reason: unknown) => ({ status: "rejected" as const, reason }),
+      );
+      const stateRead = await Promise.resolve().then(() => withTimeout(
+        this.deps.stateStore.load(trusted.conversationId, trusted.businessId),
+        this.policy.stateTimeoutMs,
+        "conversation state load",
+      )).then(
+        (value) => ({ status: "fulfilled" as const, value }),
+        (reason: unknown) => ({ status: "rejected" as const, reason }),
+      );
       let state: ConversationState = emptyConversationState();
-      try {
-        state =
-          (await withTimeout(
-            this.deps.stateStore.load(trusted.conversationId, trusted.businessId),
-            this.policy.stateTimeoutMs,
-            "conversation state load",
-          )) ?? state;
-      } catch (error) {
+      if (stateRead.status === "fulfilled") state = stateRead.value ?? state;
+      else {
         degraded.state = true;
         log.warn("conversation state load failed, continuing with empty state", {
-          conversationId: trusted.conversationId,
-          error,
+          conversationId: trusted.conversationId, error: stateRead.reason,
         });
       }
       if (agent.config.budgets?.maxTurns !== undefined && (degraded.state || state.turnCount >= agent.config.budgets.maxTurns)) {
         throw AppError.conflict("Conversation turn budget exhausted or unavailable");
       }
-      const history = conversationalHistory(
-        await this.deps.conversations.loadHistory(trusted.conversationId, trusted.businessId, limits.maxHistoryFetch),
-      );
+      const historyRead = await historyReadPromise;
+      if (historyRead.status === "rejected") throw historyRead.reason;
+      const history = conversationalHistory(historyRead.value);
 
       // ---- response language ---------------------------------------------------
       // Decided here, once, from the caller's words and the previous turn's

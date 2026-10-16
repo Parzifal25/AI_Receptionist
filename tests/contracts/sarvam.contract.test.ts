@@ -65,9 +65,9 @@ const stubSttVendor: SocketFactory = (_url, _headers, events: SocketEvents) => {
   };
 };
 
-sttContract("sarvam (documented protocol, stubbed socket)", () => new SarvamSttProvider({ apiKey: "contract-key", connect: stubSttVendor }));
+sttContract("sarvam (documented protocol, stubbed socket)", () => new SarvamSttProvider({ apiKey: "contract-key", model: "synthetic-stt-model", connect: stubSttVendor }));
 
 ttsContract(
   "sarvam (documented protocol, stubbed socket)",
-  () => new SarvamTtsProvider({ apiKey: "contract-key", defaultSpeaker: "contract-voice", connect: stubTtsVendor }),
+  () => new SarvamTtsProvider({ apiKey: "contract-key", defaultSpeaker: "contract-voice", model: "synthetic-tts-model", connect: stubTtsVendor }),
 );

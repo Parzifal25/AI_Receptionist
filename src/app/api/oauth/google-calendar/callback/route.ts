@@ -100,26 +100,45 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return done({ error: "exchange_failed" });
   }
 
-  // Replace any previous business-level Google connection. (Delete + insert
-  // because the unique index treats the null staff_id rows as distinct.)
-  const db = getAdminClient();
-  await db
-    .from("calendar_connections")
-    .delete()
-    .eq("business_id", businessId)
-    .eq("provider", "google")
-    .is("staff_id", null);
-  const { error } = await db.from("calendar_connections").insert({
-    business_id: businessId,
-    staff_id: null,
-    provider: "google",
+  // Encrypt before touching persistence. Reconnection updates the existing row
+  // in one statement: a failed replacement must preserve working credentials.
+  // The nullable staff_id unique key cannot support an upsert (0008).
+  const credentials = {
     calendar_ref: "primary",
     access_token: encryptCalendarCredential(tokens.access_token),
     refresh_token: encryptCalendarCredential(tokens.refresh_token),
     expires_at: new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString(),
-  });
+  };
+  const db = getAdminClient();
+  const businessRow = () => db.from("calendar_connections")
+    .select("id").eq("business_id", businessId).eq("provider", "google").is("staff_id", null)
+    .maybeSingle();
+  const replace = (id: string) => db.from("calendar_connections").update(credentials)
+    .eq("business_id", businessId).eq("provider", "google").is("staff_id", null)
+    .eq("id", id).select("id").single();
+  const { data: existing, error: lookupError } = await businessRow();
+  if (lookupError) {
+    log.error("calendar connection lookup failed", { reason: "connection_lookup_failed" });
+    return done({ error: "exchange_failed" });
+  }
+  let { error } = existing
+    ? await replace(existing.id)
+    : await db.from("calendar_connections").insert({
+      business_id: businessId, staff_id: null, provider: "google", ...credentials,
+    });
+  // 0037's business-level unique index: a concurrent first connect for this
+  // business inserted first. Its row now exists, so this consent replaces it
+  // exactly like a reconnect; one attempt, and any other error stays an error.
+  if (!existing && error?.code === "23505") {
+    const { data: winner, error: retryLookupError } = await businessRow();
+    if (retryLookupError || !winner) {
+      log.error("calendar connection lookup failed", { reason: "connection_conflict_lookup_failed" });
+      return done({ error: "exchange_failed" });
+    }
+    ({ error } = await replace(winner.id));
+  }
   if (error) {
-    log.error("calendar connection insert failed", { error: error.message });
+    log.error("calendar connection persistence failed", { error: error.message });
     return done({ error: "exchange_failed" });
   }
 

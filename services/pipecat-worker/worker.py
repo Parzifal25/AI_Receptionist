@@ -206,9 +206,9 @@ def _pipecat_language(code: Optional[str]):
         return None
 
 
-def _sarvam_key(selected: dict) -> str:
+def _sarvam_key(selected: dict, kind: str) -> str:
     """Profile credential first, then the deployment key the gateway also reads."""
-    return str(selected.get("apiKey") or os.environ.get("SARVAM_API_KEY") or os.environ.get("SARVAM_API") or "").strip()
+    return str(selected.get("apiKey") or os.environ.get(f"VOICE_{kind.upper()}_API_KEY") or os.environ.get("SARVAM_API_KEY") or os.environ.get("SARVAM_API") or "").strip()
 
 
 SPEECH_PROVIDERS = ("fake", "sarvam", "local")
@@ -233,6 +233,14 @@ def _speech_selection(kind: str, profile) -> tuple[dict, Optional[dict]]:
         if fallback_provider:
             selected["fallback"] = {"provider": fallback_provider}
     fallback = selected.pop("fallback", None)
+    # Profile models must be explicit, just as in the gateway schema. Never
+    # borrow a deployment model for a malformed tenant primary or fallback.
+    if profile is not None:
+        for candidate in (selected, fallback):
+            if candidate is not None and candidate.get("provider") == "sarvam":
+                model = candidate.get("model")
+                if not isinstance(model, str) or not model.strip():
+                    raise RuntimeError("Sarvam speech profile requires an explicit model")
     for candidate in (selected, fallback):
         if candidate is not None and candidate.get("provider") not in SPEECH_PROVIDERS:
             raise RuntimeError(f"Unsupported {kind.upper()} provider")
@@ -269,8 +277,23 @@ def _build_stt(voice: VoiceConfig, script: Optional[list[str]], profile=None):
     return with_fallback(service, _make_stt(fallback, voice, script))
 
 
+def _sarvam_model(selected: dict, kind: str) -> str:
+    """Profile model, then the deployment's; never a built-in default.
+
+    The worker used to fall back to saarika:v2.5 / bulbul:v2 while the gateway
+    fell back to saaras:v3-realtime / bulbul:v3, so one deployment could run
+    two model pairs (W4.2). The pair is the open pilot decision D17, so an
+    unset model refuses the call rather than choosing one (owner, 2026-10-16).
+    """
+    name = kind.upper()
+    model = str(selected.get("model") or os.environ.get(f"VOICE_{name}_MODEL") or "").strip()
+    if not model:
+        raise RuntimeError(f"VOICE_{name}_MODEL is required when the sarvam {name} provider is selected")
+    return model
+
+
 def _make_stt(selected: dict, voice: VoiceConfig, script: Optional[list[str]]):
-    api_key = _sarvam_key(selected)
+    api_key = _sarvam_key(selected, "stt")
     provider = selected["provider"]
     if provider == "fake":
         return FakeSTTService(script=script)
@@ -283,7 +306,7 @@ def _make_stt(selected: dict, voice: VoiceConfig, script: Optional[list[str]]):
     from pipecat.services.sarvam.stt import SarvamSTTService
 
     # Same deployment settings the gateway reads (services/voice-gateway/config.ts).
-    model = selected.get("model") or os.environ.get("VOICE_STT_MODEL") or os.environ.get("HALO_STT_MODEL", "saarika:v2.5")
+    model = _sarvam_model(selected, "stt")
     # `mode` is a constructor argument that only some models accept, so it is
     # passed only when the deployment configured one.
     mode = selected.get("mode") or os.environ.get("VOICE_STT_MODE")
@@ -316,7 +339,7 @@ def _build_tts(voice: VoiceConfig, profile=None):
 
 
 def _make_tts(selected: dict, voice: VoiceConfig):
-    api_key = _sarvam_key(selected)
+    api_key = _sarvam_key(selected, "tts")
     provider = selected["provider"]
     if provider == "fake":
         return FakeTTSService()
@@ -334,7 +357,7 @@ def _make_tts(selected: dict, voice: VoiceConfig):
     from pipecat.services.sarvam.tts import SarvamTTSService
 
     settings_kwargs: dict[str, Any] = {
-        "model": selected.get("model") or os.environ.get("VOICE_TTS_MODEL") or os.environ.get("HALO_TTS_MODEL", "bulbul:v2"),
+        "model": _sarvam_model(selected, "tts"),
         "language": _pipecat_language(voice.language),
     }
     # Agent voice, then the profile's, then the deployment default the gateway
@@ -344,11 +367,22 @@ def _make_tts(selected: dict, voice: VoiceConfig):
         settings_kwargs["voice"] = speaker
     if voice.speaking_rate:
         settings_kwargs["pace"] = float(voice.speaking_rate)
-    return SarvamTTSService(
+    # Explicit opt-in only. Default remains the existing linear16 path;
+    # real provider support/quality needs D17 and separately authorized smoke.
+    codec = os.environ.get("VOICE_TTS_OUTPUT_CODEC", "linear16")
+    kwargs = dict(
         api_key=api_key,
         settings=SarvamTTSService.Settings(**settings_kwargs),
         sample_rate=WIRE_SAMPLE_RATE,
     )
+    if codec == "linear16":
+        return SarvamTTSService(**kwargs)
+    if codec != "mulaw":
+        raise ValueError("unsupported Sarvam wire codec")
+    from sarvam_wire_tts import SarvamWireTTSService
+
+    return SarvamWireTTSService(output_codec=codec, **kwargs)
+
 
 
 def _build_vad(voice: VoiceConfig) -> SileroVADAnalyzer:
@@ -394,6 +428,7 @@ class VadRunner(FrameProcessor):
         super().__init__()
         self._vad = vad
         self._state = VADState.QUIET
+        self._in_utterance = False
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
@@ -402,12 +437,18 @@ class VadRunner(FrameProcessor):
             self._vad.set_sample_rate(frame.audio_in_sample_rate)
         if isinstance(frame, InputAudioRawFrame):
             state = await self._vad.analyze_audio(frame.audio)
-            if state != self._state:
-                if state == VADState.SPEAKING:
-                    await self.push_frame(VADUserStartedSpeakingFrame())
-                elif state == VADState.QUIET:
-                    await self.push_frame(VADUserStoppedSpeakingFrame())
-                self._state = state
+            # STOPPING is hangover silence, not sustained speech. Carry the
+            # analyzer's frame classification to the gate, which otherwise sees
+            # only utterance start/end events and cannot distinguish that gap.
+            frame.metadata["halo_vad_speech"] = state == VADState.SPEAKING
+            if state == VADState.SPEAKING and not self._in_utterance:
+                self._in_utterance = True
+                frame.metadata["halo_vad_start"] = True
+                await self.push_frame(VADUserStartedSpeakingFrame())
+            elif state == VADState.QUIET and self._in_utterance:
+                self._in_utterance = False
+                await self.push_frame(VADUserStoppedSpeakingFrame())
+            self._state = state
         await self.push_frame(frame, direction)
 
 
@@ -544,7 +585,7 @@ class HaloWorkerSession:
             worker="pipecat-halo-worker",
         )
         self._gate = MediaGate(self._control)
-        self._gate.set_playout_waiter(self._wait_for_playout)
+        self._gate.set_playout_starter(self._start_playout_wait)
 
         control_task = asyncio.create_task(self._control.run())
         try:
@@ -722,15 +763,19 @@ class HaloWorkerSession:
         except asyncio.CancelledError:
             pass
 
-    async def _wait_for_playout(self, playback_id: str, chunk_index: int) -> bool:
+    def _start_playout_wait(self, playback_id: str, chunk_index: int):
+        """Reserve the FIFO mark before MediaGate starts the next synthesis."""
         name = "halo-" + uuid4().hex
         future = asyncio.get_running_loop().create_future()
         self._playout_marks[name] = future
         self._sink.outgoing.put_nowait(("halo_mark", name, self._audio_generation))
-        try:
-            return await asyncio.wait_for(future, timeout=45)
-        finally:
-            self._playout_marks.pop(name, None)
+
+        async def wait():
+            try:
+                return await asyncio.wait_for(future, timeout=45)
+            finally:
+                self._playout_marks.pop(name, None)
+        return wait()
 
     def _drop_buffered_audio(self) -> None:
         """Cut queued AND currently paced audio; invalidate all pending marks."""
@@ -751,7 +796,7 @@ class HaloWorkerSession:
         if self._serializer is None or not frame.audio:
             return
         try:
-            messages = self._serializer._serialize_audio(frame.audio)
+            messages = self._serializer._serialize_audio(frame.audio, frame.metadata.get("halo_audio_encoding", "pcm16"))
         except Exception:
             log.error("audio serialization failed")
             return
@@ -808,6 +853,34 @@ async def _handler(socket: ServerConnection) -> None:
     await HaloWorkerSession(socket).run()
 
 
+def _check_speech_models() -> None:
+    """Refuse to start when the deployment selects Sarvam without a model.
+
+    Same explicit-model rule as the gateway, including every configured
+    tenant profile's primary and fallback. Error messages exclude config data.
+    """
+    for kind in ("stt", "tts"):
+        selected, fallback = _speech_selection(kind, None)
+        for candidate in (selected, fallback):
+            if candidate is not None and candidate["provider"] == "sarvam":
+                _sarvam_model(candidate, kind)
+    import json
+    try:
+        profiles = json.loads(os.environ.get("VOICE_PROFILES_JSON", "{}"))
+        if not isinstance(profiles, dict):
+            raise ValueError()
+        for tenant_profiles in profiles.values():
+            if not isinstance(tenant_profiles, dict):
+                raise ValueError()
+            for profile in tenant_profiles.values():
+                if not isinstance(profile, dict) or not all(isinstance(profile.get(k), dict) for k in ("stt", "tts")):
+                    raise ValueError()
+                for kind in ("stt", "tts"):
+                    _speech_selection(kind, profile)
+    except (ValueError, TypeError, AttributeError):
+        raise RuntimeError("Invalid speech profile configuration") from None
+
+
 def _preload_local_speech() -> None:
     """Load local models before the first call when the deployment selects them.
 
@@ -835,6 +908,7 @@ async def main() -> None:
             loop.add_signal_handler(sig, stop.set)
         except NotImplementedError:  # pragma: no cover - non-unix
             pass
+    _check_speech_models()
     _preload_local_speech()
     async with serve(_handler, host, port):
         log.info("HALO pipecat worker listening on ws://%s:%s%s", host, port, MEDIA_PATH)

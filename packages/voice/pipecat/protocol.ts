@@ -55,6 +55,8 @@ export const pipecatEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("speech_started"), at: z.number().optional() }),
   /** Remote VAD endpointed the caller's utterance. */
   z.object({ type: z.literal("speech_stopped"), at: z.number().optional() }),
+  // Worker-measured caller audio; raw VAD starts are not barge-in proof.
+  z.object({ type: z.literal("speech_progress"), speechMs: z.number().finite().nonnegative().max(3_600_000) }),
   z.object({
     type: z.literal("transcript"),
     final: z.boolean(),

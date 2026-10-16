@@ -74,6 +74,8 @@ describe("RemoteVoiceSession", () => {
     await h.settle(50);
     // Caller starts talking again while the model is still thinking.
     await h.caller.startSpeaking();
+    // Raw VAD presence is not yet sustained-speech evidence (W4.7).
+    h.session.receiveControl({ type: "speech_progress", speechMs: 300 });
     await h.settle(10);
     expect(h.eventsOf("turn_cancelled")).toHaveLength(1);
     // Nothing was committed, so nothing was persisted for that turn.

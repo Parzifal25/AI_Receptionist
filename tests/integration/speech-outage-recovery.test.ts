@@ -31,7 +31,7 @@ describe("TTS: Sarvam outage, fallback, recovery", () => {
   function setup() {
     const fallback = new FakeTtsProvider();
     const tts = new FallbackTtsProvider([
-      { provider: new SarvamTtsProvider({ apiKey: "sim-key", defaultSpeaker: "anushka", baseUrl: sim.baseUrl }) },
+      { provider: new SarvamTtsProvider({ apiKey: "sim-key", defaultSpeaker: "anushka", model: "synthetic-tts-model", baseUrl: sim.baseUrl }) },
       { provider: fallback }], circuit());
     /** Speaks one line and says who spoke it, judged by the audio itself. */
     const speak = async (signal = new AbortController().signal): Promise<"sarvam" | "fallback" | "silence"> => {
@@ -141,7 +141,7 @@ describe("STT: Sarvam outage, fallback, recovery", () => {
   const options = { language: "te-IN", alternativeLanguages: [], format, interimResults: true, phraseHints: [] };
   function setup() {
     const fallback = new FakeSttProvider();
-    const stt = new FallbackSttProvider([new SarvamSttProvider({ apiKey: "sim-key", baseUrl: sim.baseUrl }), fallback], undefined, circuit());
+    const stt = new FallbackSttProvider([new SarvamSttProvider({ apiKey: "sim-key", model: "synthetic-stt-model", baseUrl: sim.baseUrl }), fallback], undefined, circuit());
     const open = () => {
       const events: SttEvent[] = [], own = { ...options };
       const stream = stt.open(own, event => events.push(event));

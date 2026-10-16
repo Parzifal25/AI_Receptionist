@@ -18,7 +18,7 @@ const MULAW_8K: AudioFormat = { encoding: "mulaw", sampleRate: 8000, channels: 1
 const PCM16_8K: AudioFormat = { encoding: "pcm16le", sampleRate: 8000, channels: 1 };
 
 function provider(harness: SocketHarness) {
-  return new SarvamTtsProvider({ apiKey: "test-key", defaultSpeaker: "anushka", connect: harness.factory });
+  return new SarvamTtsProvider({ apiKey: "test-key", defaultSpeaker: "anushka", model: "synthetic-tts-model", connect: harness.factory });
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -55,8 +55,10 @@ describe("SarvamTtsProvider", () => {
   });
 
   it("refuses to construct without a credential or a voice", () => {
-    expect(() => new SarvamTtsProvider({ apiKey: "", defaultSpeaker: "anushka" })).toThrow(/API key/i);
-    expect(() => new SarvamTtsProvider({ apiKey: "k", defaultSpeaker: "" })).toThrow(/speaker/i);
+    expect(() => new SarvamTtsProvider({ apiKey: "", defaultSpeaker: "anushka", model: "synthetic-tts-model" })).toThrow(/API key/i);
+    expect(() => new SarvamTtsProvider({ apiKey: "k", defaultSpeaker: "", model: "synthetic-tts-model" })).toThrow(/speaker/i);
+    // No built-in model either: it must match the speaker's family (W4.2).
+    expect(() => new SarvamTtsProvider({ apiKey: "k", defaultSpeaker: "anushka", model: "" })).toThrow(/requires a model/);
   });
 
   it("configures the vendor for the requested language, voice and telephony audio", async () => {
@@ -216,7 +218,7 @@ describe("SarvamTtsProvider", () => {
 
   it("times out a vendor that accepts the text and never speaks", async () => {
     const harness = socketHarness();
-    const slow = new SarvamTtsProvider({ apiKey: "k", defaultSpeaker: "anushka", connect: harness.factory, firstAudioTimeoutMs: 5 });
+    const slow = new SarvamTtsProvider({ apiKey: "k", defaultSpeaker: "anushka", model: "synthetic-tts-model", connect: harness.factory, firstAudioTimeoutMs: 5 });
     const drain = (async () => {
       for await (const _ of slow.synthesize({ text: "hello", language: "en-IN", format: MULAW_8K }, new AbortController().signal)) void _;
     })();

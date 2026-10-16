@@ -82,7 +82,7 @@ class HaloMediaSerializer(FrameSerializer):
             # Barge-in: tell the carrier to drop its playout buffer.
             return json.dumps({"event": "clear", **({"streamSid": self.stream_id} if self.twilio else {})})
         if isinstance(frame, OutputAudioRawFrame):
-            return self._serialize_audio(frame.audio)
+            return self._serialize_audio(frame.audio, frame.metadata.get("halo_audio_encoding", "pcm16"))
         return None
 
     async def deserialize(self, data: str | bytes) -> Frame | None:
@@ -128,7 +128,7 @@ class HaloMediaSerializer(FrameSerializer):
                 return None
         return None
 
-    def _serialize_audio(self, audio: bytes) -> Optional[list[str]]:
+    def _serialize_audio(self, audio: bytes, encoding: str = "pcm16") -> Optional[list[str]]:
         """Convert PCM16 to μ-law and cut it into wire-size media frames.
 
         The pipeline hands over one PCM chunk per TTS burst (arbitrary size);
@@ -141,7 +141,9 @@ class HaloMediaSerializer(FrameSerializer):
         # Pipeline audio is PCM16 LE at 8 kHz (what the TTS services produce
         # and what the transport paces); the wire is mu-law. Same conversion
         # as `linearToMulaw` in packages/voice/audio.ts, bit for bit.
-        mulaw = pcm16_to_mulaw(audio)
+        if encoding not in ("pcm16", "mulaw"):
+            raise ValueError("unsupported output encoding")
+        mulaw = audio if encoding == "mulaw" else pcm16_to_mulaw(audio)
         return [
             json.dumps(
                 ({"event": "media", "streamSid": self.stream_id, "media": {"payload": base64.b64encode(mulaw[i : i + WIRE_CHUNK_BYTES]).decode("utf-8")}}

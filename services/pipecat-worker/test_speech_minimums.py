@@ -31,7 +31,8 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection
 import test_media_gate as gate_harness  # module import: its TestCase must not be re-collected here
 from test_media_gate import RATE, pcm
-from worker import _build_vad
+from worker import _build_vad, VadRunner
+from pipecat.audio.vad.vad_analyzer import VADState
 
 IDENTITY = SessionIdentity.from_json({
     "tenantId": "t-1", "agentId": "a-1", "agentVersionId": "av-1", "agentVersion": 1,
@@ -155,6 +156,54 @@ class SpeechMinimumTests(unittest.IsolatedAsyncioTestCase):
         await self._drain(0.02)
         self.assertEqual(0, self._interruptions())
         await self.gate.close()
+
+    async def test_thinking_progress_survives_a_short_backchannel_without_playback(self):
+        await self.gate.on_ready(IDENTITY, voice(vad_min=120, barge_min=250))
+        await self.gate.process_frame(VADUserStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
+        await self.gate.process_frame(
+            InterimTranscriptionFrame(text="sare", user_id="", timestamp=""), FrameDirection.DOWNSTREAM
+        )
+        await self._caller_audio(120)
+        self.assertEqual([], self.sent("speech_progress"))
+        await self._caller_audio(20)
+        await self._caller_audio(400)
+        self.assertEqual(1, len(self.sent("speech_progress")))
+        self.assertGreaterEqual(self.sent("speech_progress")[0]["args"][0], 250)
+        await self.gate.close()
+
+
+    async def test_vad_hangover_silence_does_not_count_toward_barge_in(self):
+        await self._playing(voice(vad_min=120, barge_min=250))
+        await self.gate.process_frame(VADUserStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
+        for _ in range(30):
+            frame = InputAudioRawFrame(audio=pcm(20), sample_rate=RATE, num_channels=1)
+            frame.metadata["halo_vad_speech"] = False
+            await self.gate.process_frame(frame, FrameDirection.DOWNSTREAM)
+        self.assertEqual(0, self._interruptions())
+        self.assertEqual([], self.sent("speech_progress"))
+        await self.gate.close()
+
+
+
+class VadHangoverTests(unittest.IsolatedAsyncioTestCase):
+    async def test_stopping_marks_silence_and_resume_does_not_emit_a_second_start(self):
+        from unittest.mock import AsyncMock, patch
+        from pipecat.processors.frame_processor import FrameProcessor
+        analyzer = type("Analyzer", (), {})()
+        analyzer.analyze_audio = AsyncMock(side_effect=[VADState.SPEAKING, VADState.STOPPING, VADState.SPEAKING, VADState.QUIET])
+        runner = VadRunner(analyzer)
+        runner.push_frame = AsyncMock()
+        frames = [InputAudioRawFrame(audio=pcm(20), sample_rate=RATE, num_channels=1) for _ in range(4)]
+        with patch.object(FrameProcessor, "process_frame", new=AsyncMock()):
+            for frame in frames:
+                await runner.process_frame(frame, FrameDirection.DOWNSTREAM)
+        emitted = [call.args[0] for call in runner.push_frame.call_args_list]
+        self.assertEqual(1, sum(isinstance(f, VADUserStartedSpeakingFrame) for f in emitted))
+        self.assertEqual(1, sum(isinstance(f, VADUserStoppedSpeakingFrame) for f in emitted))
+        self.assertEqual([True, False, True, False], [f.metadata["halo_vad_speech"] for f in frames])
+        self.assertTrue(frames[0].metadata["halo_vad_start"])
+        self.assertNotIn("halo_vad_start", frames[2].metadata)
+
 
 
 class VadParameterTests(unittest.TestCase):

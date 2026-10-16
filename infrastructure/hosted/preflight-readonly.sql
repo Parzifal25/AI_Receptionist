@@ -49,15 +49,18 @@ select to_regclass('public.businesses') is not null as has_0001,
                       and attname = 'telemetry_correlation_id' and not attisdropped)
          and exists(select 1 from pg_attribute where attrelid = to_regclass('public.workflow_timers')
                       and attname = 'telemetry_correlation_id' and not attisdropped)) as has_0036,
+       -- 0037 (P2-R1): the business-level calendar connection unique index.
+       to_regclass('public.calendar_connections_business_level_unique') is not null as has_0037,
        (select count(*) from pg_tables where schemaname = 'public') as public_tables
 \gset
 select :'has_0001' as has_0001, :'has_0017' as has_0017, :'has_0032' as has_0032,
        :'has_0033' as has_0033, :'has_0034' as has_0034, :'has_0035' as has_0035, :'has_0036' as has_0036,
+       :'has_0037' as has_0037,
        :'public_tables' as public_tables;
 -- Machine-readable copy; the offline comparison checks it against the ledger.
 select 'objects|0001=' || :'has_0001' || '|0017=' || :'has_0017' || '|0032=' || :'has_0032'
        || '|0033=' || :'has_0033' || '|0034=' || :'has_0034' || '|0035=' || :'has_0035'
-       || '|0036=' || :'has_0036' as objects_row;
+       || '|0036=' || :'has_0036' || '|0037=' || :'has_0037' as objects_row;
 
 \echo '== 4b. Ownership (STOP on unexpected owners; default ACL changes in 0034 are creator-specific)'
 select r.rolname as owner,
@@ -192,6 +195,15 @@ select pg_get_userbyid(d.defaclrole) as defaults_of_role,
              and not convalidated) as knowledge_composite_fks_not_valid;
 \else
   select 'no 0033 yet' as knowledge_serving;
+\endif
+
+\echo '== 10. Calendar connections (0037 aborts while duplicate business-level groups exist; resolve under separate authorization, never automatically)'
+\if :has_0001
+  select count(*) as calendar_business_level_duplicate_groups
+    from (select 1 from public.calendar_connections where staff_id is null
+           group by business_id, provider having count(*) > 1) d;
+\else
+  select 'no 0001 yet' as calendar_connections;
 \endif
 
 rollback;
