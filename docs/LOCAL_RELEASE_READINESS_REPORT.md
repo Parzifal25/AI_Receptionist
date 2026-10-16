@@ -1,3 +1,40 @@
+# HALO local release-readiness report — current reconciliation
+
+**2026-10-15–16 · P2-LOOP · Codex · PARTIALLY COMPLETE / HOSTED VERIFICATION PENDING.**
+Current starting baseline was clean at `9b35beed482f269a9b1d2db1ea9b93f639f87cbc`
+on `Phase-2-Security-Hardening`; branch and HEAD remain unchanged. The prior
+dirty baseline below is historical. No commit is authorized for this new diff.
+
+Current report: [six-priority review and owner/hosted checklist](PHASE2_COMPLETION_REVIEW.md).
+Task cards: [P2-LOOP](PHASE2_COMPLETION_TASK_CARD.md), [W4.3](W4_3_VOICE_PIPELINING_TASK.md).
+Machine status and command ledger remain in `docs/evidence/`.
+
+- **Source/local test:** W4.1 reviewed and corrected (hangover silence counted as
+  speech), W4.7 thinking cancellation implemented, W4.3 bounded TTS/mark pipelining
+  measured. Calendar reconnect now preserves working credentials on persistence
+  failure. Production timer correlation decoder fixed after a failing regression.
+- **Local test:** final TypeScript suite 1,818 passed / 31 skipped, 182 files
+  passed / 3 skipped; worker 100 tests, OK (1 skipped). Typecheck, lint,
+  architecture, neutrality, golden contracts and configuration preflight pass.
+  Installed-model opt-in contracts also pass: TS 10/10 and worker 20/20, covering
+  the general model skips (synthetic English/Telugu round trip, not a human demo).
+- **Disposable DB:** all 36 migrations; RLS 669 ok / 0 FAIL; 26 opt-in DB cases;
+  recovery 83/83; audit 5/5 and actual-adapter HTTP 8/8; expected bootstrap A/P/C.
+- **Local test:** canonical build passes in a credential-free source-matched
+  snapshot with the owner's exact public Google Fonts authorization. W4.2 needs
+  D17; W4.8 needs the explicit prefix decision in the current report.
+- **Source:** W0.2's earlier baseline grouping is already committed; only this
+  task's new commit awaits authorization. Separate reviewer approval, target
+  T1–T10, provider/real-model evaluation and owner decisions remain outstanding.
+  W4.4/W4.5/W4.9 are locally implemented, benchmarked and manually reviewed;
+  see the dedicated task card for durability and codec limitations.
+- **Source:** no migration changed; no hosted/shared target, external inference,
+  speech, calendar, messaging, outbound, paid resource, deployment, commit or push.
+  All newly created disposable containers were removed; pre-existing containers
+  retained. Public documentation reads and the authorized public-font build fetch are disclosed.
+
+## Historical prior audit (preserved below)
+
 # HALO local release-readiness report
 
 **Date:** 2026-10-15 · **Task:** autonomous local completion and release-readiness audit (owner instruction) · **Author:** Claude Code (builder role, G3)
@@ -83,8 +120,8 @@ Every fix has a regression test that was run against the pre-fix code (from the 
 |---|---|---|
 | W4.3 TTS pipelining, W4.4 parallel reads and in-memory reuse, W4.5 async persistence, W4.9 socket pre-warm, fixed-line cache and μ-law | NOT STARTED | Decision-free performance cards, not defects. Each touches voice invariants (single playback, delivery truth, commit-point cancellation) and needs its own invariant tests, a measured mock-harness delta and a Codex review under the `AGENTS.md` card workflow. No latency target exists (D9). Deferred honestly, not claimed. |
 | W4.7 gate barge-in while thinking | NOT STARTED | Depends on W4.1, which has not passed Codex review; `AGENTS.md` starts dependent tasks only after review. It also needs per-language backchannel lists. |
-| W4.8 stable prompt prefix | BLOCKED — owner clarification | Its acceptance ("order only") contradicts the Rules text ("…knowledge base **above**") and the composer's documented facts-before-policy design. It also changes model behaviour, which can't be measured locally (D8, D17). |
-| W4.2 model ID resolution | BLOCKED — D17 | Configured deployments already share `VOICE_STT_MODEL`/`VOICE_TTS_MODEL` and `VOICE_PROFILES_JSON`. Only the unset defaults differ (`saarika:v2.5`/`bulbul:v2` vs `saaras:v3-realtime`/`bulbul:v3`), and unifying them chooses a model. |
+| W4.8 stable prompt prefix | BLOCKED — owner clarification (*superseded 2026-10-16: closed as deferred by owner decision [D24](DECISIONS.md#d24--prompt-section-order-w48)*) | Its acceptance ("order only") contradicts the Rules text ("…knowledge base **above**") and the composer's documented facts-before-policy design. It also changes model behaviour, which can't be measured locally (D8, D17). |
+| W4.2 model ID resolution | BLOCKED — D17 (*superseded 2026-10-16: locally complete by owner decision, no built-in model on either path; the pair stays [D17](DECISIONS.md#d17--pilot-speech-and-llm-provider-route)*) | Configured deployments already share `VOICE_STT_MODEL`/`VOICE_TTS_MODEL` and `VOICE_PROFILES_JSON`. Only the unset defaults differ (`saarika:v2.5`/`bulbul:v2` vs `saaras:v3-realtime`/`bulbul:v3`), and unifying them chooses a model. |
 | W4.10 phone speech streaming | BLOCKED — D20 | — |
 | W1.3 local calendar-credential backfill | BLOCKED — written write authorization | It writes to the shared local stack, which this instruction does not authorize. |
 | W1.4 gateway → app import | BLOCKED — D2 | — |

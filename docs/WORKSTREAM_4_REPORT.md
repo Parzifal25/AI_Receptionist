@@ -199,3 +199,12 @@ Recorded without changing the findings above. Full context: [LOCAL_RELEASE_READI
 - **"WS3 evidence preserved" was incomplete.** WS4 did not rerun `check-rollout-rehearsal.mjs` or `check-rollout-docs.mjs`; both failed once `0036` existed (67/70; missing map row). Fixed with a documented compatibility change ([WORKSTREAM_3_REPORT.md addendum](WORKSTREAM_3_REPORT.md#addendum--local-release-readiness-audit-2026-10-15)); the rehearsal now also restores a post-0036 backup (83/83). This is local evidence for "backup/restore including 0036"; hosted backup remains NOT VERIFIED.
 - **Privacy finding fixed:** `ResendMessagingProvider` logged the recipient address and subject on every successful send (`to`/`subject` are not redacted logger keys). Found by the new W7.2 log-leak sweep; the success log now carries only channel, HTML flag and attachment count. Regression: `tests/integration/log-leak-sweep.test.ts` (fails on the pre-fix code).
 - **DECISIONS index** rows for D7 and D18 still read PENDING after this report updated their entries; reconciled without changing any state.
+
+## P2-LOOP Codex review addendum — 2026-10-15
+
+**Source/local test:** production timer decoding dropped `telemetry_correlation_id`;
+the old in-memory timer test did not exercise that decoder. P2-F6 restores it
+with a fail-before/pass-after production-adapter/engine regression. Raw worker
+playback exceptions were also removed from logging in the W4.3 failure path.
+See [current review](PHASE2_COMPLETION_REVIEW.md) and fresh command ledger;
+no schema, hosted backend, retention approval or deployment changed.

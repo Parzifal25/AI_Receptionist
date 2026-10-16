@@ -1,0 +1,136 @@
+1 | node node_modules/vitest/vitest.mjs run tests/integration/calendar-reconnection.test.ts | FAIL  tests/integration/calendar-reconnection.test.ts > reconnects in place and scopes the write to tenant, provider, business-level row and id
+AssertionError: expected 'http://localhost:3000/dashboard/setti…' to contain 'calendar_connected=1'; FAIL  tests/integration/calendar-reconnection.test.ts > inserts on first connection
+AssertionError: expected [ 'delete', 'insert' ] to deeply equal [ 'insert' ]; Test Files  1 failed (1); Tests  3 failed | 3 passed (6) | /tmp/halo-phase2-loop/calendar-before.log
+1 | node node_modules/vitest/vitest.mjs run tests/integration/calendar-reconnection.test.ts tests/integration/tenant-isolation-routes.test.ts | FAIL  tests/integration/calendar-reconnection.test.ts > reconnects in place and scopes the write to tenant, provider, business-level row and id
+AssertionError: expected 'http://localhost:3000/dashboard/setti…' to contain 'calendar_connected=1'; Test Files  1 failed | 1 passed (2); Tests  1 failed | 18 passed (19) | /tmp/halo-phase2-loop/calendar-after.log
+1 | npm test -- --maxWorkers=2 | FAIL  tests/integration/web-tts-gateway.test.ts > never reports empty or failed synthesis as playable audio
+Error: listen EPERM: operation not permitted 127.0.0.1; FAIL  tests/unit/hosted-preflight-assessment.test.ts > saved hosted preflight worksheet (no connections) > CLI returns all groups unverified for missing, malformed or null evidence
+SyntaxError: Unexpected end of JSON input; Test Files  8 failed | 168 passed | 3 skipped (179); Tests  42 failed | 1740 passed | 31 skipped (1813) | /tmp/halo-phase2-loop/baseline-tests.log
+1 | node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts | FAIL  tests/unit/voice/thinking-interruption.test.ts > in-process short backchannel hmm preserves thinking
+ FAIL  tests/unit/voice/thinking-interruption.test.ts > in-process short backchannel అవును preserves thinking; FAIL  tests/unit/voice/thinking-interruption.test.ts > in-process short backchannel sare preserves thinking
+AssertionError: expected true to be false // Object.is equality; Test Files  1 failed (1); Tests  7 failed | 3 passed (10) | /tmp/halo-phase2-loop/thinking-before.log
+1 | node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts tests/unit/voice/remote-session.test.ts tests/unit/voice/voice-session.test.ts tests/integration/calendar-reconnection.test.ts | FAIL  tests/unit/voice/remote-session.test.ts > RemoteVoiceSession > cancels an uncommitted turn on barge-in and merges the superseded utterance into the next one
+AssertionError: expected [] to have a length of 1 but got +0; Test Files  1 failed | 3 passed (4); Tests  1 failed | 56 passed (57) | /tmp/halo-phase2-loop/thinking-after.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_speech_minimums.py | Ran 9 tests in 0.694s; OK | /tmp/halo-phase2-loop/worker-focused.log
+0 | node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts tests/unit/voice/remote-session.test.ts tests/unit/voice/voice-session.test.ts tests/integration/calendar-reconnection.test.ts | Test Files  4 passed (4); Tests  59 passed (59) | /tmp/halo-phase2-loop/focused-final.log
+1 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py | Historical failed attempt; preserved exit and tool output. Initial full suite sandbox EPERM (42 failures); first unrestricted namespace loopback down ENETUNREACH (39 failures); initial worker loopback down (1 error). Exact association follows command/order. | /tmp/halo-phase2-loop/worker-full.log
+1 | npm test -- --maxWorkers=2 | Historical failed attempt; preserved exit and tool output. Initial full suite sandbox EPERM (42 failures); first unrestricted namespace loopback down ENETUNREACH (39 failures); initial worker loopback down (1 error). Exact association follows command/order. | /tmp/halo-phase2-loop/full-tests.log
+0 | .venv/bin/python services/pipecat-worker/benchmark_chunk_pipeline.py | } | /tmp/halo-phase2-loop/pipeline-before.log
+0 | npm run typecheck | > tsc --noEmit | /tmp/halo-phase2-loop/typecheck.log
+0 | npm run lint | > eslint | /tmp/halo-phase2-loop/lint.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py | OK (skipped=1) | /tmp/halo-phase2-loop/worker-full.log
+1 | .venv/bin/python services/pipecat-worker/benchmark_chunk_pipeline.py | Historical failed attempt; preserved exit and tool output. Initial full suite sandbox EPERM (42 failures); first unrestricted namespace loopback down ENETUNREACH (39 failures); initial worker loopback down (1 error). Exact association follows command/order. | /tmp/halo-phase2-loop/pipeline-after.log
+0 | .venv/bin/python services/pipecat-worker/benchmark_chunk_pipeline.py | } | /tmp/halo-phase2-loop/pipeline-after.log
+0 | npm test -- --maxWorkers=2 |    Duration  47.75s (transform 6.16s, setup 3.67s, import 28.27s, tests 20.17s, environment 39ms) | /tmp/halo-phase2-loop/full-tests.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_chunk_pipeline.py | Ran 4 tests in 0.476s; OK | /tmp/halo-phase2-loop/pipeline-tests.log
+0 | npm run check:architecture | check:architecture OK — runtime + voice boundaries, provider direction, closed tool registry, RLS on every table. | /tmp/halo-phase2-loop/architecture-1792084243080383770.log
+0 | npm run check:neutral | check:neutral OK — packages/ are industry-neutral and boundary-clean. | /tmp/halo-phase2-loop/neutral-1792084243532107053.log
+1 | npm run preflight:ci | Node.js v22.22.2 | /tmp/halo-phase2-loop/preflight-1792084244387094275.log
+0 | npm run preflight:ci | ✅ Configuration checks passed. Provider, database and deployment readiness require their separate verification gates. | /tmp/halo-phase2-loop/preflight-1792084268953369864.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_chunk_pipeline.py | Ran 5 tests in 0.612s; OK | /tmp/halo-phase2-loop/pipeline-tests-1792084355542573587.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py | Ran 89 tests in 12.881s; OK (skipped=1) | /tmp/halo-phase2-loop/worker-full-1792084356450304515.log
+0 | node node_modules/vitest/vitest.mjs run tests/integration/calendar-reconnection.test.ts tests/unit/voice/pipecat-protocol.test.ts tests/unit/voice/thinking-interruption.test.ts | Test Files  3 passed (3); Tests  33 passed (33) | /tmp/halo-phase2-loop/calendar-protocol-1792084379409522920.log
+1 | npm run build | Failed to fetch `Geist` from Google Fonts.
+
+
+    at ignore-listed frames | /tmp/halo-phase2-loop/build-1792084412851046395.log
+0 | npm run voice:latency -- --calls 2 --turns 2 | one 20 ms μ-law frame = 20 ms of audio | /tmp/halo-phase2-loop/voice-latency-1792084500153901367.log
+1 | node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts | FAIL  tests/unit/voice/thinking-interruption.test.ts > in-process VAD hangover silence after a short cough does not count as speech
+AssertionError: expected true to be false // Object.is equality; Test Files  1 failed (1); Tests  1 failed | 12 passed (13) | /tmp/halo-phase2-loop/hangover-before-1792085644117634421.log
+1 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_speech_minimums.py | FAIL: test_vad_hangover_silence_does_not_count_toward_barge_in (test_speech_minimums.SpeechMinimumTests)
+----------------------------------------------------------------------; Ran 10 tests in 0.730s; FAILED (failures=1) | /tmp/halo-phase2-loop/worker-hangover-before-1792085645195666420.log
+0 | node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts tests/unit/voice/voice-session.test.ts tests/unit/voice/remote-session.test.ts | Test Files  3 passed (3); Tests  54 passed (54) | /tmp/halo-phase2-loop/hangover-after-1792085664566109964.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_speech_minimums.py | Ran 10 tests in 0.610s; OK | /tmp/halo-phase2-loop/worker-hangover-after-1792085665952276129.log
+0 | node node_modules/vitest/vitest.mjs run tests/unit/rank-fusion.test.ts tests/unit/runtime/knowledge-and-channel.test.ts tests/unit/runtime/prompt-composer.test.ts tests/integration/runtime-golden-transcripts.test.ts | Test Files  4 passed (4); Tests  43 passed (43) | /tmp/halo-phase2-loop/knowledge-golden-1792085686413394533.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_speech_minimums.py | Ran 11 tests in 0.768s; OK | /tmp/halo-phase2-loop/worker-focused-1792085685281158525.log
+0 | npm run typecheck | > tsc --noEmit | /tmp/halo-phase2-loop/typecheck-final-1792085718708533690.log
+0 | npm run lint | > eslint | /tmp/halo-phase2-loop/lint-final-1792085719940165039.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py | Ran 91 tests in 12.740s; OK (skipped=1) | /tmp/halo-phase2-loop/worker-full-1792085920659077834.log
+1 | npm run build | Failed to fetch `Geist` from Google Fonts.
+
+
+    at ignore-listed frames | /tmp/halo-phase2-loop/build-1792085919488251854.log
+1 | node node_modules/vitest/vitest.mjs run tests/unit/workflow-timer-correlation.test.ts | FAIL  tests/unit/workflow-timer-correlation.test.ts > production timer deserialization retains persisted correlation through the engine
+AssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]; Test Files  1 failed (1); Tests  1 failed (1) | /tmp/halo-phase2-loop/timer-before-1792085965280877903.log
+0 | node node_modules/vitest/vitest.mjs run tests/unit/workflow-timer-correlation.test.ts tests/integration/ws4-scheduled-correlation.test.ts tests/integration/workflow-engine.test.ts | Test Files  3 passed (3); Tests  17 passed (17) | /tmp/halo-phase2-loop/timer-after-1792085974324973161.log
+0 | npm run typecheck | > tsc --noEmit | /tmp/halo-phase2-loop/typecheck-final-1792086011045337302.log
+0 | npm run lint | > eslint | /tmp/halo-phase2-loop/lint-final-1792086012326184212.log
+0 | npm test -- --maxWorkers=2 | Test Files  179 passed | 3 skipped (182); Tests  1808 passed | 31 skipped (1839) | /tmp/halo-phase2-loop/full-tests-1792086009614022948.log
+0 | npm run check:architecture | check:architecture OK — runtime + voice boundaries, provider direction, closed tool registry, RLS on every table. | /tmp/halo-phase2-loop/architecture-final-1792086186717438270.log
+0 | npm run check:neutral | check:neutral OK — packages/ are industry-neutral and boundary-clean. | /tmp/halo-phase2-loop/neutral-final-1792086187279038587.log
+0 | .venv/bin/python services/pipecat-worker/benchmark_chunk_pipeline.py | } | /tmp/halo-phase2-loop/pipeline-final-1792086185566867122.log
+-15 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py | Task-owned sandboxed Pipecat fixture stalled at teardown; child terminated SIGTERM. Corrected unrestricted loopback-only isolation passed; exact sandbox cause unproven. | /tmp/halo-phase2-loop/baseline-worker.log
+0 | node node_modules/vitest/vitest.mjs run tests/contracts/local.contract.test.ts --maxWorkers=1 | Test Files  1 passed (1); Tests  10 passed (10) | /tmp/halo-phase2-loop/local-model-ts-1792087200855977232.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_local_speech.py | Ran 20 tests in 33.405s; OK | /tmp/halo-phase2-loop/local-model-worker-1792090143123657464.log
+-15 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_local_speech.py | Task-owned sandboxed Pipecat fixture stalled at teardown; child terminated SIGTERM. Corrected unrestricted loopback-only isolation passed; exact sandbox cause unproven. | /tmp/halo-phase2-loop/local-model-worker-1792087258874619907.log
+0 | node node_modules/vitest/vitest.mjs run tests/unit/voice/call-context-cache.test.ts tests/integration/voice-runtime.test.ts tests/unit/runtime tests/integration/runtime-cancellation.test.ts --maxWorkers=2 | Test Files  19 passed (19); Tests  151 passed (151) | /tmp/halo-phase2-loop/w44-focused-1792090608183591138.log
+0 | node --import tsx scripts/voice-context-benchmark.ts | } | /tmp/halo-phase2-loop/w44-benchmark-1792090645739003735.log
+2 | npm run typecheck |     Type 'unknown' is not assignable to type '{ version: 1; intent: string | null; slots: Record<string, string>; qualification: Record<string, string>; pendingConfirmation: { toolName: string; arguments: Record<string, string>; requestedAt: string; } | null; ... 7 more ...; responseLanguage: { ...; } | null; } | null'. | /tmp/halo-phase2-loop/w44-typecheck-1792090657012831928.log
+0 | node --import tsx scripts/voice-context-benchmark.ts | } | /tmp/halo-phase2-loop/w44-benchmark-final-1792090674680904537.log
+0 | npm run check:architecture | check:architecture OK — runtime + voice boundaries, provider direction, closed tool registry, RLS on every table. | /tmp/halo-phase2-loop/w44-architecture-1792090676949555753.log
+0 | npm run lint | > eslint | /tmp/halo-phase2-loop/w44-lint-1792090658191043292.log
+0 | npm run typecheck | > tsc --noEmit | /tmp/halo-phase2-loop/w44-typecheck-final-1792090691142259614.log
+0 | node node_modules/vitest/vitest.mjs run tests/unit/voice/call-context-cache.test.ts tests/integration/voice-runtime.test.ts tests/unit/runtime/cancellation.test.ts tests/unit/runtime/agent-budgets.test.ts --maxWorkers=2 | Test Files  4 passed (4); Tests  20 passed (20) | /tmp/halo-phase2-loop/w44-reviewed-1792090713694874574.log
+0 | node node_modules/vitest/vitest.mjs run tests/integration/voice-runtime.test.ts tests/unit/runtime/cancellation.test.ts tests/unit/voice/voice-session.test.ts tests/unit/voice/remote-session.test.ts --maxWorkers=2 | Test Files  4 passed (4); Tests  54 passed (54) | /tmp/halo-phase2-loop/w45-existing-1792090795502691957.log
+0 | node node_modules/vitest/vitest.mjs run tests/unit/voice/ordered-persistence.test.ts tests/integration/voice-runtime.test.ts tests/unit/runtime/cancellation.test.ts --maxWorkers=2 | Test Files  3 passed (3); Tests  16 passed (16) | /tmp/halo-phase2-loop/w45-focused-1792090842191139543.log
+0 | node node_modules/vitest/vitest.mjs run tests/integration/voice-async-persistence.test.ts tests/unit/voice/ordered-persistence.test.ts | Test Files  2 passed (2); Tests  5 passed (5) | /tmp/halo-phase2-loop/w45-integration-1792090864747405062.log
+0 | node --import tsx scripts/voice-persistence-benchmark.ts | } | /tmp/halo-phase2-loop/w45-benchmark-1792090902016096841.log
+0 | npm run typecheck | > tsc --noEmit | /tmp/halo-phase2-loop/w45-typecheck-1792090903236594096.log
+0 | npm run lint | > eslint | /tmp/halo-phase2-loop/w45-lint-1792090904380642386.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_media_gate.py | Ran 21 tests in 3.574s; OK | /tmp/halo-phase2-loop/w49-worker-regression-1792091128188846368.log
+1 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_policy_audio_cache.py | Ran 8 tests in 0.604s; FAILED (errors=1) | /tmp/halo-phase2-loop/w49-focused-1792091252148051035.log
+0 | npm run check:architecture | check:architecture OK — runtime + voice boundaries, provider direction, closed tool registry, RLS on every table. | /tmp/halo-phase2-loop/w459-architecture-1792091258749931730.log
+0 | npm run check:neutral | check:neutral OK — packages/ are industry-neutral and boundary-clean. | /tmp/halo-phase2-loop/w459-neutral-1792091259293601581.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_policy_audio_cache.py | Ran 8 tests in 0.583s; OK | /tmp/halo-phase2-loop/w49-focused-final-1792091267949300410.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_policy_audio_cache.py | Ran 8 tests in 0.555s; OK | /tmp/halo-phase2-loop/w49-reviewed-1792091324534400450.log
+0 | .venv/bin/python services/pipecat-worker/benchmark_policy_cache.py | } | /tmp/halo-phase2-loop/w49-benchmark-1792091325672552877.log
+1 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py | FAIL: test_sarvam_path_is_built_exactly_as_before (test_local_speech.ProviderRoutingTests)
+----------------------------------------------------------------------; Ran 100 tests in 16.263s; FAILED (failures=1, skipped=1) | /tmp/halo-phase2-loop/worker-full-1792091751303781616.log
+0 | node --import tsx scripts/voice-cooldown-benchmark.ts | } | /tmp/halo-phase2-loop/w46-benchmark-1792091780215521324.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_local_speech.py -k ProviderRoutingTests | Ran 4 tests in 2.522s; OK | /tmp/halo-phase2-loop/w49-routing-1792091797438182486.log
+0 | npm run typecheck | > tsc --noEmit | /tmp/halo-phase2-loop/all-final-typecheck-1792091798599033866.log
+0 | npm test -- --maxWorkers=2 | Test Files  182 passed | 3 skipped (185); Tests  1817 passed | 31 skipped (1848) | /tmp/halo-phase2-loop/full-tests-1792091750192216437.log
+0 | npm run lint | > eslint | /tmp/halo-phase2-loop/all-final-lint-1792091799868045371.log
+0 | .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py | Ran 100 tests in 14.454s; OK (skipped=1) | /tmp/halo-phase2-loop/worker-full-1792091875007072759.log
+0 | npm run preflight:ci | ✅ Configuration checks passed. Provider, database and deployment readiness require their separate verification gates. | /tmp/halo-phase2-loop/final-preflight-1792092159014023199.log
+0 | npx vitest run tests/unit/voice/call-context-cache.test.ts tests/integration/voice-async-persistence.test.ts | Test Files  2 passed (2); Tests  7 passed (7) | /tmp/halo-phase2-loop/cache-late-read-1792092327256936821.log
+0 | npm run check:architecture | check:architecture OK — runtime + voice boundaries, provider direction, closed tool registry, RLS on every table. | /tmp/halo-phase2-loop/final-race-architecture-1792092352019466125.log
+0 | npm run check:neutral | check:neutral OK — packages/ are industry-neutral and boundary-clean. | /tmp/halo-phase2-loop/final-race-neutral-1792092353323605598.log
+0 | npm run typecheck | > tsc --noEmit | /tmp/halo-phase2-loop/final-race-typecheck-1792092336684326431.log
+0 | node --import tsx scripts/voice-context-benchmark.ts | } | /tmp/halo-phase2-loop/final-context-benchmark-1792092367862344023.log
+0 | npm run lint | > eslint | /tmp/halo-phase2-loop/final-race-lint-1792092350941608346.log
+0 | npm test -- --maxWorkers=2 | Test Files  182 passed | 3 skipped (185); Tests  1818 passed | 31 skipped (1849) | /tmp/halo-phase2-loop/full-tests-1792092335156552758.log
+1 | npm run build | Historical snapshot build before final cache correction; symlink preparation failure or earlier successful candidate, not final source proof | /tmp/halo-phase2-loop/build-authorized-symlink-failure.log
+0 | npm run build | Historical snapshot build before final cache correction; symlink preparation failure or earlier successful candidate, not final source proof | /tmp/halo-phase2-loop/build-authorized-before-race.log
+0 | npm run build | Credential-free source-matched canonical build; authorized public font fetch only | /tmp/halo-phase2-loop/build-authorized.log
+0 | node scripts/check-offline-database.mjs | Final rerun: 36 migrations, RLS 669/0, 26 governance/PostgREST cases passed; cleanup confirmed | /tmp/halo-phase2-loop/offline-db-final.log
+1 | node scripts/check-offline-database.mjs | Docker socket denied; no disposable container created | /tmp/halo-phase2-loop/offline-db.log
+0 | node scripts/check-offline-database.mjs | 36 migrations; RLS 669 ok / 0 FAIL; all 26 opt-in production governance/PostgREST cases pass; task containers removed | /tmp/halo-phase2-loop/offline-db-retry.log
+1 | node scripts/check-rollout-rehearsal.mjs | Docker socket denied; 0/1 harness setup; no target accessed | /tmp/halo-phase2-loop/rehearsal.log
+0 | node scripts/check-rollout-rehearsal.mjs | 83/83, pre/post-0036 roll-forward and restore; task containers removed | /tmp/halo-phase2-loop/rehearsal-retry.log
+1 | npm run check:supabase-image-chain | Docker socket denied | /tmp/halo-phase2-loop/image-chain.log
+0 | npm run check:supabase-image-chain | 36 migrations; A fails gen_random_bytes, P applies all, C fails vector operator, all expected; task containers removed | /tmp/halo-phase2-loop/image-chain-retry.log
+3 | HALO_GATE_LOG_DIR=/tmp/halo-phase2-loop bash docs/evidence/local-release-audit-db.sh | Docker socket denied before creation | /tmp/halo-phase2-loop/audit-db.log
+0 | HALO_GATE_LOG_DIR=/tmp/halo-phase2-loop bash docs/evidence/local-release-audit-db.sh | migrations exit 0; RLS 669/0; audit 5/5; HTTP 8/8; cleanup confirmed | /tmp/halo-phase2-loop/audit-db-retry.log
+
+== P2-BLOCKERS 2026-10-16 (Claude Code; details in phase2-completion-results.json "blockerLoop") ==
+npm run typecheck / lint ................ exit 0 / exit 0
+npm test ................................ exit 0: 1827 passed, 31 skipped
+check:architecture / neutral / preflight:ci  exit 0
+npm run build ........................... exit 0 (public Google Fonts fetched)
+worker unittest discover ................ OK, 102 tests, 1 skipped
+check-offline-database.mjs .............. exit 0: 37 migrations, check:rls 674 ok/0 FAIL, 26/26 governance
+check-rollout-rehearsal.mjs ............. exit 0: 90/90 (earlier 89/90 harness expectation fixed)
+check:supabase-image-chain .............. exit 0: A refused, P applied, C refused
+check-rollout-docs.mjs .................. PASS: 37 rows, 10 owner IDs
+Earlier failure retained: check-offline-database exit 1 (bare LOCK TABLE under non-transactional check:rls) -> fixed by single DO statement.
+No commit (owner decision). Hosted: NOT VERIFIED.
+
+2026-10-16 P2-INDEPENDENT-REVIEW current run (supersedes pending Codex/commit claims):
+Canonical commands, exits, log paths and actual counts: phase2-completion-results.json independentCodexReview.
+Separate Codex review: 2 medium + 1 low findings fixed and re-reviewed.
+Final TS: 1827 passed, 31 skipped; worker: 104 run, 1 skipped.
+Separate skip coverage: DB26, installed TS model cases5 (contract10 total), worker installed model1.
+Disposable migrations37, RLS674/0 failures, observed calendar lock wait, recovery90/90; image A refused/P applied/C refused.
+All required local gates exit0; hosted/provider/human Telugu proof pending.
+Commit and push receipts: canonical independentCodexReview.commits and .remote.

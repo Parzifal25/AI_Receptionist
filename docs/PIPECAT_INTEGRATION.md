@@ -324,3 +324,25 @@ behaviour that does not exist yet.
   solution to it.
 
 The procedure that would change any of this is `docs/PHASE4_REPORT.md` §15.
+
+## P2-LOOP local contract update — 2026-10-15
+
+The worker additionally reports `{type: "speech_progress", speechMs: number}`
+when its configured barge-in minimum is met in caller audio. Raw VAD starts
+report presence only. Gateway uses measured progress or a non-backchannel
+transcript for thinking cancellation. Values are schema-bounded; no identity
+fields authorize an operation. Worker/gateway artifacts must be rolled out
+together and mixed-version behavior verified before any authorized hosting.
+Local tests do not prove provider/PSTN behavior. TTS prefetch is one chunk ahead;
+the current carrier mark is reserved before next audio, and delivery still
+requires confirmation. See [review](PHASE2_COMPLETION_REVIEW.md).
+
+
+W4.9 local verification: per-call StartFrame retains speech service preconnect.
+Only trusted fixed policy audio is cached, within the call, bounded to 4 entries/
+512KB and keyed by tenant/agent/voice/language/rate. Replay retains interruption
+and requires a fresh carrier acknowledgement. Fallback and close clear captures.
+`VOICE_TTS_OUTPUT_CODEC=linear16` is the unchanged default. Optional `mulaw` uses
+SarvamWireTTSService to correct pinned SDK settings and frame metadata and avoids
+double conversion. This opt-in has synthetic wire tests only; do not enable it
+without D17/provider authorization and audio-quality verification.

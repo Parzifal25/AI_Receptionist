@@ -548,7 +548,7 @@ Caller audio (μ-law 8 kHz, 60 ms frames)
   - `mark` acknowledges playout, and `clear` flushes audio on barge-in.
   - A transfer is a TwiML `<Dial>` to `phone_numbers.handoff_number`.
 - **UNKNOWN:** Indian carrier regulation (DLT/KYC), number availability and per-minute cost ([D3](DECISIONS.md#d3--pilot-carrier)).
-- **Speech-model defaults differ between paths (VERIFIED: `source`):** the worker defaults to `saarika:v2.5`/`bulbul:v2`, the gateway to `saaras:v3-realtime`/`bulbul:v3`. A deployment must pin both (D17).
+- **Speech models have no default on either path (VERIFIED: `source`, `local test`; owner decision 2026-10-16, D17 W4.2 sub-question):** until then the worker defaulted to `saarika:v2.5`/`bulbul:v2` and the gateway to `saaras:v3-realtime`/`bulbul:v3`. Selecting Sarvam now requires `VOICE_STT_MODEL`/`VOICE_TTS_MODEL` or a profile `model`; the gateway refuses to boot and the worker refuses the call without one. The pair itself is still [D17](DECISIONS.md#d17--pilot-speech-and-llm-provider-route).
 
 ---
 
@@ -1048,3 +1048,23 @@ The current owner instruction explicitly authorizes this local D7/D18 implementa
 - Unknown workflow/reminder outcomes and post-action evidence failures do not automatically replay. Safe workflow retry requires explicit internal proof (`RetrySafeWorkflowError`). Unkeyed calendar/WhatsApp creates run once per invocation; keyed Resend remains conditional on provider behavior. Manual independent invocations and process/remote commit gaps still rule out exactly-once guarantees.
 
 Details, rejected alternatives and scope limits: [DECISIONS D7/D18](DECISIONS.md), [TELEMETRY](TELEMETRY.md), [WS4 evidence](WORKSTREAM_4_REPORT.md). These statements carry source/local-test/disposable-DB evidence only.
+
+## P2-LOOP local source reconciliation — 2026-10-15
+
+**Source/local test**, [review](PHASE2_COMPLETION_REVIEW.md): W4.1 minimums now
+exclude hangover silence; remote thinking cancellation waits for measured worker
+speech progress or a substantive transcript (W4.7). Worker TTS now overlaps one
+next chunk with current playout after synchronously reserving the current carrier
+mark (W4.3). Earlier sequential-TTS/ignored-minimum descriptions above are
+historical source observations, superseded by these locally tested changes.
+No provider/model choice, real latency target, hosted validation or architecture
+ratification is implied. Migration history and pending decisions are unchanged.
+
+
+P2-LOOP source reconciliation (2026-10-16): voice calls now parallelize independent
+state/history reads and reuse bounded call-owned context. Post-reply transcript/
+state persistence uses a bounded FIFO best-effort queue; admission is not durable
+commit, critical audit/actions remain synchronous. Fixed policy audio is cached
+only within a call; vendor codec remains linear16 unless explicitly configured.
+See PHASE2_COMPLETION_REVIEW.md and W4_4_5_9_LOCAL_VOICE_TASKS.md for limitations
+and evidence. This records implementation, not approval of pending D1/D2/D17.

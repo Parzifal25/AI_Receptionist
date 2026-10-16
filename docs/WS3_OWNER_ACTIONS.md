@@ -2,7 +2,7 @@
 
 Recommendations below are engineering advice, never approvals. Decision states stay in [DECISIONS.md](DECISIONS.md). Scope count: **nine distinct outstanding decision IDs explicitly actioned below**: R8, D19, D21, D22, D14, D8 (conditional), D23 and D11 (pilot), D15 (audit naming). This expands the earlier six-ID first-rollout-only count; it is not the count of every pending decision in the entire project. D14 has grouped sub-decisions, counted once. The separate K1 engineering approval is CLOSED by the owner’s explicit Final Closure prompt; it is not a new decision ID and confers no hosted execution authority. None of the nine pending decision IDs was ratified by that narrow authorization.
 
-OWNER DECISION IDS: R8, D19, D21, D22, D14, D8, D23, D11, D15
+OWNER DECISION IDS: R8, D19, D21, D22, D14, D8, D23, D11, D15, D25
 
 | ID / exact question | Current source state / recommendation and alternatives | Consequences, dependency and required closure | Blocks |
 |---|---|---|---|
@@ -16,6 +16,7 @@ OWNER DECISION IDS: R8, D19, D21, D22, D14, D8, D23, D11, D15
 | D23 — which personal-data tables should retention purge, retain, and for how long? | PENDING owner/privacy owner; recommend decide before real data, with operational/business-record separation; alternatives extend purge broadly, retain business records or document no change | Written per-table policy, DNC preservation, export/deletion and backup-retention position; any implementation needs approved additive migration; R8 | Pilot personal data; not synthetic first hosting |
 | D11 — dated business facts, disclosures, consent, DNC, contacts/hours, visits and claims? | PENDING business/privacy owners and Telugu reviewer; recommend obtain dated attributable inputs, leave missing values UNSET; alternative delay pilot | Approved facts and handling/contact policy, human language review; no fabricated defaults | Useful pilot knowledge and handoff |
 | D15 — database audit label versus voice ENG-04/ENG-12 naming? | PENDING release owner; recommend retain ENG-04 for voice and assign ENG-12 with aliases; alternative approved numbering | Written release-owner naming choice; continue descriptive SEC-04 audit wording meanwhile; no task renamed here | Register dependency of D21/W1.6; no technical migration semantics |
+| D25 — apply 0037 (business-level calendar uniqueness) to a real database? | Local and disposable use APPROVED 2026-10-16; real application PENDING. Recommend running the read-only preflight's section 10 census first and dispositioning any duplicate group under a separate authorization (the migration never picks a row) | Target authorization (R8/D19), zero duplicate census or approved disposition, migration with ledger row in one transaction | Calendar first-connect race on that target; not first hosting |
 
 Additional operational actions: database/security owner must approve target adaptation of the locally verified restore method; K1 is implemented in 0035 under the final-closure authorization, with 0033 preserved; knowledge owner decides provenance-preserving indexing/resubmission; operators collect full inventory and legacy mismatch dispositions; release owner approves RPO/RTO, runner behavior and future exact action. These are actions, not invented approved decision IDs. D23 retention scope and D11 facts remain pilot gates. D15 audit naming remains a documented D21 dependency; WS3 does not close it or rename plan tasks.
 
@@ -68,3 +69,12 @@ Each request below is independently actionable, not a batch approval. The table 
 - **D15 — release owner:** select ENG-04 for voice and ENG-12 for database audit with aliases (recommended), or explicitly approve another numbering. Until then retain the descriptive SEC-04 wording. No existing canonical document silently resolves the pending naming choice.
 
 Real-target read authorization is separately prepared in [preflight](HOSTED_TARGET_PREFLIGHT.md#operator-authorization-request-not-submitted). No request in this document has been treated as approval or executed.
+
+## P2-LOOP freshness check — 2026-10-15
+
+**Source/disposable DB:** all nine owner IDs above remain unresolved as qualified
+in DECISIONS.md. Fresh chain checks cover 0001–0036; recovery 83/83, RLS 669/0,
+audit 5/5 and HTTP 8/8. T1–T10 still require actual target authorization and
+evidence. The actual repository baseline is now clean commit `9b35beed`, followed
+by this uncommitted P2-LOOP diff; do not reuse the old dirty baseline as current.
+See [review](PHASE2_COMPLETION_REVIEW.md); no owner approval or target access occurred.

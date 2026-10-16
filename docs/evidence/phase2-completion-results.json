@@ -1,0 +1,4166 @@
+{
+  "schema": 1,
+  "task": "P2-LOOP",
+  "generated": "2026-10-16",
+  "evidenceLevels": [
+    "source",
+    "local test",
+    "disposable DB"
+  ],
+  "disposition": "PARTIALLY COMPLETE; HOSTED VERIFICATION PENDING",
+  "review": "docs/PHASE2_COMPLETION_REVIEW.md",
+  "baseline": {
+    "branch": "Phase-2-Security-Hardening",
+    "head": "9b35beed482f269a9b1d2db1ea9b93f639f87cbc",
+    "trackedChanges": 0,
+    "staged": 0,
+    "untracked": 0
+  },
+  "finalBranch": "Phase-2-Security-Hardening",
+  "finalHead": "9b35beed482f269a9b1d2db1ea9b93f639f87cbc",
+  "indexUnchanged": true,
+  "migrations": [
+    {
+      "path": "supabase/migrations/0001_init.sql",
+      "baselineSha256": "76fdd91319ff382699fab00981f632b3e4ab7f9681eace621eb6527579c99cc3",
+      "currentSha256": "76fdd91319ff382699fab00981f632b3e4ab7f9681eace621eb6527579c99cc3",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0002_function_grants.sql",
+      "baselineSha256": "654d1db73f860c91cb13ce4b0d9c40d323aaf1ce13f4ebcda6f2f153a1a18e23",
+      "currentSha256": "654d1db73f860c91cb13ce4b0d9c40d323aaf1ce13f4ebcda6f2f153a1a18e23",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0003_atomic_message_count.sql",
+      "baselineSha256": "407e0f4c9b426d372837412cc06857f46922ea618fd7a9bd1dcf860125cd743d",
+      "currentSha256": "407e0f4c9b426d372837412cc06857f46922ea618fd7a9bd1dcf860125cd743d",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0004_data_retention.sql",
+      "baselineSha256": "d537ed571d2a22dbee66c5c28a537fa3a4550bccfd2780c88a5e4d261ba911f2",
+      "currentSha256": "d537ed571d2a22dbee66c5c28a537fa3a4550bccfd2780c88a5e4d261ba911f2",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0005_retrieval_source_attribution.sql",
+      "baselineSha256": "8cf167116ef0e6297063b6a51de7749d93ede1d922ce75a2c6e6a6501865ed9f",
+      "currentSha256": "8cf167116ef0e6297063b6a51de7749d93ede1d922ce75a2c6e6a6501865ed9f",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0006_lead_qualification.sql",
+      "baselineSha256": "b0b28fb3a7909b646a3871c658d084878ddca6bd3df64e6f2dd7ea06aa926166",
+      "currentSha256": "b0b28fb3a7909b646a3871c658d084878ddca6bd3df64e6f2dd7ea06aa926166",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0007_unanswered_questions.sql",
+      "baselineSha256": "bf0b669fa0caf349c1078da593c0320846154dfb5fefda2820e55d9da6d2e6db",
+      "currentSha256": "bf0b669fa0caf349c1078da593c0320846154dfb5fefda2820e55d9da6d2e6db",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0008_appointments.sql",
+      "baselineSha256": "32a70207d6905e448573e66bf04a110e08e5a302763a83dfe43a02eb8fcb2169",
+      "currentSha256": "32a70207d6905e448573e66bf04a110e08e5a302763a83dfe43a02eb8fcb2169",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0009_workflows.sql",
+      "baselineSha256": "cc5f2f9a5da5a499a06ec748a5025d3ace2e0a98fbc8220fa350a13a2949672e",
+      "currentSha256": "cc5f2f9a5da5a499a06ec748a5025d3ace2e0a98fbc8220fa350a13a2949672e",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0010_customer_lifecycle.sql",
+      "baselineSha256": "4963a1c7e1fccb4575aa47c48bde668502856a0b933dc3e26adb82125762a2f6",
+      "currentSha256": "4963a1c7e1fccb4575aa47c48bde668502856a0b933dc3e26adb82125762a2f6",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0011_lifecycle_automation.sql",
+      "baselineSha256": "162693acbd3822d47aae3af8b8f8599bb9f6704634501887c5929a95bc2696a5",
+      "currentSha256": "162693acbd3822d47aae3af8b8f8599bb9f6704634501887c5929a95bc2696a5",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0012_booking_drafts.sql",
+      "baselineSha256": "da7ecf7569a2bd9d99221b815a0030f3de0ca538a3d56371ab6e3a7eed03d4f3",
+      "currentSha256": "da7ecf7569a2bd9d99221b815a0030f3de0ca538a3d56371ab6e3a7eed03d4f3",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0013_agents.sql",
+      "baselineSha256": "dda183d192be46f3f4e0190faaca147712162cadafee2405c3f66c94a8065266",
+      "currentSha256": "dda183d192be46f3f4e0190faaca147712162cadafee2405c3f66c94a8065266",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0014_agent_backfill.sql",
+      "baselineSha256": "6f1b9e262e376b619d588ceaf67d505f1242ada2cfcdd3a3e5020647fdaa6594",
+      "currentSha256": "6f1b9e262e376b619d588ceaf67d505f1242ada2cfcdd3a3e5020647fdaa6594",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0015_conversation_agent.sql",
+      "baselineSha256": "229f7273b49336c65e93db60dfb3d09bfd8a5c3abf0cd7bbfc547661a088496b",
+      "currentSha256": "229f7273b49336c65e93db60dfb3d09bfd8a5c3abf0cd7bbfc547661a088496b",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0016_messages_tool_role.sql",
+      "baselineSha256": "1b1cc409b6c7018d5f92e23ae31578b64c9438a972a03432c6ae3b85d94be670",
+      "currentSha256": "1b1cc409b6c7018d5f92e23ae31578b64c9438a972a03432c6ae3b85d94be670",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0017_knowledge_collections.sql",
+      "baselineSha256": "590087c45b9782ce485d1f5df348957e911de052931d90bdd38e7019ac7e27a8",
+      "currentSha256": "590087c45b9782ce485d1f5df348957e911de052931d90bdd38e7019ac7e27a8",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0018_agent_live_version_ownership.sql",
+      "baselineSha256": "0b3af537b5efe0b6118f70e875e412d3f91af9035a894c45491035bb8d3f81a7",
+      "currentSha256": "0b3af537b5efe0b6118f70e875e412d3f91af9035a894c45491035bb8d3f81a7",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0019_conversation_state.sql",
+      "baselineSha256": "06f100fbaeaaada2c118313f1f6b0dec499073aee732573ca70ef2228e14c714",
+      "currentSha256": "06f100fbaeaaada2c118313f1f6b0dec499073aee732573ca70ef2228e14c714",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0020_voice_calls.sql",
+      "baselineSha256": "b9413a105e58bcebcccbb2bdac38ebee181747c4d10b7ecefb4fa79166dcdf67",
+      "currentSha256": "b9413a105e58bcebcccbb2bdac38ebee181747c4d10b7ecefb4fa79166dcdf67",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0021_business_creation_provisions_agent.sql",
+      "baselineSha256": "5d76ff9653a39c8ed002af5bef65cabbebb578fde7d555cfeff0930b6c5b8c53",
+      "currentSha256": "5d76ff9653a39c8ed002af5bef65cabbebb578fde7d555cfeff0930b6c5b8c53",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0022_backfill_agents_created_after_0014.sql",
+      "baselineSha256": "5e9fb4b080c64f77d590926e059acc14f02429c0367620014a0da694fe976dc6",
+      "currentSha256": "5e9fb4b080c64f77d590926e059acc14f02429c0367620014a0da694fe976dc6",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0023_voice_latency_marks.sql",
+      "baselineSha256": "39262e0bef16aee5cf984e0abb0adf6c9ce2f9143c4dbd0ba14910f6b6b151e6",
+      "currentSha256": "39262e0bef16aee5cf984e0abb0adf6c9ce2f9143c4dbd0ba14910f6b6b151e6",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0024_lead_lifecycle.sql",
+      "baselineSha256": "e7d1e98013a101d1d767bccf06b553da21c7e169a8f9d1e2162d2839cdf32b58",
+      "currentSha256": "e7d1e98013a101d1d767bccf06b553da21c7e169a8f9d1e2162d2839cdf32b58",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0025_campaigns.sql",
+      "baselineSha256": "89bfb26e0304041c1ede87361b43d4aa12fbb2086a30263606e209bc1a60ec15",
+      "currentSha256": "89bfb26e0304041c1ede87361b43d4aa12fbb2086a30263606e209bc1a60ec15",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0026_runtime_call_events.sql",
+      "baselineSha256": "d89199ffa2abba98dc498c99e5e22dda79450cb5fe6bff5bbf0e0c2d2118f90b",
+      "currentSha256": "d89199ffa2abba98dc498c99e5e22dda79450cb5fe6bff5bbf0e0c2d2118f90b",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0027_learning_proposals.sql",
+      "baselineSha256": "71e1dc31c876e3d5cb1d44ac608a62175b9d6bd2b8f1ea2fed3f08909e6b7026",
+      "currentSha256": "71e1dc31c876e3d5cb1d44ac608a62175b9d6bd2b8f1ea2fed3f08909e6b7026",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0028_call_lead_outcomes.sql",
+      "baselineSha256": "39abe1d1da387272730c233653e5c37092d8a8ea821b6a51e2f93130bb75ce78",
+      "currentSha256": "39abe1d1da387272730c233653e5c37092d8a8ea821b6a51e2f93130bb75ce78",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0029_campaign_call_binding.sql",
+      "baselineSha256": "5def2fa24033d9f88a07cb4c1b18c054463f6e424b424721d7fca7f2aee9ba16",
+      "currentSha256": "5def2fa24033d9f88a07cb4c1b18c054463f6e424b424721d7fca7f2aee9ba16",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0030_production_version_guards.sql",
+      "baselineSha256": "6474c792477e14cc0dfc53cf8ffd8e69f12feedbca2b3c713ad415968f2c3cb9",
+      "currentSha256": "6474c792477e14cc0dfc53cf8ffd8e69f12feedbca2b3c713ad415968f2c3cb9",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0031_conversation_identity_insert_guard.sql",
+      "baselineSha256": "aac81206e0697b84ede3234068814b3d9f9e1fbcbe042d29ac7dfd2a1b05a42d",
+      "currentSha256": "aac81206e0697b84ede3234068814b3d9f9e1fbcbe042d29ac7dfd2a1b05a42d",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0032_tool_executions.sql",
+      "baselineSha256": "f08c6503436164dc7717f9ce618175577d32c9e28e6482a5f57201b73328debb",
+      "currentSha256": "f08c6503436164dc7717f9ce618175577d32c9e28e6482a5f57201b73328debb",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0033_knowledge_governance.sql",
+      "baselineSha256": "aeeb4c2d248c556507f20bff770867b6f41c6398a93ebcf0ba04c7cc0f6878d2",
+      "currentSha256": "aeeb4c2d248c556507f20bff770867b6f41c6398a93ebcf0ba04c7cc0f6878d2",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0034_tenant_reference_integrity.sql",
+      "baselineSha256": "ec437bbf27c11f26313a15d6d4fb22a4fd9e76fe86f8c190b5ae4dbab2085e6f",
+      "currentSha256": "ec437bbf27c11f26313a15d6d4fb22a4fd9e76fe86f8c190b5ae4dbab2085e6f",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0035_knowledge_backfill_source_ref_validation.sql",
+      "baselineSha256": "a0d5bba58b998970c2a60201aed8826ddea2a973740d585cb4e5d93ccc57e007",
+      "currentSha256": "a0d5bba58b998970c2a60201aed8826ddea2a973740d585cb4e5d93ccc57e007",
+      "unchanged": true
+    },
+    {
+      "path": "supabase/migrations/0036_security_authorization_audit.sql",
+      "baselineSha256": "1da7166378719d89ad44f542c2216ded10b19b7aae4d7d4c5f360f6076a52766",
+      "currentSha256": "1da7166378719d89ad44f542c2216ded10b19b7aae4d7d4c5f360f6076a52766",
+      "unchanged": true
+    }
+  ],
+  "trackedDiffStat": " docs/HALO_Architecture.md                          |   20 +\n docs/HALO_V1_IMPLEMENTATION_PLAN.md                |   12 +-\n docs/LOCAL_RELEASE_READINESS_REPORT.md             |   37 +\n docs/PIPECAT_INTEGRATION.md                        |   22 +\n docs/WORKSTREAM_4_REPORT.md                        |    9 +\n docs/WS3_OWNER_ACTIONS.md                          |    9 +\n .../local-release-verification-ledger.json         | 1151 +++++++++++++++++++-\n docs/evidence/local-workstream-status.json         |  325 ++++--\n packages/language/language-pack.ts                 |    5 +\n packages/runtime/agent-runtime.ts                  |   36 +-\n packages/voice/endpointer.ts                       |    4 +-\n packages/voice/phone-channel-adapter.ts            |   13 +-\n packages/voice/pipecat/protocol.ts                 |    2 +\n packages/voice/pipecat/remote-session.ts           |   15 +-\n packages/voice/turn-handler.ts                     |    2 +-\n packages/voice/voice-session.ts                    |   10 +-\n packages/workflows/supabase-workflow-store.ts      |    1 +\n services/pipecat-worker/halo_client.py             |    3 +\n services/pipecat-worker/halo_serializer.py         |    8 +-\n services/pipecat-worker/media_gate.py              |  148 ++-\n services/pipecat-worker/test_speech_minimums.py    |   51 +-\n services/pipecat-worker/worker.py                  |   50 +-\n .../api/oauth/google-calendar/callback/route.ts    |   36 +-\n tests/unit/rank-fusion.test.ts                     |   11 +\n tests/unit/voice/pipecat-protocol.test.ts          |    5 +\n tests/unit/voice/remote-session.test.ts            |    2 +\n 26 files changed, 1834 insertions(+), 153 deletions(-)\n",
+  "newFiles": [
+    "docs/PHASE2_COMPLETION_REVIEW.md",
+    "docs/PHASE2_COMPLETION_TASK_CARD.md",
+    "docs/W4_3_VOICE_PIPELINING_TASK.md",
+    "docs/W4_4_5_9_LOCAL_VOICE_TASKS.md",
+    "docs/evidence/phase2-completion-command-summary.txt",
+    "docs/evidence/phase2-completion-results.json",
+    "packages/language/backchannels.ts",
+    "packages/voice/call-context-cache.ts",
+    "packages/voice/ordered-persistence.ts",
+    "scripts/voice-context-benchmark.ts",
+    "scripts/voice-cooldown-benchmark.ts",
+    "scripts/voice-persistence-benchmark.ts",
+    "services/pipecat-worker/benchmark_chunk_pipeline.py",
+    "services/pipecat-worker/benchmark_policy_cache.py",
+    "services/pipecat-worker/policy_audio_cache.py",
+    "services/pipecat-worker/sarvam_wire_tts.py",
+    "services/pipecat-worker/test_chunk_pipeline.py",
+    "services/pipecat-worker/test_policy_audio_cache.py",
+    "tests/integration/calendar-reconnection.test.ts",
+    "tests/integration/voice-async-persistence.test.ts",
+    "tests/unit/voice/call-context-cache.test.ts",
+    "tests/unit/voice/ordered-persistence.test.ts",
+    "tests/unit/voice/thinking-interruption.test.ts",
+    "tests/unit/workflow-timer-correlation.test.ts"
+  ],
+  "benchmarks": {
+    "/tmp/halo-phase2-loop/pipeline-before.log": {
+      "evidence": "local test; injected delays; no provider calls",
+      "synthesisMs": 30,
+      "playoutMs": 100,
+      "chunks": 2,
+      "serial": {
+        "totalMs": {
+          "n": 10,
+          "p50": 264.952,
+          "p95": 266.898,
+          "max": 268.377
+        },
+        "gapMs": {
+          "n": 10,
+          "p50": 30.818,
+          "p95": 31.557,
+          "max": 31.666
+        }
+      },
+      "pipelined": {
+        "totalMs": {
+          "n": 10,
+          "p50": 264.821,
+          "p95": 265.786,
+          "max": 266.674
+        },
+        "gapMs": {
+          "n": 10,
+          "p50": 30.899,
+          "p95": 31.45,
+          "max": 31.666
+        }
+      }
+    },
+    "/tmp/halo-phase2-loop/pipeline-after.log": {
+      "evidence": "local test; injected delays; no provider calls",
+      "synthesisMs": 30,
+      "playoutMs": 100,
+      "chunks": 2,
+      "serial": {
+        "totalMs": {
+          "n": 10,
+          "p50": 265.572,
+          "p95": 266.414,
+          "max": 266.523
+        },
+        "gapMs": {
+          "n": 10,
+          "p50": 30.835,
+          "p95": 31.059,
+          "max": 31.371
+        }
+      },
+      "pipelined": {
+        "totalMs": {
+          "n": 10,
+          "p50": 234.112,
+          "p95": 234.734,
+          "max": 235.547
+        },
+        "gapMs": {
+          "n": 10,
+          "p50": 0.0,
+          "p95": 0,
+          "max": 0
+        }
+      }
+    },
+    "/tmp/halo-phase2-loop/pipeline-final-1792086185566867122.log": {
+      "evidence": "local test; injected delays; no provider calls",
+      "synthesisMs": 30,
+      "playoutMs": 100,
+      "chunks": 2,
+      "serial": {
+        "totalMs": {
+          "n": 10,
+          "p50": 265.6,
+          "p95": 265.901,
+          "max": 266.059
+        },
+        "gapMs": {
+          "n": 10,
+          "p50": 31.125,
+          "p95": 31.426,
+          "max": 31.45
+        }
+      },
+      "pipelined": {
+        "totalMs": {
+          "n": 10,
+          "p50": 234.473,
+          "p95": 234.863,
+          "max": 235.531
+        },
+        "gapMs": {
+          "n": 10,
+          "p50": 0.0,
+          "p95": 0,
+          "max": 0
+        }
+      }
+    },
+    "/tmp/halo-phase2-loop/w44-benchmark-1792090645739003735.log": {
+      "evidence": "local test, actual runtime, 20ms per storage read, concurrent isolated samples; serial control models the former dependency",
+      "results": {
+        "serialReadControl": {
+          "n": 10,
+          "p50": 87.26987599999995,
+          "p95": 92.1502680000001,
+          "max": 94.31946599999992
+        },
+        "parallelReads": {
+          "n": 10,
+          "p50": 27.12566199999992,
+          "p95": 30.487456000000066,
+          "max": 31.679555000000164
+        },
+        "callReuse": {
+          "n": 10,
+          "p50": 1.836996999999883,
+          "p95": 2.575996000000032,
+          "max": 2.5884960000000774
+        }
+      }
+    },
+    "/tmp/halo-phase2-loop/w44-benchmark-final-1792090674680904537.log": {
+      "evidence": "local test, actual runtime, 20ms per storage read, 10 sequential samples per mode after two warm-ups; serial control models the former dependency",
+      "results": {
+        "serialReadControl": {
+          "n": 10,
+          "p50": 43.52018399999997,
+          "p95": 45.55458399999998,
+          "max": 49.57748199999992
+        },
+        "parallelReads": {
+          "n": 10,
+          "p50": 22.643291999999974,
+          "p95": 23.326990999999907,
+          "max": 23.340390999999954
+        },
+        "callReuse": {
+          "n": 10,
+          "p50": 1.519999000000098,
+          "p95": 2.751999000000069,
+          "max": 3.11329899999987
+        }
+      }
+    },
+    "/tmp/halo-phase2-loop/w45-benchmark-1792090902016096841.log": {
+      "evidence": "local test, actual runtime, two sequential 20ms writes, 10 samples per mode after two warmups; queued reply is not durability",
+      "results": {
+        "awaitedWrites": {
+          "n": 10,
+          "p50": 43.71251600000005,
+          "p95": 46.316011,
+          "max": 46.72651099999996
+        },
+        "queuedAdmission": {
+          "n": 10,
+          "p50": 1.251698000000033,
+          "p95": 1.8262959999999566,
+          "max": 2.215596000000005
+        }
+      }
+    },
+    "/tmp/halo-phase2-loop/w49-benchmark-1792091325672552877.log": {
+      "evidence": "local test; injected 30ms synthesis; synthetic fixed policy; no provider calls",
+      "firstAudioMs": {
+        "miss": {
+          "n": 10,
+          "p50": 31.425,
+          "p95": 32.113,
+          "max": 32.606
+        },
+        "hit": {
+          "n": 10,
+          "p50": 1.764,
+          "p95": 1.828,
+          "max": 1.857
+        }
+      },
+      "oneSecondSerializationCpuMs": {
+        "pcmConvert": {
+          "n": 20,
+          "p50": 11.15,
+          "p95": 13.473,
+          "max": 13.578
+        },
+        "mulawPassthrough": {
+          "n": 20,
+          "p50": 0.116,
+          "p95": 0.144,
+          "max": 0.151
+        }
+      },
+      "wireBytesIdentical": true
+    },
+    "/tmp/halo-phase2-loop/w46-benchmark-1792091780215521324.log": {
+      "evidence": "local test; actual router; synthetic 30ms cooldown; no provider calls",
+      "results": {
+        "waitControl": {
+          "n": 10,
+          "p50": 30.518381999999974,
+          "p95": 30.635483000000022,
+          "max": 30.881084999999985
+        },
+        "voiceSkip": {
+          "n": 10,
+          "p50": 0.044601000000056956,
+          "p95": 0.19890200000008917,
+          "max": 0.42450399999984256
+        }
+      }
+    },
+    "/tmp/halo-phase2-loop/final-context-benchmark-1792092367862344023.log": {
+      "evidence": "local test, actual runtime, 20ms per storage read, 10 sequential samples per mode after two warm-ups; serial control models the former dependency",
+      "results": {
+        "serialReadControl": {
+          "n": 10,
+          "p50": 38.676714000000175,
+          "p95": 61.928562000000056,
+          "max": 76.82562899999994
+        },
+        "parallelReads": {
+          "n": 10,
+          "p50": 29.7412319999994,
+          "p95": 38.5489120000002,
+          "max": 52.080581999999595
+        },
+        "callReuse": {
+          "n": 10,
+          "p50": 3.841091000000233,
+          "p95": 5.891186999999263,
+          "max": 13.0072710000004
+        }
+      }
+    }
+  },
+  "verification": [
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/integration/calendar-reconnection.test.ts",
+      "exit": 1,
+      "elapsedSeconds": 1.61,
+      "evidencePath": "/tmp/halo-phase2-loop/calendar-before.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 1,
+      "summary": "FAIL  tests/integration/calendar-reconnection.test.ts > reconnects in place and scopes the write to tenant, provider, business-level row and id\nAssertionError: expected 'http://localhost:3000/dashboard/setti\u2026' to contain 'calendar_connected=1'; FAIL  tests/integration/calendar-reconnection.test.ts > inserts on first connection\nAssertionError: expected [ 'delete', 'insert' ] to deeply equal [ 'insert' ]; Test Files  1 failed (1); Tests  3 failed | 3 passed (6)",
+      "logSha256": "2aedc68367094db7fb7a8c632a66ef45a737d28f4f1dc47aa62f78b839103948"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/integration/calendar-reconnection.test.ts tests/integration/tenant-isolation-routes.test.ts",
+      "exit": 1,
+      "elapsedSeconds": 1.94,
+      "evidencePath": "/tmp/halo-phase2-loop/calendar-after.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 2,
+      "summary": "FAIL  tests/integration/calendar-reconnection.test.ts > reconnects in place and scopes the write to tenant, provider, business-level row and id\nAssertionError: expected 'http://localhost:3000/dashboard/setti\u2026' to contain 'calendar_connected=1'; Test Files  1 failed | 1 passed (2); Tests  1 failed | 18 passed (19)",
+      "logSha256": "d611b2fac63b584171b09262239668b27dd114923b56b53c6e3aa9cfffa20f81"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 1,
+      "elapsedSeconds": 103.61,
+      "evidencePath": "/tmp/halo-phase2-loop/baseline-tests.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 3,
+      "summary": "FAIL  tests/integration/web-tts-gateway.test.ts > never reports empty or failed synthesis as playable audio\nError: listen EPERM: operation not permitted 127.0.0.1; FAIL  tests/unit/hosted-preflight-assessment.test.ts > saved hosted preflight worksheet (no connections) > CLI returns all groups unverified for missing, malformed or null evidence\nSyntaxError: Unexpected end of JSON input; Test Files  8 failed | 168 passed | 3 skipped (179); Tests  42 failed | 1740 passed | 31 skipped (1813)",
+      "logSha256": "ff2891b33511611f77fc4d50c95600547073b38974939523717dec445c13fda7"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts",
+      "exit": 1,
+      "elapsedSeconds": 1.25,
+      "evidencePath": "/tmp/halo-phase2-loop/thinking-before.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 4,
+      "summary": "FAIL  tests/unit/voice/thinking-interruption.test.ts > in-process short backchannel hmm preserves thinking\n FAIL  tests/unit/voice/thinking-interruption.test.ts > in-process short backchannel \u0c05\u0c35\u0c41\u0c28\u0c41 preserves thinking; FAIL  tests/unit/voice/thinking-interruption.test.ts > in-process short backchannel sare preserves thinking\nAssertionError: expected true to be false // Object.is equality; Test Files  1 failed (1); Tests  7 failed | 3 passed (10)",
+      "logSha256": "05c216b93ac9f62026ee9684020f2699cb3717086dfd84cf27560b1c6ddfb045"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts tests/unit/voice/remote-session.test.ts tests/unit/voice/voice-session.test.ts tests/integration/calendar-reconnection.test.ts",
+      "exit": 1,
+      "elapsedSeconds": 1.87,
+      "evidencePath": "/tmp/halo-phase2-loop/thinking-after.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 5,
+      "summary": "FAIL  tests/unit/voice/remote-session.test.ts > RemoteVoiceSession > cancels an uncommitted turn on barge-in and merges the superseded utterance into the next one\nAssertionError: expected [] to have a length of 1 but got +0; Test Files  1 failed | 3 passed (4); Tests  1 failed | 56 passed (57)",
+      "logSha256": "c14985b6fad3d0c4308b047b8f8d1c84bfa4f56953dc7c5e4e5f88a61eaa1b39"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_speech_minimums.py",
+      "exit": 0,
+      "elapsedSeconds": 4.19,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-focused.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 6,
+      "summary": "Ran 9 tests in 0.694s; OK",
+      "logSha256": "68b44c0f03755a69158f0eab3f8356eae95307477b8b723ffcf3c5a33c7a0e6b"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts tests/unit/voice/remote-session.test.ts tests/unit/voice/voice-session.test.ts tests/integration/calendar-reconnection.test.ts",
+      "exit": 0,
+      "elapsedSeconds": 1.63,
+      "evidencePath": "/tmp/halo-phase2-loop/focused-final.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 7,
+      "summary": "Test Files  4 passed (4); Tests  59 passed (59)",
+      "logSha256": "c447e18de627e6b7d921296da209d75a48cd67a41ae4e70e34740367360337f8"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py",
+      "exit": 1,
+      "elapsedSeconds": 13.11,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-full.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 8,
+      "logCaveat": "Early runner reused log name; final log at path is last invocation only. Earlier exit is from captured tool output; do not read final log as earlier failure evidence.",
+      "summary": "Historical failed attempt; preserved exit and tool output. Initial full suite sandbox EPERM (42 failures); first unrestricted namespace loopback down ENETUNREACH (39 failures); initial worker loopback down (1 error). Exact association follows command/order.",
+      "logSha256": "783c6c3ef42e3965d32a984a41096474e61f595b4c0de17455da43949bde99f2"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 1,
+      "elapsedSeconds": 56.05,
+      "evidencePath": "/tmp/halo-phase2-loop/full-tests.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 9,
+      "logCaveat": "Early runner reused log name; final log at path is last invocation only. Earlier exit is from captured tool output; do not read final log as earlier failure evidence.",
+      "summary": "Historical failed attempt; preserved exit and tool output. Initial full suite sandbox EPERM (42 failures); first unrestricted namespace loopback down ENETUNREACH (39 failures); initial worker loopback down (1 error). Exact association follows command/order.",
+      "logSha256": "45d85cc191c4b6e212ce243dfa1c621514e36f117f8d05656a52e5f456e9e75b"
+    },
+    {
+      "command": ".venv/bin/python services/pipecat-worker/benchmark_chunk_pipeline.py",
+      "exit": 0,
+      "elapsedSeconds": 6.68,
+      "evidencePath": "/tmp/halo-phase2-loop/pipeline-before.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 10,
+      "summary": "}",
+      "logSha256": "6fe9cf80acbfe74d7c935b0ac9ae45ba52a8a141d58744300b75d546cc838d35"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 0,
+      "elapsedSeconds": 16.85,
+      "evidencePath": "/tmp/halo-phase2-loop/typecheck.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 11,
+      "summary": "> tsc --noEmit",
+      "logSha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run lint",
+      "exit": 0,
+      "elapsedSeconds": 30.86,
+      "evidencePath": "/tmp/halo-phase2-loop/lint.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 12,
+      "summary": "> eslint",
+      "logSha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py",
+      "exit": 0,
+      "elapsedSeconds": 16.13,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-full.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 13,
+      "logCaveat": "Early runner reused log name; final log at path is last invocation only. Earlier exit is from captured tool output; do not read final log as earlier failure evidence.",
+      "summary": "OK (skipped=1)",
+      "logSha256": "783c6c3ef42e3965d32a984a41096474e61f595b4c0de17455da43949bde99f2"
+    },
+    {
+      "command": ".venv/bin/python services/pipecat-worker/benchmark_chunk_pipeline.py",
+      "exit": 1,
+      "elapsedSeconds": 0.01,
+      "evidencePath": "/tmp/halo-phase2-loop/pipeline-after.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 14,
+      "logCaveat": "Early runner reused log name; final log at path is last invocation only. Earlier exit is from captured tool output; do not read final log as earlier failure evidence.",
+      "summary": "Historical failed attempt; preserved exit and tool output. Initial full suite sandbox EPERM (42 failures); first unrestricted namespace loopback down ENETUNREACH (39 failures); initial worker loopback down (1 error). Exact association follows command/order.",
+      "logSha256": "d0b022f4f992621997bf2f049810df9790beed10c303c15dfa5416eaade0385c"
+    },
+    {
+      "command": ".venv/bin/python services/pipecat-worker/benchmark_chunk_pipeline.py",
+      "exit": 0,
+      "elapsedSeconds": 6.9,
+      "evidencePath": "/tmp/halo-phase2-loop/pipeline-after.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 15,
+      "logCaveat": "Early runner reused log name; final log at path is last invocation only. Earlier exit is from captured tool output; do not read final log as earlier failure evidence.",
+      "summary": "}",
+      "logSha256": "d0b022f4f992621997bf2f049810df9790beed10c303c15dfa5416eaade0385c"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 0,
+      "elapsedSeconds": 48.77,
+      "evidencePath": "/tmp/halo-phase2-loop/full-tests.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 16,
+      "logCaveat": "Early runner reused log name; final log at path is last invocation only. Earlier exit is from captured tool output; do not read final log as earlier failure evidence.",
+      "summary": "   Duration  47.75s (transform 6.16s, setup 3.67s, import 28.27s, tests 20.17s, environment 39ms)",
+      "logSha256": "45d85cc191c4b6e212ce243dfa1c621514e36f117f8d05656a52e5f456e9e75b"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_chunk_pipeline.py",
+      "exit": 0,
+      "elapsedSeconds": 1.74,
+      "evidencePath": "/tmp/halo-phase2-loop/pipeline-tests.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 17,
+      "summary": "Ran 4 tests in 0.476s; OK",
+      "logSha256": "262bde4ea4f40cd1262b3434bf83f0927162d23792c68eb79f08b3cc79734002"
+    },
+    {
+      "command": "npm run check:architecture",
+      "exit": 0,
+      "elapsedSeconds": 0.25,
+      "evidencePath": "/tmp/halo-phase2-loop/architecture-1792084243080383770.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 18,
+      "summary": "check:architecture OK \u2014 runtime + voice boundaries, provider direction, closed tool registry, RLS on every table.",
+      "logSha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run check:neutral",
+      "exit": 0,
+      "elapsedSeconds": 0.66,
+      "evidencePath": "/tmp/halo-phase2-loop/neutral-1792084243532107053.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 19,
+      "summary": "check:neutral OK \u2014 packages/ are industry-neutral and boundary-clean.",
+      "logSha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": "npm run preflight:ci",
+      "exit": 1,
+      "elapsedSeconds": 0.25,
+      "evidencePath": "/tmp/halo-phase2-loop/preflight-1792084244387094275.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 20,
+      "summary": "Node.js v22.22.2",
+      "logSha256": "4e0c177cac3878a259920e8557ae6b967391be2bbdef11432359af892e812e9b"
+    },
+    {
+      "command": "npm run preflight:ci",
+      "exit": 0,
+      "elapsedSeconds": 0.84,
+      "evidencePath": "/tmp/halo-phase2-loop/preflight-1792084268953369864.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 21,
+      "summary": "\u2705 Configuration checks passed. Provider, database and deployment readiness require their separate verification gates.",
+      "logSha256": "387058affd4b86b9c79f9ebaee3b50f877df0cb6405a534a3e1764a41ca639c6"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_chunk_pipeline.py",
+      "exit": 0,
+      "elapsedSeconds": 3.93,
+      "evidencePath": "/tmp/halo-phase2-loop/pipeline-tests-1792084355542573587.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 22,
+      "summary": "Ran 5 tests in 0.612s; OK",
+      "logSha256": "2d1f688b3e7961f379382e946b8b4ffc68e2df5f9b76a7f3361ec1fa8efb065e"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py",
+      "exit": 0,
+      "elapsedSeconds": 18.97,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-full-1792084356450304515.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 23,
+      "summary": "Ran 89 tests in 12.881s; OK (skipped=1)",
+      "logSha256": "a5fd258e91aff8ccce2954e70523714276f714a21f23aab708486827e99ec3a2"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/integration/calendar-reconnection.test.ts tests/unit/voice/pipecat-protocol.test.ts tests/unit/voice/thinking-interruption.test.ts",
+      "exit": 0,
+      "elapsedSeconds": 2.97,
+      "evidencePath": "/tmp/halo-phase2-loop/calendar-protocol-1792084379409522920.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 24,
+      "summary": "Test Files  3 passed (3); Tests  33 passed (33)",
+      "logSha256": "461a8cebc9b4a541789102254bdd953ffca64c370bcfd82a9cf473ccb179de1c"
+    },
+    {
+      "command": "npm run build",
+      "exit": 1,
+      "elapsedSeconds": 24.07,
+      "evidencePath": "/tmp/halo-phase2-loop/build-1792084412851046395.log",
+      "evidenceType": "local test",
+      "isolation": "Private network namespace, required synthetic env overrides; Next loads .env.local; all external traffic blocked",
+      "phase": "P2-LOOP",
+      "iteration": 25,
+      "summary": "Failed to fetch `Geist` from Google Fonts.\n\n\n    at ignore-listed frames",
+      "logSha256": "c12155058997360a69374fa4c2e0313937d0f730ca2fa782d627513629ae2505"
+    },
+    {
+      "command": "npm run voice:latency -- --calls 2 --turns 2",
+      "exit": 0,
+      "elapsedSeconds": 9.19,
+      "evidencePath": "/tmp/halo-phase2-loop/voice-latency-1792084500153901367.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 26,
+      "summary": "one 20 ms \u03bc-law frame = 20 ms of audio",
+      "logSha256": "507baede05ea88d1daeaf098bab424b83e83082ea26306259f6363122a1bb5aa"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts",
+      "exit": 1,
+      "elapsedSeconds": 1.92,
+      "evidencePath": "/tmp/halo-phase2-loop/hangover-before-1792085644117634421.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 27,
+      "summary": "FAIL  tests/unit/voice/thinking-interruption.test.ts > in-process VAD hangover silence after a short cough does not count as speech\nAssertionError: expected true to be false // Object.is equality; Test Files  1 failed (1); Tests  1 failed | 12 passed (13)",
+      "logSha256": "3a55e6d0183f9bcd00197532a29a69edbabde85724f9c1a220db9102b1d04c45"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_speech_minimums.py",
+      "exit": 1,
+      "elapsedSeconds": 6.05,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-hangover-before-1792085645195666420.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 28,
+      "summary": "FAIL: test_vad_hangover_silence_does_not_count_toward_barge_in (test_speech_minimums.SpeechMinimumTests)\n----------------------------------------------------------------------; Ran 10 tests in 0.730s; FAILED (failures=1)",
+      "logSha256": "75e742832fc74f1436376b5965b7d1de8a1a5db848bb6d0084f15c6c5e1565bc"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/voice/thinking-interruption.test.ts tests/unit/voice/voice-session.test.ts tests/unit/voice/remote-session.test.ts",
+      "exit": 0,
+      "elapsedSeconds": 1.77,
+      "evidencePath": "/tmp/halo-phase2-loop/hangover-after-1792085664566109964.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 29,
+      "summary": "Test Files  3 passed (3); Tests  54 passed (54)",
+      "logSha256": "1b24027ece5ac7ae8ad421d52485b1e423a6f0f798e62af41e629e5597348833"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_speech_minimums.py",
+      "exit": 0,
+      "elapsedSeconds": 3.87,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-hangover-after-1792085665952276129.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 30,
+      "summary": "Ran 10 tests in 0.610s; OK",
+      "logSha256": "30f88a6feb7aafa18e6b34157075300e5028209af8b15badf5f2e6b183c38b99"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/rank-fusion.test.ts tests/unit/runtime/knowledge-and-channel.test.ts tests/unit/runtime/prompt-composer.test.ts tests/integration/runtime-golden-transcripts.test.ts",
+      "exit": 0,
+      "elapsedSeconds": 3.29,
+      "evidencePath": "/tmp/halo-phase2-loop/knowledge-golden-1792085686413394533.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 31,
+      "summary": "Test Files  4 passed (4); Tests  43 passed (43)",
+      "logSha256": "94b85f939c504f017ae152173e5267bf42e7045cd0d0bb1c5c39eed83bef83e4"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_speech_minimums.py",
+      "exit": 0,
+      "elapsedSeconds": 4.67,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-focused-1792085685281158525.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 32,
+      "summary": "Ran 11 tests in 0.768s; OK",
+      "logSha256": "2f35368d5bbf1674decb10e774fc2b1fb346af6927a70dae04f9bb0e5068153c"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 0,
+      "elapsedSeconds": 7.77,
+      "evidencePath": "/tmp/halo-phase2-loop/typecheck-final-1792085718708533690.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 33,
+      "summary": "> tsc --noEmit",
+      "logSha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run lint",
+      "exit": 0,
+      "elapsedSeconds": 31.82,
+      "evidencePath": "/tmp/halo-phase2-loop/lint-final-1792085719940165039.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 34,
+      "summary": "> eslint",
+      "logSha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py",
+      "exit": 0,
+      "elapsedSeconds": 21.0,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-full-1792085920659077834.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 35,
+      "summary": "Ran 91 tests in 12.740s; OK (skipped=1)",
+      "logSha256": "e0e9b43cf9e4b827cc0ef31fc54a7208ffa9ca8bc03a7ede875a1deb5a7c57b9"
+    },
+    {
+      "command": "npm run build",
+      "exit": 1,
+      "elapsedSeconds": 29.0,
+      "evidencePath": "/tmp/halo-phase2-loop/build-1792085919488251854.log",
+      "evidenceType": "local test",
+      "isolation": "Private network namespace, required synthetic env overrides; Next loads .env.local; all external traffic blocked",
+      "phase": "P2-LOOP",
+      "iteration": 36,
+      "summary": "Failed to fetch `Geist` from Google Fonts.\n\n\n    at ignore-listed frames",
+      "logSha256": "a1f0d8689b126e6060a7116438d710b2f0cc37fa30f57f57da64e9bf62dc5c17"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/workflow-timer-correlation.test.ts",
+      "exit": 1,
+      "elapsedSeconds": 1.74,
+      "evidencePath": "/tmp/halo-phase2-loop/timer-before-1792085965280877903.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 37,
+      "summary": "FAIL  tests/unit/workflow-timer-correlation.test.ts > production timer deserialization retains persisted correlation through the engine\nAssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]; Test Files  1 failed (1); Tests  1 failed (1)",
+      "logSha256": "af84e799a741079fe5da2f4bb1779b855ce6ca0f55d2a9696e1db8a7cdd2746d"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/workflow-timer-correlation.test.ts tests/integration/ws4-scheduled-correlation.test.ts tests/integration/workflow-engine.test.ts",
+      "exit": 0,
+      "elapsedSeconds": 1.74,
+      "evidencePath": "/tmp/halo-phase2-loop/timer-after-1792085974324973161.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 38,
+      "summary": "Test Files  3 passed (3); Tests  17 passed (17)",
+      "logSha256": "8bd034024121defe57ac1b85c658bd8177985ffa0d399afb1ee9849b2fa03937"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 0,
+      "elapsedSeconds": 25.72,
+      "evidencePath": "/tmp/halo-phase2-loop/typecheck-final-1792086011045337302.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 39,
+      "summary": "> tsc --noEmit",
+      "logSha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run lint",
+      "exit": 0,
+      "elapsedSeconds": 51.67,
+      "evidencePath": "/tmp/halo-phase2-loop/lint-final-1792086012326184212.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 40,
+      "summary": "> eslint",
+      "logSha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 0,
+      "elapsedSeconds": 72.64,
+      "evidencePath": "/tmp/halo-phase2-loop/full-tests-1792086009614022948.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 41,
+      "summary": "Test Files  179 passed | 3 skipped (182); Tests  1808 passed | 31 skipped (1839)",
+      "logSha256": "4a76618bcfdd4621d668646724d326e58380d2c7dfa0ad1e5f748259ee39f4d1"
+    },
+    {
+      "command": "npm run check:architecture",
+      "exit": 0,
+      "elapsedSeconds": 0.35,
+      "evidencePath": "/tmp/halo-phase2-loop/architecture-final-1792086186717438270.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 42,
+      "summary": "check:architecture OK \u2014 runtime + voice boundaries, provider direction, closed tool registry, RLS on every table.",
+      "logSha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run check:neutral",
+      "exit": 0,
+      "elapsedSeconds": 0.68,
+      "evidencePath": "/tmp/halo-phase2-loop/neutral-final-1792086187279038587.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 43,
+      "summary": "check:neutral OK \u2014 packages/ are industry-neutral and boundary-clean.",
+      "logSha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": ".venv/bin/python services/pipecat-worker/benchmark_chunk_pipeline.py",
+      "exit": 0,
+      "elapsedSeconds": 6.85,
+      "evidencePath": "/tmp/halo-phase2-loop/pipeline-final-1792086185566867122.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 44,
+      "summary": "}",
+      "logSha256": "951ecb238e5ae40e84d8f5b73a96f6c6dc83a8894d8de34528d7e20e1958aef2"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py",
+      "exit": -15,
+      "elapsedSeconds": 3427.13,
+      "evidencePath": "/tmp/halo-phase2-loop/baseline-worker.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 45,
+      "summary": "Task-owned sandboxed Pipecat fixture stalled at teardown; child terminated SIGTERM. Corrected unrestricted loopback-only isolation passed; exact sandbox cause unproven.",
+      "logSha256": "afdfad35c3b6764ebef5a71ad99d409df9e1c7af1762494babcdd5582962b8f6"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/contracts/local.contract.test.ts --maxWorkers=1",
+      "exit": 0,
+      "elapsedSeconds": 9.42,
+      "evidencePath": "/tmp/halo-phase2-loop/local-model-ts-1792087200855977232.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 46,
+      "environment": {
+        "VOICE_LOCAL_MODEL_DIR": "/home/parzifal/AI_Receptionist/models/voice-local",
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1"
+      },
+      "summary": "Test Files  1 passed (1); Tests  10 passed (10)",
+      "logSha256": "5ecf93729853bc3c35c528693c295d16159ae896e696987c20fc889d9621a441"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_local_speech.py",
+      "exit": 0,
+      "elapsedSeconds": 39.22,
+      "evidencePath": "/tmp/halo-phase2-loop/local-model-worker-1792090143123657464.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 47,
+      "environment": {
+        "VOICE_LOCAL_MODEL_DIR": "/home/parzifal/AI_Receptionist/models/voice-local",
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1"
+      },
+      "summary": "Ran 20 tests in 33.405s; OK",
+      "logSha256": "25337d722263601c91a61b1a1437e94523dddfde526c69e623994f0cf826e7ff"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_local_speech.py",
+      "exit": -15,
+      "elapsedSeconds": 3164.37,
+      "evidencePath": "/tmp/halo-phase2-loop/local-model-worker-1792087258874619907.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 48,
+      "environment": {
+        "VOICE_LOCAL_MODEL_DIR": "/home/parzifal/AI_Receptionist/models/voice-local",
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1"
+      },
+      "summary": "Task-owned sandboxed Pipecat fixture stalled at teardown; child terminated SIGTERM. Corrected unrestricted loopback-only isolation passed; exact sandbox cause unproven.",
+      "logSha256": "4489e9658ff302b8fc4d89837a387cdb0a069897ac11b712ea37a65202259129"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/voice/call-context-cache.test.ts tests/integration/voice-runtime.test.ts tests/unit/runtime tests/integration/runtime-cancellation.test.ts --maxWorkers=2",
+      "exit": 0,
+      "elapsedSeconds": 6.26,
+      "evidencePath": "/tmp/halo-phase2-loop/w44-focused-1792090608183591138.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 49,
+      "summary": "Test Files  19 passed (19); Tests  151 passed (151)",
+      "logSha256": "9eba8aa824f940ee692d0ab767d7d3c66372968fbd5a72e915b923bcf7b48604"
+    },
+    {
+      "command": "node --import tsx scripts/voice-context-benchmark.ts",
+      "exit": 0,
+      "elapsedSeconds": 1.19,
+      "evidencePath": "/tmp/halo-phase2-loop/w44-benchmark-1792090645739003735.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 50,
+      "summary": "}",
+      "logSha256": "beed826843e5ca496b572edfe832458c02d222899d56fc1c9984c3f27f970675"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 2,
+      "elapsedSeconds": 13.72,
+      "evidencePath": "/tmp/halo-phase2-loop/w44-typecheck-1792090657012831928.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 51,
+      "summary": "    Type 'unknown' is not assignable to type '{ version: 1; intent: string | null; slots: Record<string, string>; qualification: Record<string, string>; pendingConfirmation: { toolName: string; arguments: Record<string, string>; requestedAt: string; } | null; ... 7 more ...; responseLanguage: { ...; } | null; } | null'.",
+      "logSha256": "d492b4dbfa864ccfcccbf92e01a015f00e5dac2fdec9d112157e17a07731b806"
+    },
+    {
+      "command": "node --import tsx scripts/voice-context-benchmark.ts",
+      "exit": 0,
+      "elapsedSeconds": 2.21,
+      "evidencePath": "/tmp/halo-phase2-loop/w44-benchmark-final-1792090674680904537.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 52,
+      "summary": "}",
+      "logSha256": "92cc39bf43321d451dfc2deab0683d4df7dab6fb2c77c57993a4a6d29c544680"
+    },
+    {
+      "command": "npm run check:architecture",
+      "exit": 0,
+      "elapsedSeconds": 0.37,
+      "evidencePath": "/tmp/halo-phase2-loop/w44-architecture-1792090676949555753.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 53,
+      "summary": "check:architecture OK \u2014 runtime + voice boundaries, provider direction, closed tool registry, RLS on every table.",
+      "logSha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run lint",
+      "exit": 0,
+      "elapsedSeconds": 32.57,
+      "evidencePath": "/tmp/halo-phase2-loop/w44-lint-1792090658191043292.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 54,
+      "summary": "> eslint",
+      "logSha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 0,
+      "elapsedSeconds": 6.53,
+      "evidencePath": "/tmp/halo-phase2-loop/w44-typecheck-final-1792090691142259614.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 55,
+      "summary": "> tsc --noEmit",
+      "logSha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/voice/call-context-cache.test.ts tests/integration/voice-runtime.test.ts tests/unit/runtime/cancellation.test.ts tests/unit/runtime/agent-budgets.test.ts --maxWorkers=2",
+      "exit": 0,
+      "elapsedSeconds": 2.78,
+      "evidencePath": "/tmp/halo-phase2-loop/w44-reviewed-1792090713694874574.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 56,
+      "summary": "Test Files  4 passed (4); Tests  20 passed (20)",
+      "logSha256": "f2d3265260362cef56a14db2735eb9b8faef7bd7333f75d2286aa5a7a863bb3a"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/integration/voice-runtime.test.ts tests/unit/runtime/cancellation.test.ts tests/unit/voice/voice-session.test.ts tests/unit/voice/remote-session.test.ts --maxWorkers=2",
+      "exit": 0,
+      "elapsedSeconds": 2.53,
+      "evidencePath": "/tmp/halo-phase2-loop/w45-existing-1792090795502691957.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 57,
+      "summary": "Test Files  4 passed (4); Tests  54 passed (54)",
+      "logSha256": "d16c935256d9a67608d107c20eaeaa8ef22ff29cb24aa08e7e54f1a66042f0d4"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/unit/voice/ordered-persistence.test.ts tests/integration/voice-runtime.test.ts tests/unit/runtime/cancellation.test.ts --maxWorkers=2",
+      "exit": 0,
+      "elapsedSeconds": 2.05,
+      "evidencePath": "/tmp/halo-phase2-loop/w45-focused-1792090842191139543.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 58,
+      "summary": "Test Files  3 passed (3); Tests  16 passed (16)",
+      "logSha256": "9f408af2b653466bb62f75748c77106afe741d5a6cf1f8952dc61bef5cba8b91"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/integration/voice-async-persistence.test.ts tests/unit/voice/ordered-persistence.test.ts",
+      "exit": 0,
+      "elapsedSeconds": 1.73,
+      "evidencePath": "/tmp/halo-phase2-loop/w45-integration-1792090864747405062.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 59,
+      "summary": "Test Files  2 passed (2); Tests  5 passed (5)",
+      "logSha256": "6a5070c0490d9ac87330c1e4d03d6146079c58e936dae7cc2e666bbbbbf48b01"
+    },
+    {
+      "command": "node --import tsx scripts/voice-persistence-benchmark.ts",
+      "exit": 0,
+      "elapsedSeconds": 1.81,
+      "evidencePath": "/tmp/halo-phase2-loop/w45-benchmark-1792090902016096841.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 60,
+      "summary": "}",
+      "logSha256": "32ecedec70b983c54930ade7dab14f9f46771d479df7d6103cf666b47d685e08"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 0,
+      "elapsedSeconds": 12.92,
+      "evidencePath": "/tmp/halo-phase2-loop/w45-typecheck-1792090903236594096.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 61,
+      "summary": "> tsc --noEmit",
+      "logSha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm run lint",
+      "exit": 0,
+      "elapsedSeconds": 33.14,
+      "evidencePath": "/tmp/halo-phase2-loop/w45-lint-1792090904380642386.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 62,
+      "summary": "> eslint",
+      "logSha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_media_gate.py",
+      "exit": 0,
+      "elapsedSeconds": 5.51,
+      "evidencePath": "/tmp/halo-phase2-loop/w49-worker-regression-1792091128188846368.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 63,
+      "summary": "Ran 21 tests in 3.574s; OK",
+      "logSha256": "8fafd7aefbdb9231e691edc77b56c39f28117ca8cc84b4971629936150e9fe8d"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_policy_audio_cache.py",
+      "exit": 1,
+      "elapsedSeconds": 4.43,
+      "evidencePath": "/tmp/halo-phase2-loop/w49-focused-1792091252148051035.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 64,
+      "summary": "Ran 8 tests in 0.604s; FAILED (errors=1)",
+      "logSha256": "2c8fed811435ece7f0a20458b3b210db69f3f2155dc38ba60ad8f3f6987a79d6"
+    },
+    {
+      "command": "npm run check:architecture",
+      "exit": 0,
+      "elapsedSeconds": 0.5,
+      "evidencePath": "/tmp/halo-phase2-loop/w459-architecture-1792091258749931730.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 65,
+      "summary": "check:architecture OK \u2014 runtime + voice boundaries, provider direction, closed tool registry, RLS on every table.",
+      "logSha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run check:neutral",
+      "exit": 0,
+      "elapsedSeconds": 0.68,
+      "evidencePath": "/tmp/halo-phase2-loop/w459-neutral-1792091259293601581.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 66,
+      "summary": "check:neutral OK \u2014 packages/ are industry-neutral and boundary-clean.",
+      "logSha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_policy_audio_cache.py",
+      "exit": 0,
+      "elapsedSeconds": 3.62,
+      "evidencePath": "/tmp/halo-phase2-loop/w49-focused-final-1792091267949300410.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 67,
+      "summary": "Ran 8 tests in 0.583s; OK",
+      "logSha256": "2731c4d2e0dfd83f11018146eeb8af936e6810d4a4938713533d09b96feb13c2"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_policy_audio_cache.py",
+      "exit": 0,
+      "elapsedSeconds": 4.15,
+      "evidencePath": "/tmp/halo-phase2-loop/w49-reviewed-1792091324534400450.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 68,
+      "summary": "Ran 8 tests in 0.555s; OK",
+      "logSha256": "1c0547eb30db04b96c25c5edd622ff846aa1bf83debe497a04ad04ec287e98e7"
+    },
+    {
+      "command": ".venv/bin/python services/pipecat-worker/benchmark_policy_cache.py",
+      "exit": 0,
+      "elapsedSeconds": 4.19,
+      "evidencePath": "/tmp/halo-phase2-loop/w49-benchmark-1792091325672552877.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 69,
+      "summary": "}",
+      "logSha256": "a3d6324cc7f5283109a19cc9e93efa312ee10af944b4cf18757ac44393afc0ed"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py",
+      "exit": 1,
+      "elapsedSeconds": 22.33,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-full-1792091751303781616.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 70,
+      "summary": "FAIL: test_sarvam_path_is_built_exactly_as_before (test_local_speech.ProviderRoutingTests)\n----------------------------------------------------------------------; Ran 100 tests in 16.263s; FAILED (failures=1, skipped=1)",
+      "logSha256": "d245fecb9dd18b06b0075fe00a0e0eefa85d226188a96f186dce22230e526938"
+    },
+    {
+      "command": "node --import tsx scripts/voice-cooldown-benchmark.ts",
+      "exit": 0,
+      "elapsedSeconds": 1.7,
+      "evidencePath": "/tmp/halo-phase2-loop/w46-benchmark-1792091780215521324.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 71,
+      "summary": "}",
+      "logSha256": "17c3a1f1617129427063ed143f293735508f7e61679631b675d78706912d49d4"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_local_speech.py -k ProviderRoutingTests",
+      "exit": 0,
+      "elapsedSeconds": 11.28,
+      "evidencePath": "/tmp/halo-phase2-loop/w49-routing-1792091797438182486.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 72,
+      "summary": "Ran 4 tests in 2.522s; OK",
+      "logSha256": "d25227ab85b2d6c98fbede493e2b64c284be5b136e8b4856042d54f5673aca68"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 0,
+      "elapsedSeconds": 18.7,
+      "evidencePath": "/tmp/halo-phase2-loop/all-final-typecheck-1792091798599033866.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 73,
+      "summary": "> tsc --noEmit",
+      "logSha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 0,
+      "elapsedSeconds": 90.79,
+      "evidencePath": "/tmp/halo-phase2-loop/full-tests-1792091750192216437.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 74,
+      "summary": "Test Files  182 passed | 3 skipped (185); Tests  1817 passed | 31 skipped (1848)",
+      "logSha256": "7222cdbff38507a879a81816657c931acb6e7dc655361243960b2c28e1248391"
+    },
+    {
+      "command": "npm run lint",
+      "exit": 0,
+      "elapsedSeconds": 56.19,
+      "evidencePath": "/tmp/halo-phase2-loop/all-final-lint-1792091799868045371.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 75,
+      "summary": "> eslint",
+      "logSha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py",
+      "exit": 0,
+      "elapsedSeconds": 20.22,
+      "evidencePath": "/tmp/halo-phase2-loop/worker-full-1792091875007072759.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 76,
+      "summary": "Ran 100 tests in 14.454s; OK (skipped=1)",
+      "logSha256": "d9790c8067842127a30eb03a02cd4c178d39974d7e45ee8d4cb888bf376dc11e"
+    },
+    {
+      "command": "npm run preflight:ci",
+      "exit": 0,
+      "elapsedSeconds": 2.15,
+      "evidencePath": "/tmp/halo-phase2-loop/final-preflight-1792092159014023199.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 77,
+      "summary": "\u2705 Configuration checks passed. Provider, database and deployment readiness require their separate verification gates.",
+      "logSha256": "387058affd4b86b9c79f9ebaee3b50f877df0cb6405a534a3e1764a41ca639c6"
+    },
+    {
+      "command": "npx vitest run tests/unit/voice/call-context-cache.test.ts tests/integration/voice-async-persistence.test.ts",
+      "exit": 0,
+      "elapsedSeconds": 6.01,
+      "evidencePath": "/tmp/halo-phase2-loop/cache-late-read-1792092327256936821.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 78,
+      "summary": "Test Files  2 passed (2); Tests  7 passed (7)",
+      "logSha256": "cd81ee69baeab2a7eae997f3824ed390184fc54e3daba16c2db021687c5e8f2e"
+    },
+    {
+      "command": "npm run check:architecture",
+      "exit": 0,
+      "elapsedSeconds": 1.03,
+      "evidencePath": "/tmp/halo-phase2-loop/final-race-architecture-1792092352019466125.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 79,
+      "summary": "check:architecture OK \u2014 runtime + voice boundaries, provider direction, closed tool registry, RLS on every table.",
+      "logSha256": "a58bcb3a642267c7bf7cd5551accdce33e15117443eb497c136ffe46020408bf"
+    },
+    {
+      "command": "npm run check:neutral",
+      "exit": 0,
+      "elapsedSeconds": 4.01,
+      "evidencePath": "/tmp/halo-phase2-loop/final-race-neutral-1792092353323605598.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 80,
+      "summary": "check:neutral OK \u2014 packages/ are industry-neutral and boundary-clean.",
+      "logSha256": "878ff9f5534b2f72073fa363fdb838872371ec1971ce218609626aba407f772b"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 0,
+      "elapsedSeconds": 25.51,
+      "evidencePath": "/tmp/halo-phase2-loop/final-race-typecheck-1792092336684326431.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 81,
+      "summary": "> tsc --noEmit",
+      "logSha256": "54186a80fe2fdda46a1e05cfedf7a0ed671c3a006b13ed6eb2b48ba9de9ed494"
+    },
+    {
+      "command": "node --import tsx scripts/voice-context-benchmark.ts",
+      "exit": 0,
+      "elapsedSeconds": 5.37,
+      "evidencePath": "/tmp/halo-phase2-loop/final-context-benchmark-1792092367862344023.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 82,
+      "summary": "}",
+      "logSha256": "8b7c38477e4537caef74148a21de035b847b15f9dcc4bd579699d993a795aa2b"
+    },
+    {
+      "command": "npm run lint",
+      "exit": 0,
+      "elapsedSeconds": 102.05,
+      "evidencePath": "/tmp/halo-phase2-loop/final-race-lint-1792092350941608346.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 83,
+      "summary": "> eslint",
+      "logSha256": "d77d47d0b101522d37c94381e2b9f9f4be5c38e39375571b49e41076ad1c8eb1"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "exit": 0,
+      "elapsedSeconds": 143.49,
+      "evidencePath": "/tmp/halo-phase2-loop/full-tests-1792092335156552758.log",
+      "evidenceType": "local test",
+      "isolation": "unshare -Urn; synthetic environment; no env files loaded",
+      "phase": "P2-LOOP",
+      "iteration": 84,
+      "summary": "Test Files  182 passed | 3 skipped (185); Tests  1818 passed | 31 skipped (1849)",
+      "logSha256": "49db920c007eda40b75266bc5d232c503951cfbd6e7438f1ca38d2e9a6240a37"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "npm run build",
+      "cwd": "/tmp/halo-phase2-build-candidate",
+      "exit": 1,
+      "elapsedSeconds": 4.14,
+      "evidencePath": "/tmp/halo-phase2-loop/build-authorized-symlink-failure.log",
+      "evidenceType": "local test",
+      "authorization": "Owner reply: Authorize public font fetch for this build; fonts.googleapis.com/fonts.gstatic.com only; $0 credential-free snapshot",
+      "isolation": "No env files except .env.example; only synthetic credentials; outbound=false; messaging=log; Next telemetry disabled",
+      "summary": "Historical snapshot build before final cache correction; symlink preparation failure or earlier successful candidate, not final source proof"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "npm run build",
+      "cwd": "/tmp/halo-phase2-build-candidate",
+      "exit": 0,
+      "elapsedSeconds": 76.71,
+      "evidencePath": "/tmp/halo-phase2-loop/build-authorized-before-race.log",
+      "evidenceType": "local test",
+      "authorization": "Owner reply: Authorize public font fetch for this build; fonts.googleapis.com/fonts.gstatic.com only; $0 credential-free snapshot",
+      "isolation": "No env files except .env.example; only synthetic credentials; outbound=false; messaging=log; Next telemetry disabled",
+      "summary": "Historical snapshot build before final cache correction; symlink preparation failure or earlier successful candidate, not final source proof"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "npm run build",
+      "cwd": "/tmp/halo-phase2-build-candidate",
+      "exit": 0,
+      "elapsedSeconds": 128.97,
+      "evidencePath": "/tmp/halo-phase2-loop/build-authorized.log",
+      "evidenceType": "local test",
+      "authorization": "Owner reply: Authorize public font fetch for this build; fonts.googleapis.com/fonts.gstatic.com only; $0 credential-free snapshot",
+      "isolation": "No env files except .env.example; only synthetic credentials; outbound=false; messaging=log; Next telemetry disabled",
+      "summary": "Credential-free source-matched canonical build; authorized public font fetch only"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "node scripts/check-offline-database.mjs",
+      "exit": 0,
+      "summary": "Final rerun: 36 migrations, RLS 669/0, 26 governance/PostgREST cases passed; cleanup confirmed",
+      "evidencePath": "/tmp/halo-phase2-loop/offline-db-final.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "13fd7990d70de55468680c998b319e19e84bbf1683de8f2c06aaaefc8170f48e"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "node scripts/check-offline-database.mjs",
+      "exit": 1,
+      "summary": "Docker socket denied; no disposable container created",
+      "evidencePath": "/tmp/halo-phase2-loop/offline-db.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "eb8cbe809e8003525b33feff40270846214bee085a4b00ad93719d8521f56e0e"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "node scripts/check-offline-database.mjs",
+      "exit": 0,
+      "summary": "36 migrations; RLS 669 ok / 0 FAIL; all 26 opt-in production governance/PostgREST cases pass; task containers removed",
+      "evidencePath": "/tmp/halo-phase2-loop/offline-db-retry.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "9f3c8a08bf7250c04f32c2f829be5714d944852f9e7d177127e2e4a2a19bca90"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "node scripts/check-rollout-rehearsal.mjs",
+      "exit": 1,
+      "summary": "Docker socket denied; 0/1 harness setup; no target accessed",
+      "evidencePath": "/tmp/halo-phase2-loop/rehearsal.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "af92c4d788ba645323bb40fbc840af163f98782a0d3786db6a0fad26003e3014"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "node scripts/check-rollout-rehearsal.mjs",
+      "exit": 0,
+      "summary": "83/83, pre/post-0036 roll-forward and restore; task containers removed",
+      "evidencePath": "/tmp/halo-phase2-loop/rehearsal-retry.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "6e3126b7016e7b142ca593e392329aa5a8fca8a5ed31c8154df719fff42c3eaa"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "npm run check:supabase-image-chain",
+      "exit": 1,
+      "summary": "Docker socket denied",
+      "evidencePath": "/tmp/halo-phase2-loop/image-chain.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "76f71446144dbe36e1e71538761663b0b8f98c3f76fc89fee63afaca435f573b"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "npm run check:supabase-image-chain",
+      "exit": 0,
+      "summary": "36 migrations; A fails gen_random_bytes, P applies all, C fails vector operator, all expected; task containers removed",
+      "evidencePath": "/tmp/halo-phase2-loop/image-chain-retry.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "389a7e08732f333a85200362cff15afd8b2c33c602e2f52f464ce4b4157d87df"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "HALO_GATE_LOG_DIR=/tmp/halo-phase2-loop bash docs/evidence/local-release-audit-db.sh",
+      "exit": 3,
+      "summary": "Docker socket denied before creation",
+      "evidencePath": "/tmp/halo-phase2-loop/audit-db.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "cc35e13490dd807523fc0b242b0a9479992c78cb62448160faa63a40736f197e"
+    },
+    {
+      "phase": "P2-LOOP",
+      "command": "HALO_GATE_LOG_DIR=/tmp/halo-phase2-loop bash docs/evidence/local-release-audit-db.sh",
+      "exit": 0,
+      "summary": "migrations exit 0; RLS 669/0; audit 5/5; HTTP 8/8; cleanup confirmed",
+      "evidencePath": "/tmp/halo-phase2-loop/audit-db-retry.log",
+      "evidenceType": "disposable DB",
+      "logSha256": "d806671b9b6138ef43b32f357205d6756fb4e7f96b3d2bb7fa931efa243da174"
+    }
+  ],
+  "skippedChecks": [
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "cases": 26,
+      "reason": "DB opt-in switches unset in general suite",
+      "coveredBy": "node scripts/check-offline-database.mjs: 26 passed",
+      "missingEvidence": "actual hosted Auth/roles/target; blocks hosted only"
+    },
+    {
+      "command": "npm test -- --maxWorkers=2",
+      "cases": 5,
+      "reason": "VOICE_LOCAL_MODEL_DIR unset in general suite; installed manifest found during audit",
+      "coveredBy": "VOICE_LOCAL_MODEL_DIR=models/voice-local vitest run tests/contracts/local.contract.test.ts: 10 passed (5 stand-in + 5 real-model)",
+      "missingEvidence": "human language quality and actual provider/PSTN; blocks pilot only"
+    },
+    {
+      "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_*.py",
+      "cases": 1,
+      "reason": "VOICE_LOCAL_MODEL_DIR unset in general suite",
+      "coveredBy": "VOICE_LOCAL_MODEL_DIR=models/voice-local unittest discover -s services/pipecat-worker -p test_local_speech.py: 20 passed, no skip including the real-model English/Telugu round trip",
+      "missingEvidence": "human Telugu quality, phone/caller/provider latency; blocks pilot only"
+    },
+    {
+      "command": "hosted target T1\u2013T10 and live provider tests",
+      "reason": "No named authorized target/account/action; D8/D17/R8 and related approvals pending",
+      "coveredBy": "disposable DB checks provide local contract evidence only",
+      "missingEvidence": "all actual target/provider outcomes; blocks hosted release"
+    }
+  ],
+  "externalActions": {
+    "hostedOrSharedDatabase": false,
+    "providerCalls": false,
+    "outbound": false,
+    "deployments": false,
+    "commits": false,
+    "pushes": false,
+    "spend": 0,
+    "publicDocumentationRead": true,
+    "fontFetch": "Owner-authorized public Google font fetch in credential-free build snapshot; see build result",
+    "localInstalledModelInference": true
+  },
+  "remainingLocalPlanCards": [],
+  "authorizedBuild": {
+    "phase": "P2-LOOP",
+    "command": "npm run build",
+    "cwd": "/tmp/halo-phase2-build-candidate",
+    "exit": 0,
+    "elapsedSeconds": 128.97,
+    "evidencePath": "/tmp/halo-phase2-loop/build-authorized.log",
+    "evidenceType": "local test",
+    "authorization": "Owner reply: Authorize public font fetch for this build; fonts.googleapis.com/fonts.gstatic.com only; $0 credential-free snapshot",
+    "isolation": "No env files except .env.example; only synthetic credentials; outbound=false; messaging=log; Next telemetry disabled",
+    "sourceManifest": [
+      {
+        "path": "packages/language/backchannels.ts",
+        "sha256": "7b42e5ac3034cbfcafe3efe6bfcab0dc2d2996bb2a5e239ccca57fda2a71b9ac"
+      },
+      {
+        "path": "packages/voice/call-context-cache.ts",
+        "sha256": "a4e6895cbff21363a04f7b305966e518c3c828a266e1c78c64926680b53d066c"
+      },
+      {
+        "path": "packages/voice/ordered-persistence.ts",
+        "sha256": "61d75c1679f76a83ddcd7eccbe59fd4287361dba981688d8ec18e157121a94d3"
+      },
+      {
+        "path": "services/pipecat-worker/benchmark_chunk_pipeline.py",
+        "sha256": "e1d91c07b86039da3d30a36741709a7b08e034beb7bc38d62a825fdf493ba68a"
+      },
+      {
+        "path": "services/pipecat-worker/benchmark_policy_cache.py",
+        "sha256": "74e559fc58cce0926654d52f37592761e4455b5d9caaa75b3d739da3356a3ada"
+      },
+      {
+        "path": "services/pipecat-worker/policy_audio_cache.py",
+        "sha256": "795d3bb19ca649bad519c4f49c8a924451aa53262d535c93e262ffa63fc2b476"
+      },
+      {
+        "path": "services/pipecat-worker/sarvam_wire_tts.py",
+        "sha256": "45c382f49902efc762bb8f8283b4c30efb1b3e1196379cc668dd3e688b8f0edc"
+      },
+      {
+        "path": "services/pipecat-worker/test_chunk_pipeline.py",
+        "sha256": "467be7ffc91a9d7db762a6cedce82864d9834fe9fe4348f09bd58619aa7235af"
+      },
+      {
+        "path": "services/pipecat-worker/test_policy_audio_cache.py",
+        "sha256": "fb93c210a18fb3e559382b7fd0986d4dcad519d0b567035ffa6974bad8c6b102"
+      },
+      {
+        "path": "packages/README.md",
+        "sha256": "7acb9e79900d03c63ce9b16bb386362c29dbab536f2a438d4a4d43a0af645e2d"
+      },
+      {
+        "path": "packages/agents/agent-repository.ts",
+        "sha256": "da653a4c218e1b7acdd303b0bf7ce618a07e1dfec47f3cc83f0b20eb58eb86f2"
+      },
+      {
+        "path": "packages/agents/agent-resolver.ts",
+        "sha256": "e658eb4c8df931d9ceb6be327c710793173bc69682f933ed9fc8f60061212915"
+      },
+      {
+        "path": "packages/agents/agent-versioning.ts",
+        "sha256": "2888b7a59799944bec489c96280314b33ca5a41ee70a6d9a302192c64de22ae5"
+      },
+      {
+        "path": "packages/analytics/lifecycle-analytics-service.ts",
+        "sha256": "bbfa2e7af4adcf6a7d862c16d92531ed0993fafc709162a740151a1c4ec0388a"
+      },
+      {
+        "path": "packages/analytics/lifecycle-analytics.ts",
+        "sha256": "21723f8bc1bee2c83e0e642fd50d10f0cab9e5d7870d6758b1e6fe1170e8a7b2"
+      },
+      {
+        "path": "packages/analytics/operations-analytics-service.ts",
+        "sha256": "359425c5845d54142c336ef4d7a81d5499dbf61b4105cbdc53cfe97c92235f1c"
+      },
+      {
+        "path": "packages/campaigns/dispatch.ts",
+        "sha256": "972d61c9e8fd55284fe7a22cfbdcc66a3fd0f37a22fef3991543464a28652dde"
+      },
+      {
+        "path": "packages/campaigns/engine.ts",
+        "sha256": "01912b0f2eb68b762c9de7c629c03c3621d739cb5a50be0b7a8dbec82e25b13d"
+      },
+      {
+        "path": "packages/campaigns/supabase-campaign-store.ts",
+        "sha256": "0f896086c41ebd0b1c7c0219921557e8c16375c7aada9b0aa70cedc768e3e5cf"
+      },
+      {
+        "path": "packages/core/domain/agents.ts",
+        "sha256": "217348339d54fc9d711cf6147bdbfbf6c87406de578f0aa0050d04506ca26452"
+      },
+      {
+        "path": "packages/core/domain/scheduling.ts",
+        "sha256": "9e90dd021635f234490b01e8943e810b4ee7f2e51c39350738537814403a519c"
+      },
+      {
+        "path": "packages/core/domain/types.ts",
+        "sha256": "bb45c80e194298ea877333ea2698e612d3aa320a17af8fa8068c9e71498ccd7e"
+      },
+      {
+        "path": "packages/core/domain/voice.ts",
+        "sha256": "d334d340af54d8603cb4a7a7ce58b0ebd675218067bc58b1e7877d7702cd02c6"
+      },
+      {
+        "path": "packages/core/domain/workflow.ts",
+        "sha256": "a8f44e58506e6119933b325d1d0e125eccd72ca20522a82391e33f50c6be1b0a"
+      },
+      {
+        "path": "packages/core/errors/app-error.ts",
+        "sha256": "f1361d9730b0e4f98af6c9e2df8ff509507ba783b3f729beabbfc207862f1eff"
+      },
+      {
+        "path": "packages/crm/crm-service.ts",
+        "sha256": "b4b33e1daf80d1b171a55a5d83a8168ef02fa8a3c476508ef0a2a224aa9e6487"
+      },
+      {
+        "path": "packages/crm/lead-lifecycle-store.ts",
+        "sha256": "e3e1dc50ee51586237507ec5f7c3b1cc3ad22b21f8b85210b91ee9e4775bb012"
+      },
+      {
+        "path": "packages/crm/lead-lifecycle.ts",
+        "sha256": "edf2ef7fbd9d578698a7df071df824089ed476d1bb957311bc037d4304de5214"
+      },
+      {
+        "path": "packages/crm/supabase-crm-store.ts",
+        "sha256": "853d2832748116c0c7b18aedfeb22c3aba0c376000ae94b5d2ea67c38b57e48e"
+      },
+      {
+        "path": "packages/knowledge/chunker.ts",
+        "sha256": "80cb42e0e8474237bbdf31201dc8c8652cd87de586f935fc28496f0fac829528"
+      },
+      {
+        "path": "packages/knowledge/playbooks.ts",
+        "sha256": "fd373f9c00371b5178bf9061c8f7378bdc0ca41737c66f9c468fd973320b7ecb"
+      },
+      {
+        "path": "packages/knowledge/retrieval-query.ts",
+        "sha256": "7f5bae13e6829088dd965010a696a82cce40241adf9ca0d3869e16fed95412ba"
+      },
+      {
+        "path": "packages/language/confirmation.ts",
+        "sha256": "e17f0cc4aedad4fabc89d4ba71b3e160478a3f454c1a819132872fadaa19b7fb"
+      },
+      {
+        "path": "packages/language/detect.ts",
+        "sha256": "6fe02e3439b3c486c07cd2f4318520cf45db7106255145a3cd4e1fe90146c09e"
+      },
+      {
+        "path": "packages/language/language-pack.ts",
+        "sha256": "b2ea719393eeb2f5ded472839476b1709ce4c9ff6072d03c6045fd17cb1feba3"
+      },
+      {
+        "path": "packages/language/lexicon.ts",
+        "sha256": "b6d983bb6ae573470140f18d75636834b76b28d1b80d0841ba4111d165384718"
+      },
+      {
+        "path": "packages/language/normalize.ts",
+        "sha256": "4434f299004eea1d30270f113eeed37f648dffa05cd5b9ec0cfa0017c8fadae2"
+      },
+      {
+        "path": "packages/language/parsers/bill.ts",
+        "sha256": "bcbb1bce9ee763bf9fe86a1fec39e9f4e698c16bfe8221b081f434b529517e1b"
+      },
+      {
+        "path": "packages/language/parsers/contact.ts",
+        "sha256": "f4315537510b08a32bc5317cad24aea83785a52c3e4249551eb72e856c153f51"
+      },
+      {
+        "path": "packages/language/parsers/money.ts",
+        "sha256": "7ba29fabb4d59ef606c23984d1bce0b0ac01596c084f05c84723405673b65dcb"
+      },
+      {
+        "path": "packages/language/parsers/numerals.ts",
+        "sha256": "604f1e0a7f4b81c0c033edf83ccfa114cc18702e30c77354d1a53401837dca95"
+      },
+      {
+        "path": "packages/language/parsers/quantity.ts",
+        "sha256": "d66fb2c48f1328cee809dc9fadffb221bb733e51bbd213d9f1e234f38d157e9e"
+      },
+      {
+        "path": "packages/language/parsers/time-expressions.ts",
+        "sha256": "5c44106cfd5388651733d95ca1713838d719a46671f1ae9132681afc50d37857"
+      },
+      {
+        "path": "packages/language/question-cues.ts",
+        "sha256": "c264f52f2505a138d8a70e30adc437ed79242acd6d6f9e722ad77d41456dcbdf"
+      },
+      {
+        "path": "packages/language/response-language.ts",
+        "sha256": "f713d494cc20b64ffc08f2ab561b0734b11f810081804170f6c66b3fc11d4ab7"
+      },
+      {
+        "path": "packages/language/routing-cues.ts",
+        "sha256": "5df02facd1b1115a18fcab44b25cfa3f13bc8d76985b1113821d31bc678cd6d5"
+      },
+      {
+        "path": "packages/language/tokens.ts",
+        "sha256": "e3560b7c73a9ff5768af846e3d13f2e55fd2b4a188eb55971037aaa46adbc1db"
+      },
+      {
+        "path": "packages/language/truncate.ts",
+        "sha256": "b5f87929bf0fa2c802345cba7c4f2aebf801f3e65008101b0dc1d394302034c3"
+      },
+      {
+        "path": "packages/learning/analysis.ts",
+        "sha256": "15a279bf5f6cf1ce1387c55703e505851c146da70536baec3bb1a5e33428e614"
+      },
+      {
+        "path": "packages/learning/evaluation.ts",
+        "sha256": "c210cf4e450a75a72cd5dfa4c2dd5004c1b9f391b1035cff213a2e8a6e8b93ca"
+      },
+      {
+        "path": "packages/learning/proposals.ts",
+        "sha256": "5952fdc833da7f62ab0b25961c89eafc6645cfca82f5b6cc939a2638ab8662c6"
+      },
+      {
+        "path": "packages/lifecycle/confirmation-content.ts",
+        "sha256": "f4d68ebc2cf23aec095edd50eb838103f684a382dd889a35dd1587d7a4ce5ada"
+      },
+      {
+        "path": "packages/lifecycle/confirmation-service.ts",
+        "sha256": "5cd2452b029d9a23da58deeec953ddbc1d4b8841bba19887c0ecd0460407041d"
+      },
+      {
+        "path": "packages/lifecycle/feedback-service.ts",
+        "sha256": "5730bf7d852ee4209b34f522a9a48658612d66598c7d75b05bd57cec8dfdb51d"
+      },
+      {
+        "path": "packages/lifecycle/lifecycle-service.ts",
+        "sha256": "24a85c635b02cec017512cc58636afb47f903e81b6e6aa1c75dfe0bb07754b35"
+      },
+      {
+        "path": "packages/lifecycle/lifecycle-settings.ts",
+        "sha256": "7ac968b6043007ab9def829d7dc7d0c57b53c050e173b030f2f88516777f107c"
+      },
+      {
+        "path": "packages/lifecycle/manage-service.ts",
+        "sha256": "7c6e87af54704fc8833aaabff9613652105766f7bc33fd4dde108b26956e160c"
+      },
+      {
+        "path": "packages/lifecycle/no-show-sweep.ts",
+        "sha256": "16c5fa02974d58c9bd961a3e5ae87b3a666f5bba2a5053fdddb54baae44c2a18"
+      },
+      {
+        "path": "packages/negotiation/authorization.ts",
+        "sha256": "b3980d27a8084ee8cc232c73a1ad749b2139182a1b72a2dfd3467dc49cf900a5"
+      },
+      {
+        "path": "packages/negotiation/objections.ts",
+        "sha256": "c470c5ab443ea5190bfe908eb63ef568822c84f67e718b5fed4c61213dc2f4a4"
+      },
+      {
+        "path": "packages/negotiation/policy.ts",
+        "sha256": "fc35681cda6286965d80664358e3e275f681641a51e564db054868312b3569f8"
+      },
+      {
+        "path": "packages/negotiation/system-action.ts",
+        "sha256": "6c683ab994e2238eba879b7f9ea22379d030f11e103d77eed0e828200aac8120"
+      },
+      {
+        "path": "packages/negotiation/tool.ts",
+        "sha256": "c2226fda6b7d9742a43363fe6ba29fbbc0d3958a26dd5b848f551a718b028475"
+      },
+      {
+        "path": "packages/platform/alerts.ts",
+        "sha256": "0e444ebbc44cee6cac6adcc16373d2114146c6f3326ffc68c901f85199b41687"
+      },
+      {
+        "path": "packages/platform/calendar-credential-migration.ts",
+        "sha256": "40ee23aa69c691d6856df23c53035bc62a4eaf86298f6de58d3669074786ab1f"
+      },
+      {
+        "path": "packages/platform/calendar-credential-target.ts",
+        "sha256": "d2a3b89e374164c26e86caf09353ead0d1a6d1fdea1ceb433f6e03d7d4a2720b"
+      },
+      {
+        "path": "packages/platform/calendar-credentials.ts",
+        "sha256": "24f9bf609838059cd724aafcd1008188dc7409c6a7c70d76e02aa4b8ff756a10"
+      },
+      {
+        "path": "packages/platform/cn.ts",
+        "sha256": "16407efbf8336f692399a3401c395a36627fde855f96ef1cf52506f1295990b2"
+      },
+      {
+        "path": "packages/platform/crypto.ts",
+        "sha256": "5889b437d8dd15a07edb5d76019bac610be35df04b67112157026efcd876ce9b"
+      },
+      {
+        "path": "packages/platform/env.ts",
+        "sha256": "82d5683dc451afaf6581b0ed8392562bea7840b720eeb637e29955feefba3ba0"
+      },
+      {
+        "path": "packages/platform/ics.ts",
+        "sha256": "0efa00950250d73fe52fcdc75376d47330508cfb55f35014b854d2b6991fc86a"
+      },
+      {
+        "path": "packages/platform/logger.ts",
+        "sha256": "689ec3fcd03a136d3caa2454ea0e48f2763e104040fcad72d174245efdf198c3"
+      },
+      {
+        "path": "packages/platform/oauth-state.ts",
+        "sha256": "52e9b57391d4daaaef8a0b8c99efa6937c6b94b65f1af4023972bd229ac6cb57"
+      },
+      {
+        "path": "packages/platform/rate-limit.ts",
+        "sha256": "4ac16253783f0d620f884cf401fb319cf0198190b2a7fe73c1f0bfaeeacaf897"
+      },
+      {
+        "path": "packages/platform/retry.ts",
+        "sha256": "540307593c4e8ed73ee8af098259193f46cc136fbb8e1321491d118c7f5d5b3b"
+      },
+      {
+        "path": "packages/platform/safe-redirect.ts",
+        "sha256": "63c020dfcc741a9a179efa778cf2add0ed8f6f0d938d57fbfcfaee81dc9c6fb4"
+      },
+      {
+        "path": "packages/platform/security-audit.ts",
+        "sha256": "a09468692266f1e849ae6d87e6c234517efa6e4bf71440c17b3929fb8128486a"
+      },
+      {
+        "path": "packages/platform/ssrf.ts",
+        "sha256": "cb3d352d2ef6bd6dce7e905670467c5adf1ebca4154ee06097f960858e3bb7d4"
+      },
+      {
+        "path": "packages/platform/telemetry.ts",
+        "sha256": "338b5db9fa7e1decf2a8536af618d7f7ac4d3457f1f33fe9c1eca9180a2dba10"
+      },
+      {
+        "path": "packages/ports/calendar-provider.ts",
+        "sha256": "6aa0475a9d5b1aeefbc2cd48518bbd4683fa62d63dbe4c10b3597a62e7239f0c"
+      },
+      {
+        "path": "packages/ports/embedding-provider.ts",
+        "sha256": "e89728a09658f10d21fabb54d734f0265f0303e640aeb8a131b1eb9edacfe3f3"
+      },
+      {
+        "path": "packages/ports/knowledge-provider.ts",
+        "sha256": "cc4cdd21116e64ed0f530f898ba161b18818c83d827de37e070dd29c27fceca6"
+      },
+      {
+        "path": "packages/ports/llm-provider.ts",
+        "sha256": "abb9e3a3f03b751a6655d837810ca682e46610dcbbdf46bb35cdc5ff3ca51848"
+      },
+      {
+        "path": "packages/ports/messaging-provider.ts",
+        "sha256": "56202de9375d257e850345c8709e80cc364c63e8cdae6c211ae2f001f53cabbe"
+      },
+      {
+        "path": "packages/ports/notification-provider.ts",
+        "sha256": "8cad33ee17a9366afc24313da6b6c2592ad6586774553dca596e06e254db1f6a"
+      },
+      {
+        "path": "packages/ports/ops-provider.ts",
+        "sha256": "237d6fb419a8194357f7329dd076dab73593d86c8bbb07f09723d8d985b4f879"
+      },
+      {
+        "path": "packages/ports/outbound-dialer.ts",
+        "sha256": "e92b031322de1a0008913fd72b3b4747c1f768d613781dd7c387d6256caf8c84"
+      },
+      {
+        "path": "packages/ports/speech-provider.ts",
+        "sha256": "40377872376289546a8f5375c768a616208ec72298c88ecaca47472af8561fd4"
+      },
+      {
+        "path": "packages/ports/storage-provider.ts",
+        "sha256": "0bc98a2b450cd01d4dfe92881e9fd26252df6ccf79e3b51b2b3d6d58fafd8d5c"
+      },
+      {
+        "path": "packages/ports/streaming-stt-provider.ts",
+        "sha256": "3b7933872835b21b32be83e7b2bd6dd0bfefcebdcc97afc7bc450ec98e90dc03"
+      },
+      {
+        "path": "packages/ports/streaming-tts-provider.ts",
+        "sha256": "f92c8d8af6ff3d0608898d7f581fafb6c9bce46e673db240f3cb492e43cdff98"
+      },
+      {
+        "path": "packages/ports/telephony-provider.ts",
+        "sha256": "2fdc7d01bcc6967b512914885feee638a1afd5b20db84d5b8ea9ea750289c0d8"
+      },
+      {
+        "path": "packages/providers/calendar/caldav-calendar-provider.ts",
+        "sha256": "e6b6d4cc923054acc2f88b051f9d0e5fb1b067fc49e3c8c07d3e1b35bae2b5cd"
+      },
+      {
+        "path": "packages/providers/calendar/factory.ts",
+        "sha256": "a111f278b10053ca17b233b33fe0161a02c337ecfc250e9448a26518a7356583"
+      },
+      {
+        "path": "packages/providers/calendar/google-calendar-provider.ts",
+        "sha256": "8b2650e81d9c160d713545857346a140466e6bf552d1f5ccbd7a5603221ef1b9"
+      },
+      {
+        "path": "packages/providers/calendar/internal-calendar-provider.ts",
+        "sha256": "06f17950691f5c062971c2fca2475f1707139c5e3043fa4b448d072c8f912db7"
+      },
+      {
+        "path": "packages/providers/calendar/outlook-calendar-provider.ts",
+        "sha256": "9fff3311a30d260db3ee9a160a7b11072f95f3de886f27dd6491f6e3aad1c199"
+      },
+      {
+        "path": "packages/providers/calendar/token-source.ts",
+        "sha256": "30ca5eb303756daa8d467aaf150a5cdf7fddabe31b0813469c899012621a26fd"
+      },
+      {
+        "path": "packages/providers/embedding/factory.ts",
+        "sha256": "deca345380e5020a12e7bebc02fe81dd24ab60b0ff3abdf770a0ee1bc5e0f051"
+      },
+      {
+        "path": "packages/providers/embedding/ollama-embedding-provider.ts",
+        "sha256": "28781b293e22ad797981149550d647b0b612cf9e89b2a97582d610c4bae2ba79"
+      },
+      {
+        "path": "packages/providers/knowledge/factory.ts",
+        "sha256": "6045bbc329bedfcd1e7c531056419cd330fa1e0e8e84b399ca068dee578465c5"
+      },
+      {
+        "path": "packages/providers/knowledge/supabase-knowledge-provider.ts",
+        "sha256": "ef957191e547d17b24a86bc4906b653fb12d810d53db03c16a3bd7fe37604463"
+      },
+      {
+        "path": "packages/providers/llm/anthropic-provider.ts",
+        "sha256": "86d7a01eb13313909cdffc88e239ec4ba5349cd2102fcbd11730e66c185e2fc4"
+      },
+      {
+        "path": "packages/providers/llm/complexity-router.ts",
+        "sha256": "4d1c117f43997afa7325480853d2df2c3a24f233c6abdf77575fd6a129730560"
+      },
+      {
+        "path": "packages/providers/llm/factory.ts",
+        "sha256": "a2d248a2729880e34c590ca871c970661b76019911a4e6b4601ca4a67845ebfa"
+      },
+      {
+        "path": "packages/providers/llm/fallback-router.ts",
+        "sha256": "4ab0777533d217a7cba26a2b453924e4f695e070be5d6d054c6f7f91b27ec641"
+      },
+      {
+        "path": "packages/providers/llm/gemini-provider.ts",
+        "sha256": "b7ab9b39a378c0c470cd1bd0a8eddc4f1bcb239e38e53adca916c6df1c6bd351"
+      },
+      {
+        "path": "packages/providers/llm/ollama-provider.ts",
+        "sha256": "7115f58a3425b05dd21aac43f66746d7026d5587a777862e85ca2f6dcd737942"
+      },
+      {
+        "path": "packages/providers/llm/openai-compatible-provider.ts",
+        "sha256": "df484b0018b43a8a27ca53360e18198c89b8b1591b431a9b68657570cb775829"
+      },
+      {
+        "path": "packages/providers/llm/provider-error.ts",
+        "sha256": "cff51d49c83684fb7ee60c134aa5759b33c96d68dfd7ed72febe8a3425608b4a"
+      },
+      {
+        "path": "packages/providers/llm/sse.ts",
+        "sha256": "ef81522bcbaead6585ccd2d5761ce3d54c667505944c61d03adf1820f503a292"
+      },
+      {
+        "path": "packages/providers/messaging/composite-messaging-provider.ts",
+        "sha256": "aa3b97660dca405a7799473cebccba5b4a2551c5a7be53a6bfd8aa5ef662e811"
+      },
+      {
+        "path": "packages/providers/messaging/factory.ts",
+        "sha256": "5651c09d8c6fbbf375e2ae5aacf88a3f23dbae17a7e63859060441deadce7b82"
+      },
+      {
+        "path": "packages/providers/messaging/log-messaging-provider.ts",
+        "sha256": "bed77538bc27815684ff0df28d9b05e128f85dce29e120be213c1022fd2a5898"
+      },
+      {
+        "path": "packages/providers/messaging/resend-messaging-provider.ts",
+        "sha256": "8a2a59e86a74fda6428ef63850ebdc5341498173cc1110abd54007d80f3cd02c"
+      },
+      {
+        "path": "packages/providers/messaging/whatsapp-messaging-provider.ts",
+        "sha256": "234f763a3540a025e01e62de758def7854bc28955e2216ca962bd569deaf7992"
+      },
+      {
+        "path": "packages/providers/notification/factory.ts",
+        "sha256": "8f768dcc2b68efcc241b5396959e287fb21bf0b5d9565cae96cbcd842d67edb9"
+      },
+      {
+        "path": "packages/providers/notification/log-notification-provider.ts",
+        "sha256": "58baa2a124ec8a85e75301d6a538a137f9f83e8ef9cb4c19f8a36f4552e72b18"
+      },
+      {
+        "path": "packages/providers/notification/resend-notification-provider.ts",
+        "sha256": "15410f8fe52bee78787ee9ca7a34f560a809d08d123c703f16e4434ac50b9e18"
+      },
+      {
+        "path": "packages/providers/ops/factory.ts",
+        "sha256": "aaeb7eef3f9bbaf0529cd69aca86b0c729d44b0b76a74c10c4084b8a805e33a9"
+      },
+      {
+        "path": "packages/providers/ops/log-ops-provider.ts",
+        "sha256": "f7999409dab8c3c4f76ddd882c4388d8d5867c52ec13c00c8ad087943dbb6947"
+      },
+      {
+        "path": "packages/providers/speech/browser-speech-provider.ts",
+        "sha256": "ba87fd50f2c8fb350a975ebfb976467136624785b5829ce2b421d63dbce3547f"
+      },
+      {
+        "path": "packages/providers/storage/supabase-storage-provider.ts",
+        "sha256": "7090aab3424c6b5a6fba0b7e7698536126744adec46f7773f3ae44260d4168c4"
+      },
+      {
+        "path": "packages/providers/telephony/twilio-media-stream-provider.ts",
+        "sha256": "018b85a97c17cfb430f7dcf571499abf2d4148cc73a63f5c288bb2a8451086b2"
+      },
+      {
+        "path": "packages/providers/telephony/twilio-outbound-dialer.ts",
+        "sha256": "c62a52579b8fffdf27a4d162f5bdb05d801351e4be6a1798978f07d59a7a40dc"
+      },
+      {
+        "path": "packages/providers/voice-fakes/fake-stt-provider.ts",
+        "sha256": "6ec5abc79c50d9e475872ed0a3aee5d8030e14b6cefd4c0774f59a2ee4628162"
+      },
+      {
+        "path": "packages/providers/voice-fakes/fake-telephony-provider.ts",
+        "sha256": "4b62e4d21675d2a0e86e434163b4aa7e2c09ca12053c2139742430725cb98275"
+      },
+      {
+        "path": "packages/providers/voice-fakes/fake-tts-provider.ts",
+        "sha256": "3368a1bca2cadc90da2cfd51350bb8f76f258e4ec832d5a6100ee82fa952c961"
+      },
+      {
+        "path": "packages/providers/voice-vendors/factory.ts",
+        "sha256": "f8b6a423dd79c23bf97cf6d385dfece511dfedfd23a3793ce5f87fa52889051b"
+      },
+      {
+        "path": "packages/providers/voice-vendors/fallback-stt-provider.ts",
+        "sha256": "0cecbeff5f058710563d46b1665cd0e0fc06e77f482cbfea17377e784c67cbba"
+      },
+      {
+        "path": "packages/providers/voice-vendors/fallback-tts-provider.ts",
+        "sha256": "7592ac5641f0c1b662f2073891708a7b9fde12a9b4fa08f322e8276b5185b9ca"
+      },
+      {
+        "path": "packages/providers/voice-vendors/local-speech-engine.ts",
+        "sha256": "03491ee93b600749bfa2f490144ed773f18c9a245312ad6ab54d3a681b2512fd"
+      },
+      {
+        "path": "packages/providers/voice-vendors/local-stt-provider.ts",
+        "sha256": "1c9a521dee18414b94cd775ac82c1dd6eebdb5471b621f6ae65e9b9af1e20470"
+      },
+      {
+        "path": "packages/providers/voice-vendors/local-tts-provider.ts",
+        "sha256": "16ede95a797864f02f331f3feb0f34465ae6e31f1566b9312f1aa31902751845"
+      },
+      {
+        "path": "packages/providers/voice-vendors/local-tts-text.ts",
+        "sha256": "7565a70ffb2d811b36ad05fa48737c9f8535871cca0c206481b3c07b2426cb80"
+      },
+      {
+        "path": "packages/providers/voice-vendors/profiles.ts",
+        "sha256": "49558470331fb1a4140c295580f4f49a00e33744eb3055f10ff8cdca8573ec24"
+      },
+      {
+        "path": "packages/providers/voice-vendors/provider-circuit.ts",
+        "sha256": "d6d888a972920def0776e7d19df36d998dab8104349497bdde39b8143f5bc068"
+      },
+      {
+        "path": "packages/providers/voice-vendors/sarvam-stt-provider.ts",
+        "sha256": "0d72332aa07207a50dc091d80c90666ac633e8e06aa6e59c785c2ac86419cc7c"
+      },
+      {
+        "path": "packages/providers/voice-vendors/sarvam-tts-provider.ts",
+        "sha256": "81fa83fd61b9b37ec0c5b3435ceae7793dff192a5506844f4feefd1871111f87"
+      },
+      {
+        "path": "packages/providers/voice-vendors/websocket.ts",
+        "sha256": "2262e6e74ccc2d61bf3639da6f049ccf4c1332e82f8a071838f902c7c95a033f"
+      },
+      {
+        "path": "packages/qualification/booking-step.ts",
+        "sha256": "69daf26337116f9829840dca74330e842e6f477d6912cd54f96e7b1a8026d4ad"
+      },
+      {
+        "path": "packages/qualification/disposition.ts",
+        "sha256": "d9b31b9d6197f03d1ccace7b0ef6d23e6316f4d79fadcfb5cd2292bd37dc4c16"
+      },
+      {
+        "path": "packages/qualification/engine.ts",
+        "sha256": "72a930daa84eb708a69bc9d97d16d8f8c4482ae89ae97bdd2f616bb15c2df372"
+      },
+      {
+        "path": "packages/qualification/schema.ts",
+        "sha256": "ae0c38da9797d4fa33c5ceed82f854690cee81287e245caf55a6093c6fc9cd9f"
+      },
+      {
+        "path": "packages/qualification/system-action.ts",
+        "sha256": "b6ac0b642b28ab1cbc35c83a2a0deca93ff60ad32f2be2e022171476f552df37"
+      },
+      {
+        "path": "packages/runtime/agent-runtime.ts",
+        "sha256": "8dce4520012dd7fdb6385bb74501aab091d6b26ed98a3a1cebe2034d38872999"
+      },
+      {
+        "path": "packages/runtime/cancellation.ts",
+        "sha256": "2c3cc9c5b18c3c7f60c63fcdb96d79fdb2738ad1219642c18fe6cf097ed0c7f0"
+      },
+      {
+        "path": "packages/runtime/channel-profile.ts",
+        "sha256": "b9c6c83738a4da3676e4248dd1b7202ea78e3f214152507fe364de425eaa9442"
+      },
+      {
+        "path": "packages/runtime/context-builder.ts",
+        "sha256": "776a58aa9429c5d8a1fc2c8bbe2167764876401ac7d3488a487f830901521efc"
+      },
+      {
+        "path": "packages/runtime/contracts.ts",
+        "sha256": "418e05550f3ce3fde07319c3a1a22e0dec71108f4e449dc690e60a7edcd1af00"
+      },
+      {
+        "path": "packages/runtime/conversation-state.ts",
+        "sha256": "6d965a9b8d5527664ad2bfd1687bf1cb87fda3b85263e8481ad380af509e2563"
+      },
+      {
+        "path": "packages/runtime/escalation-manager.ts",
+        "sha256": "f44c4ca754d63f1e6b1e1aabdb80f98ea96044063069bb0e70966ebcfcb5ee10"
+      },
+      {
+        "path": "packages/runtime/events.ts",
+        "sha256": "359907ac6f0ca71f7347eee428c2ff92d4b1de5860e7af0992143361610e4d07"
+      },
+      {
+        "path": "packages/runtime/knowledge-resolver.ts",
+        "sha256": "9d67b5baff8f41da8cbe6665f1e783c56827248fb76e786e04e792078e123c2b"
+      },
+      {
+        "path": "packages/runtime/llm-adapter.ts",
+        "sha256": "d95f5fd79bfe11ba621e83f4688dc754485f7d8bacbaca0a89e75a1e8d48bf77"
+      },
+      {
+        "path": "packages/runtime/memory-manager.ts",
+        "sha256": "c42e681e77d4a524d3e06718c0796d17ea3b9b9ee03540d74aa1e5dd4a639176"
+      },
+      {
+        "path": "packages/runtime/prompt-composer.ts",
+        "sha256": "5fe14c28379ea533d103201fe0773b6bd5f898a89548e59866867db17ef05ed2"
+      },
+      {
+        "path": "packages/runtime/response-assembler.ts",
+        "sha256": "4c92658aa6feb25909395c02ddaa23f2e4488886c5015fe6b9352266bbf07deb"
+      },
+      {
+        "path": "packages/runtime/response-validator.ts",
+        "sha256": "3d1bfa544b947181e66a3222662550687cb0a00374c2bdff718a18d1f13f1055"
+      },
+      {
+        "path": "packages/runtime/speech-stream.ts",
+        "sha256": "1525bed98f4a7f19c77b9746226a1f23fcf7fc1ef5c62995f87ef1c642ea1731"
+      },
+      {
+        "path": "packages/runtime/stores/supabase-conversation-state-store.ts",
+        "sha256": "57a7f6adb832c54141611729d085b74173381dc2fa596ffc97a3c2a1170a3c5f"
+      },
+      {
+        "path": "packages/runtime/stores/supabase-tool-execution-audit-store.ts",
+        "sha256": "ed3bebe6db5b83687fc7cfafc43984de9ed6ce9a169a5d5267f71d0dce57d636"
+      },
+      {
+        "path": "packages/runtime/system-actions.ts",
+        "sha256": "347b941392e7c5812d35b303261311747d59d723b3b5bf5d74ca129eb5317177"
+      },
+      {
+        "path": "packages/runtime/token-budget.ts",
+        "sha256": "1a542d894981826749e490efc93b818624537a73e252924dbcd87d073f917c27"
+      },
+      {
+        "path": "packages/runtime/tools/audit.ts",
+        "sha256": "6df3e0bdf9e40772aec02829afe5f7bd9d3464ea4f63fc841a4bf7600557e6d2"
+      },
+      {
+        "path": "packages/runtime/tools/boundary.ts",
+        "sha256": "de0c1bb79f0e76da2a0f522e1dc147b05e75e1d72b15172ae353b92f35c0c465"
+      },
+      {
+        "path": "packages/runtime/tools/registry.ts",
+        "sha256": "4c89bb737166e2d6f08ead6b9eb7092de678891b4a60edc5f2cbbc2b78d9d6f6"
+      },
+      {
+        "path": "packages/runtime/turn-complexity.ts",
+        "sha256": "d71c0331266e63683a269ab9b9907534a5a99dc5936e7dbb9dcbb639dd16be8f"
+      },
+      {
+        "path": "packages/scheduling/appointment-state.ts",
+        "sha256": "47785fe750dc516bfab025baa608f7eb7bb18836b4fce8c531063846577acdff"
+      },
+      {
+        "path": "packages/scheduling/availability.ts",
+        "sha256": "d6be28fcf1acfa7ab6572d5b83928801a862918dd6e234dcea3f0e7cdff89eea"
+      },
+      {
+        "path": "packages/scheduling/booking-draft.ts",
+        "sha256": "6bdf164c8d3fe63a225d17ca189f2627cca40f18900f4efbb7ef1d6c471425a8"
+      },
+      {
+        "path": "packages/scheduling/booking-orchestrator.ts",
+        "sha256": "e542bb7c2732e81ef57df21debcec98bc015871fc1c5ca0670ec4baea5f9fcae"
+      },
+      {
+        "path": "packages/scheduling/booking-runtime-adapter.ts",
+        "sha256": "6eda7ad722a6c72e5336bee3677a8549b30b1395d9387e119212adf09ae89356"
+      },
+      {
+        "path": "packages/scheduling/booking-service.ts",
+        "sha256": "a24c4de22ceb9c60b9d988dda704778636a0fe4afa095f2474b649703533ef55"
+      },
+      {
+        "path": "packages/scheduling/reminder-service.ts",
+        "sha256": "53c6bc3126c3cef04f94df431259d97fc3d3d3a7d37d0cb96d87c3af873ce6b7"
+      },
+      {
+        "path": "packages/scheduling/scheduling-repository.ts",
+        "sha256": "b1b53ee6cc8f4e64a08a689bf9515adf474b6c978d57a25e81ae9d43e51445d0"
+      },
+      {
+        "path": "packages/scheduling/timezone.ts",
+        "sha256": "60ce5d3131df8b6ee8c2690d3ea7eee0f664544ba1ab9868ca53e5c6718b86dd"
+      },
+      {
+        "path": "packages/scheduling/when-parser.ts",
+        "sha256": "85d0169967f28b6e4a2c17a3fbb6631dff558c8927e3d943687c13339726eba9"
+      },
+      {
+        "path": "packages/tenancy/audited-action.ts",
+        "sha256": "bb843790804b0fdc96a63465132740353e9d10bebb058860ad994a49d2490131"
+      },
+      {
+        "path": "packages/tenancy/auth.ts",
+        "sha256": "4b0d1b2af22a3c6d06da093fc3a503d3f4ad7fb0cf13b2160a02093d8d61a976"
+      },
+      {
+        "path": "packages/tenancy/security-audit-store.ts",
+        "sha256": "f9dfe9d9a680508fd7e4a21ccbd3f23fb06e099dda7ca7221ad20971050b8a5c"
+      },
+      {
+        "path": "packages/tenancy/supabase/admin.ts",
+        "sha256": "2097fc97a46e23dbeef206b0075209870ba8082890dac10548a61527ea0e6b7f"
+      },
+      {
+        "path": "packages/tenancy/supabase/client.ts",
+        "sha256": "ea30010e174fac841b07780cec674172352ab6cd4adaf87b8a139856ea36eef6"
+      },
+      {
+        "path": "packages/tenancy/supabase/cookie-options.ts",
+        "sha256": "774310b1ca04a9150d812ad94899e76861442427ca7a33406975226e99caaa22"
+      },
+      {
+        "path": "packages/tenancy/supabase/server.ts",
+        "sha256": "63472945e36a67ddf4ce1eccdbf591ecb96248665a30c67587f8247d3d6cadd2"
+      },
+      {
+        "path": "packages/voice/audio.ts",
+        "sha256": "ccd48535e0516aa31083b82a2b01532718d984b4ac5cdbe6637623677c7a4401"
+      },
+      {
+        "path": "packages/voice/call-state.ts",
+        "sha256": "a412c7e02f9bf4ea8bae9d63fdf2538e9b8aa77761a2bf9d42f7f0ebe43091dc"
+      },
+      {
+        "path": "packages/voice/call-store.ts",
+        "sha256": "0792d4bce9d93e7ac52ecdc056a9692f1b8100f5af6cf44ac335a5b4ee19e95f"
+      },
+      {
+        "path": "packages/voice/endpointer.ts",
+        "sha256": "99bdded3661af0db283f1f6d1c56bf402527918335c24aaa6d24881d122952df"
+      },
+      {
+        "path": "packages/voice/gateway.ts",
+        "sha256": "d5f662f01d1d7b153e7e01924224be7386a16af370b0c2f7e847cb37ce911b41"
+      },
+      {
+        "path": "packages/voice/in-memory-call-store.ts",
+        "sha256": "e40c9ec9d31a310525baa3137c9f4c591cb71fb3d32c5c3474f1aa2641431539"
+      },
+      {
+        "path": "packages/voice/media-session.ts",
+        "sha256": "e71bb4d07e45b45e6d407cb3edd6d3e41b265f109a8e48808129ba5db2ad9744"
+      },
+      {
+        "path": "packages/voice/phone-channel-adapter.ts",
+        "sha256": "4cb38d4249e31b76c87182833248f2829ef639cbdb5e9fcb5c80746fe50fa8f3"
+      },
+      {
+        "path": "packages/voice/pipecat/bridge.ts",
+        "sha256": "4e6b5c0ce1744b1f0d6fee8f5ae036c709ca8bc4f4c4c58a52e1b15283eba911"
+      },
+      {
+        "path": "packages/voice/pipecat/protocol.ts",
+        "sha256": "05d725b97ce1264fb035784ccabe49e159735ab5e3321e77104f7d8041fc719d"
+      },
+      {
+        "path": "packages/voice/pipecat/remote-session.ts",
+        "sha256": "70d90d2d23a2bd63d826973d303cb428182a74c03f5047063e4b693a08e22ce5"
+      },
+      {
+        "path": "packages/voice/sentence-chunker.ts",
+        "sha256": "3634cc5e8223d03f7a28f611ba207d430722da0b11950429f5c6a3e16f0f197b"
+      },
+      {
+        "path": "packages/voice/session-config.ts",
+        "sha256": "8f5487c0ed3e378528ac15d0ab47676e27134d4e319d3b3881cd2e15e98fd00c"
+      },
+      {
+        "path": "packages/voice/stores/supabase-call-store.ts",
+        "sha256": "57723527cf61ace4c8d4b3a23c6244bf477df1483d748efe0914ed7bf10f4b1a"
+      },
+      {
+        "path": "packages/voice/telemetry.ts",
+        "sha256": "04617206c671e826088c8519b6d884171cdab03f1d3466986b82852736c2766b"
+      },
+      {
+        "path": "packages/voice/transcribe-audio.ts",
+        "sha256": "364bc88b72ef88fb8620e9e351c12d98a84d32161543b8e31951dda5c674f816"
+      },
+      {
+        "path": "packages/voice/turn-handler.ts",
+        "sha256": "6ff8bbb287db021bd9c7d94f46c53417fcc50b309ed8959c1474d875b7e02daa"
+      },
+      {
+        "path": "packages/voice/voice-session.ts",
+        "sha256": "19dd14bb79eca60bb7656234fbe352d4e900815f35118ef640283e8fe4851b54"
+      },
+      {
+        "path": "packages/voice/web-audio-auth.ts",
+        "sha256": "6b7f2f695b0b224d341c219f2ca9d861262ce2032686cb600a1613708b769653"
+      },
+      {
+        "path": "packages/workflows/action-registry.ts",
+        "sha256": "ce69f44d5cfd99b670784d2b48ec94415085269a8d20bfac4236679d209ed053"
+      },
+      {
+        "path": "packages/workflows/engine.ts",
+        "sha256": "c641daab5be580a6fd07836a542896f70b574a8bc95e69e1f3c5e37218d5fc27"
+      },
+      {
+        "path": "packages/workflows/event-bus.ts",
+        "sha256": "553d5a58e120a58c0e7d0cbded204ab6ce566cb9097cf41f5be114081727636c"
+      },
+      {
+        "path": "packages/workflows/interpolate.ts",
+        "sha256": "c40d369029ce2401a51e0101597007acbb7c8b8a70f577a9bc0ed07cdbdaa2a6"
+      },
+      {
+        "path": "packages/workflows/supabase-workflow-store.ts",
+        "sha256": "a83975925e96ee4bf99601a3a2a1c009a5568e46905b589bab44b6d1c542f9b8"
+      },
+      {
+        "path": "packages/workflows/templates.ts",
+        "sha256": "6f40daca5fc346bf916851912663d41ca178fc022fa9c93a671442785bdf4609"
+      },
+      {
+        "path": "packages/workflows/types.ts",
+        "sha256": "cb380880e414850a0291d2988d1ef3f7f8cbfbd5dbdeebf40518b1f7d5336e1e"
+      },
+      {
+        "path": "services/pipecat-worker/README.md",
+        "sha256": "4af9eadef8bc0c7b1e6e7a4a56417ff724a09441d6b0adedc7210018953702e6"
+      },
+      {
+        "path": "services/pipecat-worker/correlation.py",
+        "sha256": "258cc0269fd129398416d6d12e6899beca1d0b24dab564e387459946f1578199"
+      },
+      {
+        "path": "services/pipecat-worker/halo_client.py",
+        "sha256": "88d904106d5cb8d6f56d1d072a09763dc74755733aaf893a82c8eefa70a06b4f"
+      },
+      {
+        "path": "services/pipecat-worker/halo_codec.py",
+        "sha256": "dabf82f72d4b38dc55f5ce6535d27283200a1bf2c6581c24315900083d6b08f3"
+      },
+      {
+        "path": "services/pipecat-worker/halo_serializer.py",
+        "sha256": "b239ee64ed7b8fcef0d6781172a6dee990b81cc18ccbbb3f7c4575730ee3567b"
+      },
+      {
+        "path": "services/pipecat-worker/local_speech.py",
+        "sha256": "83b80307e5103c61c9643cf4750421c4ac2080ed574a4d060c0ae6491e5bf3ac"
+      },
+      {
+        "path": "services/pipecat-worker/local_tts_text.py",
+        "sha256": "ead7d4de87a3c38f7a73d0fbd56278eed0c6810696ebbb57babc5b72bcbdd3e6"
+      },
+      {
+        "path": "services/pipecat-worker/media_gate.py",
+        "sha256": "76967206005a19b63dde9af7e35a6c05fa49a4ca2af07454740d8a8bdc793ff7"
+      },
+      {
+        "path": "services/pipecat-worker/requirements.txt",
+        "sha256": "8841b03b7a15d8a8e1c120cef809f20d685324b9b58a75648f3e08f376e9b047"
+      },
+      {
+        "path": "services/pipecat-worker/setup_local_speech.py",
+        "sha256": "a5b6af83c94ad13313471f5219e17160a4fecc2d9078086c5faea8d25445564a"
+      },
+      {
+        "path": "services/pipecat-worker/speech_fallback.py",
+        "sha256": "09856adf94f68e63fbb3dd9f4bc9f169b82fa8bb99a43ab172f0261287a64830"
+      },
+      {
+        "path": "services/pipecat-worker/test_halo_client.py",
+        "sha256": "718fe4ef59303967bde5b19348e7d35fe9025eae36d01cae8911ec9ce13c9b18"
+      },
+      {
+        "path": "services/pipecat-worker/test_local_speech.py",
+        "sha256": "ff27ee0d9e2c18cf830de3ac222e0fa142b653805ebb30c30a5d3fc89044c536"
+      },
+      {
+        "path": "services/pipecat-worker/test_local_tts_text.py",
+        "sha256": "5a7071bb37b75abdad587872c4573af128a4444b4b52c82db6b97caa41785ba9"
+      },
+      {
+        "path": "services/pipecat-worker/test_media_gate.py",
+        "sha256": "deb6235da9866e6453c9f13ad2b1bfe471c6e3a93025d6361db470fcc3f934c0"
+      },
+      {
+        "path": "services/pipecat-worker/test_serializer.py",
+        "sha256": "7cd363d815e1c110a86dc8f3a557c46cc69a870a60a407e77b26723ea7d582bc"
+      },
+      {
+        "path": "services/pipecat-worker/test_speech_minimums.py",
+        "sha256": "db9b8c1fad71a32b6e26985ba3684db10d3fb879b4f4d9f787c9b10fd8f0888e"
+      },
+      {
+        "path": "services/pipecat-worker/test_worker_e2e.py",
+        "sha256": "68796273156cd032f45e78cac851bd573a8c1a964dda4f9c341946a05d90fb4a"
+      },
+      {
+        "path": "services/pipecat-worker/test_worker_security.py",
+        "sha256": "6a179bd469650e10291f1f6e972cb31abc3a666c1ee0e38aeca803f4f4dc84df"
+      },
+      {
+        "path": "services/pipecat-worker/test_ws4_correlation.py",
+        "sha256": "caff79768ae38a2792a4b88f6b753b334e1dd3014caba583c969637fb0935762"
+      },
+      {
+        "path": "services/pipecat-worker/test_ws4_log_privacy.py",
+        "sha256": "753cfe4a2b35459228f3c16d3e4b9b3c720c478325e4daf76f2ab87abc136b48"
+      },
+      {
+        "path": "services/pipecat-worker/worker.py",
+        "sha256": "2c833bede0483e93ff7dfcddcadac67929e478e0abd4db014a8dc6da3588b7d1"
+      },
+      {
+        "path": "services/voice-gateway/README.md",
+        "sha256": "f419cfb15cfd92d5c5a737e96d3b0e336b1fc34ae93053a29b61ef3955c377e3"
+      },
+      {
+        "path": "services/voice-gateway/config.ts",
+        "sha256": "10c63a09e6caa5648555eadaebd6eab7080b03cf6f670ab75c66da51b2923d46"
+      },
+      {
+        "path": "services/voice-gateway/index.ts",
+        "sha256": "d4b9ec6b4228e1ecf0c0aaad873ff904a0460d1b458ce9c51a92534055bce579"
+      },
+      {
+        "path": "services/voice-gateway/main.ts",
+        "sha256": "f6f231c16e38e3c128781b41a54735f617d80e9bad506468b44da7292ad63117"
+      },
+      {
+        "path": "services/voice-gateway/pipecat-control.ts",
+        "sha256": "9b5c94d6f96a6a966dab88dcd19022b38722685ff0c3a115c81826a8a648c265"
+      },
+      {
+        "path": "services/voice-gateway/server.ts",
+        "sha256": "e165a463b138ad79f2914e8f37b315b08db31d1642f737242600895f816e8afb"
+      },
+      {
+        "path": "services/voice-gateway/stream-token.ts",
+        "sha256": "395fc6063db76d677b7b0320f2bdbb48381a15c4f20a21346486b6d57023299a"
+      },
+      {
+        "path": "services/voice-gateway/web-call.ts",
+        "sha256": "41519de293151d3d54d48872f44e9c91005ad0862e48fd3da4b79d9abd0987e1"
+      },
+      {
+        "path": "services/voice-gateway/web-stt.ts",
+        "sha256": "3050b4312a9a30acf75b07ac27b6e08555bf6d841a77059864997f2e331a98b7"
+      },
+      {
+        "path": "services/voice-gateway/web-tts.ts",
+        "sha256": "ef5338dc39568d0c2132cb8a313d90059dd9d3664280556c298d1710b89f1797"
+      },
+      {
+        "path": "src/app/(auth)/layout.tsx",
+        "sha256": "853aaa66f21370bc1a5bb36b95df34a8289e96d71cd19831e84b98f1671ec3cd"
+      },
+      {
+        "path": "src/app/(auth)/login/page.tsx",
+        "sha256": "261172dc3999001bf542c2b3de1ad967f53a0ded38513fa1f9b6b648b91dd6f9"
+      },
+      {
+        "path": "src/app/(auth)/register/page.tsx",
+        "sha256": "680b546f9b3aec9859c2ae73c00fe9a096087a3e4606ef962bb05f31de204c00"
+      },
+      {
+        "path": "src/app/api/admin/system-status/route.ts",
+        "sha256": "f7ccd30fe32612a1eaef5b401907c04d2bffcfa278efae37a007b34dc7a4bda5"
+      },
+      {
+        "path": "src/app/api/analytics/lifecycle/route.ts",
+        "sha256": "9a716dfe07608762366223074da8679861616a637d3f8ef804e3c1a2eb379785"
+      },
+      {
+        "path": "src/app/api/analytics/operations/route.ts",
+        "sha256": "9cf455bb62e2e8de13988e40bd6720246eaa676c3848b67f49ec4721e388e3ed"
+      },
+      {
+        "path": "src/app/api/campaigns/route.ts",
+        "sha256": "941e5b418e5774c77efe7c2fcb7157317496c4ef2450bd937514a6afc671954f"
+      },
+      {
+        "path": "src/app/api/cron/campaigns/route.ts",
+        "sha256": "4ea7d3ba2fcf9cff957a9103dd5ef0a5abf1c1b0629e7ebde2c4a95cc7294120"
+      },
+      {
+        "path": "src/app/api/cron/no-shows/route.ts",
+        "sha256": "f8b4a831ea2e03b2d598ad9cf7a16eec940159fb593741bc30e77d6edf59a8c0"
+      },
+      {
+        "path": "src/app/api/cron/reminders/route.ts",
+        "sha256": "f397f85594a6689dc6afe1dd215e374dfd4f367d216e832e2949e39bf4a456b6"
+      },
+      {
+        "path": "src/app/api/cron/retention/route.ts",
+        "sha256": "e78b729b3dcfb6d888040d7b490a99de3844f16ce4e73bf5db4d5d94273f3b41"
+      },
+      {
+        "path": "src/app/api/cron/workflows/route.ts",
+        "sha256": "a165f07a6822d5195375cf03eae57424f7124a81c34b736e797a5b58f55c171c"
+      },
+      {
+        "path": "src/app/api/health/route.ts",
+        "sha256": "01f72f9b938534d7cbe8e02e4f5b955ab978d72e8efc252452cd6ac910e74bd0"
+      },
+      {
+        "path": "src/app/api/hooks/[businessId]/route.ts",
+        "sha256": "92ec172978bffdda7dbcd6cd8d9619ae03f7993256ff3a537dde88a76e4a4ec0"
+      },
+      {
+        "path": "src/app/api/learning/route.ts",
+        "sha256": "a50bc159d2fd71b810ccf1fc5ce4414b87153f7824db92185f615d277e8283a9"
+      },
+      {
+        "path": "src/app/api/oauth/google-calendar/callback/route.ts",
+        "sha256": "e9887ac922b59cfffdde858a8ff495eb6d295217d9cd4457993218fae9d068ed"
+      },
+      {
+        "path": "src/app/api/oauth/google-calendar/shared.ts",
+        "sha256": "24ef1c02bca70552b385af5578310c48e4fa73f27dd3c1166ecb73e0de15f3fb"
+      },
+      {
+        "path": "src/app/api/oauth/google-calendar/start/route.ts",
+        "sha256": "c402118a56c0c14cd79f4a97afa587de2961cceae46d9d5058994ee42a9e3039"
+      },
+      {
+        "path": "src/app/api/v1/appointments/[token]/feedback/route.ts",
+        "sha256": "052a6a27895d55ffce8bdcbb693e0d2ecacfb6689da36f11a7ff333de8e79ba6"
+      },
+      {
+        "path": "src/app/api/v1/appointments/[token]/intake/route.ts",
+        "sha256": "ff72ceb3f308b52c937a29c5469b58c2a7e20ec732d6c39479766edc083e3b7e"
+      },
+      {
+        "path": "src/app/api/v1/appointments/[token]/route.ts",
+        "sha256": "0281a2c7c3998661b8eab9fd276fe91a94992369f7189a3f6a102edb543c3deb"
+      },
+      {
+        "path": "src/app/api/v1/widget/config/route.ts",
+        "sha256": "df80dfb44c328cd990906a54b0db9d61217e1b5582a2e1a82d956f302e8c3e77"
+      },
+      {
+        "path": "src/app/api/v1/widget/conversations/route.ts",
+        "sha256": "e49b062df0cbe901d1519d6dd40121ecdaedce18d2d490b52200769243494a92"
+      },
+      {
+        "path": "src/app/api/v1/widget/leads/route.ts",
+        "sha256": "93fe5e5166696885a4d487f802164c7d2f0af1e4244369a2d50ca1e9cb7b4a7a"
+      },
+      {
+        "path": "src/app/api/v1/widget/messages/route.ts",
+        "sha256": "5d63d19dd5a50bc3b1ed19799c32537c831f68c0a32cbca0ae670b57516d027e"
+      },
+      {
+        "path": "src/app/api/v1/widget/speech/route.ts",
+        "sha256": "d48b47246a79c3472f181e98f569b22c9c0d4cc62c1d3f00ff8fda704172ea9d"
+      },
+      {
+        "path": "src/app/api/v1/widget/synthesis/route.ts",
+        "sha256": "da98eca0c06735fd96ed4c91411a76127173bfa0c925e50639329ebf8b516ce8"
+      },
+      {
+        "path": "src/app/api/v1/widget/voice-call/route.ts",
+        "sha256": "08201fdfe98e48bfdd12d65e6ec1ef8b2edb428956c95ad0a182ec8610cc577c"
+      },
+      {
+        "path": "src/app/api/workflows/[workflowId]/route.ts",
+        "sha256": "c40d871c51948428d00ea70a38c59b956af273db178bbdf3886310067f9cd6d3"
+      },
+      {
+        "path": "src/app/api/workflows/[workflowId]/run/route.ts",
+        "sha256": "72c5625277466daae0d0092e9e614df941a790184af85d4c3432863a16cff414"
+      },
+      {
+        "path": "src/app/api/workflows/route.ts",
+        "sha256": "39f1180c6c20166ea45223d8c1a2d6562bd61829da1dd5d6ecb0558c614085eb"
+      },
+      {
+        "path": "src/app/api/workflows/runs/[runId]/route.ts",
+        "sha256": "f53d4559920f3baec5036c080a59837f58449956d76468a8246b263378f2b0a3"
+      },
+      {
+        "path": "src/app/api/workflows/runs/route.ts",
+        "sha256": "580b2fa19802c60b8d0c2705ff9e4973b98928650ef2b47f34e111f238f31762"
+      },
+      {
+        "path": "src/app/api/workflows/templates/route.ts",
+        "sha256": "cc03fd491182161d0f831b4d89ebe544786e260cb659701e5b1fa7e89de54584"
+      },
+      {
+        "path": "src/app/appt/[token]/manage-client.tsx",
+        "sha256": "19ce45316c3342e348d9bdf328727112aba26936449eed8e843c3a2d161d646f"
+      },
+      {
+        "path": "src/app/appt/[token]/page.tsx",
+        "sha256": "2dcbda1bb97ec50afac232d3160c0f78ce8104fdab14825316cd5ba790e1d2ea"
+      },
+      {
+        "path": "src/app/auth/callback/route.ts",
+        "sha256": "822354bd084fef6f49d90db7fc6a829d01bcbba6d26d7ad5ad4a8cf69d063f1e"
+      },
+      {
+        "path": "src/app/dashboard/admin/page.tsx",
+        "sha256": "6a3c06e7c207372538a5a313c4825a68f399cc879868cf23f2d3c9deaf07fa94"
+      },
+      {
+        "path": "src/app/dashboard/analytics/page.tsx",
+        "sha256": "05933ddcf081df3e097234ff8ddd7d1c0e8514e0982a9a8b83a73104d6ca3d0f"
+      },
+      {
+        "path": "src/app/dashboard/appointments/page.tsx",
+        "sha256": "dc3de79b7dff507187d5b9992b029b9d8eecdeae0cd149d637a17bba1cd5fa72"
+      },
+      {
+        "path": "src/app/dashboard/automations/automations-client.tsx",
+        "sha256": "657187b6df112c5ac76e725e91aad1f3cc1ce77e33d8f35ee8e1cdbdf44cc199"
+      },
+      {
+        "path": "src/app/dashboard/automations/page.tsx",
+        "sha256": "aa771830b971a30dc7058952c6c600441de4236a73a01feebead769fc0a8eb83"
+      },
+      {
+        "path": "src/app/dashboard/conversations/[id]/page.tsx",
+        "sha256": "9a3af4c44a38ed5455b03759df5467ec0f74ccaadd5615ae8599aa55e7fdd47b"
+      },
+      {
+        "path": "src/app/dashboard/conversations/page.tsx",
+        "sha256": "3b73d9a992e9855a8b7d6861d02e8d93667d58b22cc8196766dcdf798ede479d"
+      },
+      {
+        "path": "src/app/dashboard/customers/[id]/page.tsx",
+        "sha256": "c00ea2b36dc916783596555a5dbc2b2fb67fc1743c4c851b27b8ac2efcfdf34c"
+      },
+      {
+        "path": "src/app/dashboard/customers/page.tsx",
+        "sha256": "31cbf742348b23b9ddfa6e595545505a539a79e026ba1020e32f390dc3c0e32a"
+      },
+      {
+        "path": "src/app/dashboard/error.tsx",
+        "sha256": "327afc74fc3b7ac244f9f31d2fd2c794e6fe01349dde87583d9c4deb8b015122"
+      },
+      {
+        "path": "src/app/dashboard/faqs/page.tsx",
+        "sha256": "669c3a019c8d77a3bc5ce64a56b73b3673a1f2b9b00d161ad9348fedd68bc7cc"
+      },
+      {
+        "path": "src/app/dashboard/install/page.tsx",
+        "sha256": "72a03bd92c729ca3ac27362d9c950985227ceaba7987b2527fdf5877628b1119"
+      },
+      {
+        "path": "src/app/dashboard/knowledge/page.tsx",
+        "sha256": "47c6990256bfc2404c78bd96300f4a830658f7ef318405af84297d9311b388f8"
+      },
+      {
+        "path": "src/app/dashboard/layout.tsx",
+        "sha256": "71d17314202af16622de195e82f4ff1404a4a7f3e1e24b2f1725444cb31af438"
+      },
+      {
+        "path": "src/app/dashboard/leads/page.tsx",
+        "sha256": "65a4802dd55526f534bf874329f1c13763e8bf934346439a04f25fd079a88c45"
+      },
+      {
+        "path": "src/app/dashboard/operations/page.tsx",
+        "sha256": "7ab8a76640c3bb30e008cfbfb6801b10528189928202957b8055513eec361249"
+      },
+      {
+        "path": "src/app/dashboard/page.tsx",
+        "sha256": "d8c92cd057b944d950fe126a65d0f319d9031700de1420ad9a89b52dd316b8dd"
+      },
+      {
+        "path": "src/app/dashboard/profile/page.tsx",
+        "sha256": "9c413bb0caabd37328428e7b8fa8ab8984ccb6b56b27dbe9c06517dad2a204b4"
+      },
+      {
+        "path": "src/app/dashboard/receptionist/page.tsx",
+        "sha256": "720e3820f85113116641525cb700654ceda65d4ca3bebf938e14dcd91b254279"
+      },
+      {
+        "path": "src/app/dashboard/settings/lifecycle/page.tsx",
+        "sha256": "7c01d3c09f01c8a9f86ba6ce1323f3eb78b723bf8ccb223cc363a8368c229b7f"
+      },
+      {
+        "path": "src/app/dashboard/settings/page.tsx",
+        "sha256": "acae676dcc6758023ad0a20e31f6173e0469dbe00c2ed71a79ef974acd6c2f20"
+      },
+      {
+        "path": "src/app/error.tsx",
+        "sha256": "75dd47a72ba25ee56721cb7aaf98de1b4866c83869ea0e7867f6037cc41f49fc"
+      },
+      {
+        "path": "src/app/favicon.ico",
+        "sha256": "2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932"
+      },
+      {
+        "path": "src/app/globals.css",
+        "sha256": "9f855908a0c37b466df573ae45460f99d9a10a4ced8e9f34effb7d1cc39b9c4f"
+      },
+      {
+        "path": "src/app/layout.tsx",
+        "sha256": "50d78a804347a0317d33d77b008285ed463e8e27a693d366bc9fecf0e6f9ebbf"
+      },
+      {
+        "path": "src/app/not-found.tsx",
+        "sha256": "cdd04bca62b76e2ba466c47ab80f91b6d9c52b6a4aeb7b0a15ec4e58749cd4b1"
+      },
+      {
+        "path": "src/app/onboarding/page.tsx",
+        "sha256": "a5bdb040944144eef4e81421b6dd0cbb53bda703934221e803ff12ac68ac73b8"
+      },
+      {
+        "path": "src/app/page.tsx",
+        "sha256": "415fba3d85a5eb1daf7beeb0b053cb7095fdbd2bcd7b65e363a91e6c5786e7b9"
+      },
+      {
+        "path": "src/app/widget-demo/page.tsx",
+        "sha256": "893784a7bb4d582856dd72b48c4a76b0a40e2ba39700a87573e03a622db5cfb7"
+      },
+      {
+        "path": "src/components/error-boundary.tsx",
+        "sha256": "feab7897cec3b10178bc92a982de85c22dc8628b221e4dc8d570daeffd222edd"
+      },
+      {
+        "path": "src/components/ui/button.tsx",
+        "sha256": "18329af076bf3443b9716a31196425d1ffb64c6d31de046c56c22b20c9b3b3d2"
+      },
+      {
+        "path": "src/components/ui/card.tsx",
+        "sha256": "674b9e0e66c22376e431cc5cfbe0e768f06b8f6919f8832e724b21997d8f51f6"
+      },
+      {
+        "path": "src/components/ui/form-feedback.tsx",
+        "sha256": "ddc2fb194b3e1dd60a4af913f999405321ef07ef77ab7e1bd81fbd44b137698f"
+      },
+      {
+        "path": "src/components/ui/input.tsx",
+        "sha256": "c54e0cdf4ea3aa8af63284956ab2f8c2a48ca9b1ba12fd8cbf0c811aa0133c6c"
+      },
+      {
+        "path": "src/content/industry-playbooks.ts",
+        "sha256": "725b196db5fdd3d03585e49faa1520e22580bbce944d881dc45eaaabcc873795"
+      },
+      {
+        "path": "src/content/tenants/arunodhaya/agent.ts",
+        "sha256": "2503958db9f7f76adf1e2407c9f729920ba72697312e87d9cb944e53ae6710bc"
+      },
+      {
+        "path": "src/content/tenants/arunodhaya/escalation.ts",
+        "sha256": "b9fe3653fd0f6b44fd857e7a807cd9aa9531a8162e698a39e8ff4e42022c50e6"
+      },
+      {
+        "path": "src/content/tenants/arunodhaya/index.ts",
+        "sha256": "9680e62acdceb4d33f98200fa94d256bd1c0fe66668aca771adf03d0aed859b7"
+      },
+      {
+        "path": "src/content/tenants/arunodhaya/knowledge.ts",
+        "sha256": "1fbce6887d8f42cac33a3a85a2a7e7a97facf0ed015e9b9cbda76e0fed99c7e5"
+      },
+      {
+        "path": "src/content/tenants/arunodhaya/negotiation.ts",
+        "sha256": "4ddd3d6921d42539ece8f53c46c4a3b68fba8caf97ad48fd38213da4c5c67f06"
+      },
+      {
+        "path": "src/content/tenants/arunodhaya/objections.ts",
+        "sha256": "0f5e38a2b942e5f092333ca926d41ce859e2be617451d6ba59eac6c5c0a45907"
+      },
+      {
+        "path": "src/content/tenants/arunodhaya/qualification.ts",
+        "sha256": "9db280c93d05a1904c33887f14bc23e78fe62d3490e42e45f36bd1b6532e46fc"
+      },
+      {
+        "path": "src/content/tenants/arunodhaya/supplied.ts",
+        "sha256": "0d486fd09d71ddc7b05417e5904b1543dbe26d390addce5920ba91766a4ef859"
+      },
+      {
+        "path": "src/core/services/chat-service.ts",
+        "sha256": "0b2eccf9eac9ad2bec0110e9f693cecc76877c8ee3a858eba711f1cb8b66bcdf"
+      },
+      {
+        "path": "src/core/services/lead-capture.ts",
+        "sha256": "7330f11189c37ca82dc6f672fdd8c1b63dfdb5793ff098ca34d7c5d8dd2ef2ef"
+      },
+      {
+        "path": "src/core/services/lead-extractor.ts",
+        "sha256": "a5ed2161e98b12e296d2b51f4e442efee64a9c4b047077bef21420ea6d553b19"
+      },
+      {
+        "path": "src/core/services/lead-scorer.ts",
+        "sha256": "5ab655a2c2588779ea2cf7d329204c417556dff8f88da3fe8b2802382dee770c"
+      },
+      {
+        "path": "src/core/services/prompt-builder.ts",
+        "sha256": "64c6815af7358ad2baf7695b2b8c7d56a5233b56f11336b0ca962d8778580753"
+      },
+      {
+        "path": "src/core/services/voice/arunodhaya-call.ts",
+        "sha256": "81c006e4db85a9cca9ceb0c595026a1a798936782ea3ca544bf22c5bff581a68"
+      },
+      {
+        "path": "src/core/services/voice/sales-call.ts",
+        "sha256": "b619c40cc003dcb31c74cba9008db65f273329d355501755dc978142f95b436a"
+      },
+      {
+        "path": "src/core/services/voice/sales-config.ts",
+        "sha256": "dc8bf05859c1fc83797ba1d2bb9ad2afd8b6575e65bee0f7edb761e7e7b68af1"
+      },
+      {
+        "path": "src/core/services/voice/visit-booking.ts",
+        "sha256": "174b784d3bc25dfb6fb104734cbe656128f42f1254defa3a019bb36cb9718d8a"
+      },
+      {
+        "path": "src/core/services/widget-repository.ts",
+        "sha256": "5e2043268a2d4a640f819f4c2ed4f1d7b65a3a39fd2818ca2b012dc7ea2c62ab"
+      },
+      {
+        "path": "src/features/appointments/actions.ts",
+        "sha256": "75bb213cbbf6a18b61be2ff918bfbe802d4dd35239b35c854aac572118abaad7"
+      },
+      {
+        "path": "src/features/auth/actions.ts",
+        "sha256": "57d77ab059b935e47cbe058bddc0f2e3febc9886f0eaaf858b1d1547bb99375a"
+      },
+      {
+        "path": "src/features/auth/auth-form.tsx",
+        "sha256": "09798e580829b188f79152750e8bfb10d069e3d67b269a1ee898c7130a71c670"
+      },
+      {
+        "path": "src/features/business/actions.ts",
+        "sha256": "5f8e1609eab30c1f014cadafcdd780e74aeaef9058f53203a9852048c89e1319"
+      },
+      {
+        "path": "src/features/business/onboarding-form.tsx",
+        "sha256": "4973a943d261f8b21c405e514de5fbaca80ad7283e4d0839c89fbd25ab571a5c"
+      },
+      {
+        "path": "src/features/business/profile-form.tsx",
+        "sha256": "2f979d1f06b5725d6b7586fb985a8da7456d704b3186565e6da9c07da1ac317b"
+      },
+      {
+        "path": "src/features/dashboard/nav.tsx",
+        "sha256": "38c63f52783aec69c73f492b47ae66b11ab14e572bb7b408e9e2837329798983"
+      },
+      {
+        "path": "src/features/faqs/actions.ts",
+        "sha256": "3a4c410d57423bdcb57cb31b5fedd4b2e46eea07abb47cfb4bdf949b5c82877d"
+      },
+      {
+        "path": "src/features/faqs/faq-editor.tsx",
+        "sha256": "af44190168ecda3c319acefa66d186b9e9aceddfe5decd4fdbd6e51ae252b5a6"
+      },
+      {
+        "path": "src/features/install/copy-snippet.tsx",
+        "sha256": "f9014375a88fd7a8dbd4354d8a3b673e5f2f203b7f40f800fefc8b80765a8f9d"
+      },
+      {
+        "path": "src/features/knowledge/actions.ts",
+        "sha256": "b1fc67b3f3cc996a6089c34c6dcacde9887bd374cb96928299c1be149d9672d0"
+      },
+      {
+        "path": "src/features/knowledge/document-editor.tsx",
+        "sha256": "11d439bd5e89210429d60b2253c33f737ea9288ff78905fc357ee8c0af01febb"
+      },
+      {
+        "path": "src/features/leads/actions.ts",
+        "sha256": "891ed1e617d2ff1349f44770d353217a6e277f8c68d3a064f492edcfab9e74a0"
+      },
+      {
+        "path": "src/features/lifecycle/actions.ts",
+        "sha256": "de4656828fc07b4eaaebf8fa28da6893ddaf0ae0dcc8c88222df9325490537d9"
+      },
+      {
+        "path": "src/features/lifecycle/lifecycle-settings-form.tsx",
+        "sha256": "a8d78583427ef28e577189f00942eb1518c26c4e1651820d003382773d43963a"
+      },
+      {
+        "path": "src/features/receptionist/actions.ts",
+        "sha256": "ea1355611028d8185740c324fdcfbb04cdc24a482692b771094ef7dd610d88b8"
+      },
+      {
+        "path": "src/features/receptionist/receptionist-form.tsx",
+        "sha256": "94f2bed933028038e68ceea2fb963e045cc0d4935818a2fafc1b09a36f6e4102"
+      },
+      {
+        "path": "src/features/settings/actions.ts",
+        "sha256": "1a927bcb20b47b63b8ecfea4b3230e68eab5be5587b9d5a519f2278df0cfa962"
+      },
+      {
+        "path": "src/features/settings/calendar-connection-card.tsx",
+        "sha256": "cda8140c90220e4e159a7d6d35555c2433938fdebda43bb15311855ed887b0c0"
+      },
+      {
+        "path": "src/features/settings/settings-form.tsx",
+        "sha256": "791bfc8df4a2a5a68a01e1b7565cbf1488d96939ba7541bbdebf436161aed73e"
+      },
+      {
+        "path": "src/lib/api/cors.ts",
+        "sha256": "5d965a42d26de92aeb3f980dae09f6ca311f46b32fc6b6d3c0c273fa598f7a95"
+      },
+      {
+        "path": "src/lib/api/respond.ts",
+        "sha256": "59cd1c10de76e8fc7dbbaace5de978b34cc224cdb650f7486b7b87a0ce6415df"
+      },
+      {
+        "path": "src/lib/startup-check.ts",
+        "sha256": "6ab4f5746ee7fa65cd11b17dc54de98f562bdb30d3271805d6df6bd0ba0b349f"
+      },
+      {
+        "path": "src/proxy.ts",
+        "sha256": "b8bcbe4b6c0627037efbacb00c0774fc31e692062507659badb5c9dc1f5fe97e"
+      },
+      {
+        "path": "widget/src/api.ts",
+        "sha256": "4cdc41d38532edc2aebe2f8e9480b55f1ffae8caf9dc1ca20d9e9af2aaecb8d3"
+      },
+      {
+        "path": "widget/src/halo-speech-provider.ts",
+        "sha256": "b1b983f5eaf437ea26c6f92de3ca3b05b575d5c461cb8efb82856ecb78ff2966"
+      },
+      {
+        "path": "widget/src/index.ts",
+        "sha256": "1d1b753d57a7635376b0d57fc9e9b4e6e07bb605fcc167df4acba639a16db5bc"
+      },
+      {
+        "path": "widget/src/live-call.ts",
+        "sha256": "34ac0d1591520a16d9c694e494576271794fca4af3feb6c8764cf929bb4fd55a"
+      },
+      {
+        "path": "widget/src/styles.ts",
+        "sha256": "f330ed5ff04bce4252363d1c184bdafe579146b43101f884bea6979ca0ebc893"
+      },
+      {
+        "path": "widget/src/voice-session.ts",
+        "sha256": "64b33fc71e53d5865c7713882bae96393b2d4fe6ee494b245c1db8e67a509f98"
+      },
+      {
+        "path": "widget/src/widget.ts",
+        "sha256": "596e16d0474c73ff979c807645f2471110ff5e29ec184fcea1746bd0b23c5662"
+      }
+    ]
+  },
+  "blockerLoop": {
+    "task": "P2-BLOCKERS",
+    "date": "2026-10-16",
+    "agent": "Claude Code",
+    "authority": "Owner instruction 'HALO \u2014 Autonomous Phase 2 Blocker Resolution, Verification, Documentation, and Commit Loop'; owner decisions given in conversation",
+    "ownerDecisions": {
+      "D17_W4.2": "Require explicit models: no built-in Sarvam model on either path; D17 pair/speaker/fallback/LLM route stays PENDING",
+      "W4.8_D24": "Option 1: retain facts-before-policy and current text; W4.8 closed as deferred",
+      "P2-R1_D25": "Approve 0037 for local and disposable use only; hosted application unauthorized",
+      "commit": "No commit"
+    },
+    "disposition": "PARTIALLY COMPLETE; HOSTED VERIFICATION PENDING",
+    "baseline": {
+      "branch": "Phase-2-Security-Hardening",
+      "head": "9b35beed482f269a9b1d2db1ea9b93f639f87cbc",
+      "staged": 0,
+      "preExistingTrackedChanges": 26,
+      "preExistingUntracked": 24,
+      "gates": {
+        "typecheck": 0,
+        "lint": 0,
+        "test": {
+          "exit": 0,
+          "passed": 1818,
+          "skipped": 31
+        },
+        "worker": {
+          "exit": 0,
+          "tests": 100,
+          "skipped": 1
+        }
+      }
+    },
+    "final": {
+      "branch": "Phase-2-Security-Hardening",
+      "head": "9b35beed482f269a9b1d2db1ea9b93f639f87cbc",
+      "staged": 0,
+      "commit": null,
+      "migrations": {
+        "0001-0036": "byte-identical to baseline",
+        "0037_calendar_business_connection_unique.sql": {
+          "sha256": "6bcff77bc94f0d5c14189033e808b4418c3493972240b322d61d66a3dd46fa1b",
+          "new": true,
+          "executed": "disposable DB only"
+        }
+      }
+    },
+    "changedFiles": {
+      "thisLoopOnly": [
+        ".env.example",
+        "docs/DECISIONS.md",
+        "docs/HALO_V1_GAP_ANALYSIS.md",
+        "docs/HALO_V1_STATUS.md",
+        "docs/HOSTED_MIGRATION_RUNBOOK.md",
+        "docs/HOSTED_TARGET_PREFLIGHT.md",
+        "docs/MIGRATION_DEPENDENCY_MAP.md",
+        "docs/VOICE_LATENCY_COST_AUDIT.md",
+        "infrastructure/hosted/preflight-readonly.sql",
+        "packages/providers/voice-vendors/factory.ts",
+        "packages/providers/voice-vendors/profiles.ts",
+        "packages/providers/voice-vendors/sarvam-stt-provider.ts",
+        "packages/providers/voice-vendors/sarvam-tts-provider.ts",
+        "scripts/check-migrations.mjs",
+        "scripts/check-rls.mjs",
+        "scripts/check-rollout-rehearsal.mjs",
+        "scripts/compare-migration-ledger.mjs",
+        "services/pipecat-worker/test_local_speech.py",
+        "services/voice-gateway/config.ts",
+        "tests/contracts/sarvam.contract.test.ts",
+        "tests/integration/speech-outage-recovery.test.ts",
+        "tests/unit/compare-migration-ledger.test.ts",
+        "tests/unit/voice/profiles.test.ts",
+        "tests/unit/voice/readback-without-confidence.test.ts",
+        "tests/unit/voice/sarvam-stt.test.ts",
+        "tests/unit/voice/sarvam-tts.test.ts",
+        "tests/unit/voice/speech-vendor-config.test.ts"
+      ],
+      "sharedWithPreExistingDiff": [
+        "services/pipecat-worker/worker.py",
+        "src/app/api/oauth/google-calendar/callback/route.ts",
+        "docs/HALO_Architecture.md",
+        "docs/HALO_V1_IMPLEMENTATION_PLAN.md",
+        "docs/LOCAL_RELEASE_READINESS_REPORT.md",
+        "docs/WS3_OWNER_ACTIONS.md"
+      ],
+      "new": [
+        "supabase/migrations/0037_calendar_business_connection_unique.sql",
+        "tests/integration/calendar-first-connect-race.test.ts"
+      ],
+      "preExistingUntrackedAnnotated": [
+        "docs/PHASE2_COMPLETION_REVIEW.md",
+        "docs/evidence/phase2-completion-results.json"
+      ],
+      "patchStat": "35 files, +604 -84 (excluding the two annotated evidence files)"
+    },
+    "verification": [
+      {
+        "command": "npm run typecheck",
+        "exit": 0,
+        "evidenceType": "local test"
+      },
+      {
+        "command": "npm run lint",
+        "exit": 0,
+        "evidenceType": "local test"
+      },
+      {
+        "command": "npm test",
+        "exit": 0,
+        "passed": 1827,
+        "skipped": 31,
+        "files": {
+          "passed": 183,
+          "skipped": 3
+        },
+        "evidenceType": "local test"
+      },
+      {
+        "command": "npm run check:architecture",
+        "exit": 0,
+        "evidenceType": "source"
+      },
+      {
+        "command": "npm run check:neutral",
+        "exit": 0,
+        "evidenceType": "source"
+      },
+      {
+        "command": "npm run preflight:ci",
+        "exit": 0,
+        "evidenceType": "source"
+      },
+      {
+        "command": "npm run build",
+        "exit": 0,
+        "elapsedSeconds": 90.6,
+        "note": "fetched public Google Fonts via next/font/google; no credentials",
+        "evidenceType": "local test"
+      },
+      {
+        "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+        "exit": 0,
+        "tests": 102,
+        "skipped": 1,
+        "evidenceType": "local test"
+      },
+      {
+        "command": "node scripts/check-offline-database.mjs",
+        "exit": 0,
+        "migrations": 37,
+        "checkRls": {
+          "ok": 674,
+          "fail": 0
+        },
+        "governancePostgrest": {
+          "passed": 26
+        },
+        "race": "one commit, loser waited 559 ms then refused",
+        "evidenceType": "disposable DB"
+      },
+      {
+        "command": "node scripts/check-rollout-rehearsal.mjs",
+        "exit": 0,
+        "checks": "90/90",
+        "image": "public.ecr.aws/supabase/postgres:17.6.1.155",
+        "evidenceType": "disposable DB"
+      },
+      {
+        "command": "npm run check:supabase-image-chain",
+        "exit": 0,
+        "result": "A refused, P applied, C refused",
+        "evidenceType": "disposable DB"
+      },
+      {
+        "command": "node scripts/check-rollout-docs.mjs",
+        "exit": 0,
+        "result": "37 migration rows, 10 owner IDs",
+        "evidenceType": "source"
+      },
+      {
+        "command": "git diff --check",
+        "exit": 0,
+        "evidenceType": "source"
+      }
+    ],
+    "failFirst": [
+      {
+        "what": "new W4.2/P2-R1 regression tests against pre-session sources",
+        "result": "6 TS + 1 Python failed; sources restored byte-identical",
+        "evidenceType": "local test"
+      }
+    ],
+    "historicalFailures": [
+      {
+        "command": "node scripts/check-rollout-rehearsal.mjs",
+        "exit": 1,
+        "checks": "89/90",
+        "cause": "stale 0035 pending expectation in harness",
+        "fix": "expectation updated"
+      },
+      {
+        "command": "node scripts/check-offline-database.mjs",
+        "exit": 1,
+        "cause": "bare LOCK TABLE in 0037 fails under check:rls non-transactional replay",
+        "fix": "lock, guard and index build moved into one DO statement"
+      }
+    ],
+    "skippedChecks": [
+      {
+        "check": "scripts/check-local-tts-text-parity.ts",
+        "reason": "TTS normalizer twins unchanged"
+      },
+      {
+        "check": "real provider, Telugu, PSTN, hosted",
+        "reason": "not authorized ($0; no target)",
+        "coveredBy": null
+      },
+      {
+        "check": "5 local-model opt-in cases in general suite",
+        "reason": "opt-in",
+        "coveredBy": "P2-LOOP installed-model run (not repeated; local speech paths untouched)"
+      },
+      {
+        "check": "26 DB opt-in cases in general suite",
+        "reason": "opt-in",
+        "coveredBy": "check-offline-database.mjs 26/26"
+      }
+    ],
+    "independentReview": {
+      "kind": "separate fresh-context read-only reviewer agent (same model family); not Codex",
+      "findings": {
+        "critical": 0,
+        "high": 0,
+        "medium": 2,
+        "low": 6
+      },
+      "disposition": "all fixed and re-verified",
+      "codexReviewW0.3": "PENDING"
+    },
+    "hosted": "NOT VERIFIED",
+    "externalActions": {
+      "hostedOrSharedDatabase": "none",
+      "providerCalls": "none",
+      "outbound": "none",
+      "deployments": "none",
+      "commits": "none",
+      "pushes": "none",
+      "spend": "none",
+      "publicFontFetch": "npm run build (Google Fonts, unauthenticated)"
+    }
+  },
+  "historicalEvidenceNotice": "Fields above independentCodexReview retain prior-session history; independentCodexReview is the current authoritative review/verification/commit/push receipt.",
+  "independentCodexReview": {
+    "task": "P2-INDEPENDENT-REVIEW",
+    "date": "2026-10-16",
+    "authority": "Current owner review/remediate/document/commit/push instruction; origin destination separately confirmed in conversation",
+    "status": "LOCAL REVIEW AND VERIFICATION PASSED; IMPLEMENTATION COMMITTED; DOCUMENTATION/PUSH PENDING",
+    "review": {
+      "method": "Separate read-only Codex reviewer agents via collaboration.spawn_agent, independent from implementation; source review plus synthetic reproduction and focused tests",
+      "reviewers": [
+        "/root/independent_review",
+        "/root/remaining_review"
+      ],
+      "scope": "ad6a19d..9b35beed plus all 79 initial tracked/untracked Phase 2 paths and remediation diff",
+      "W0.3": "reviewed",
+      "findingsBySeverity": {
+        "critical": 0,
+        "high": 0,
+        "medium": 2,
+        "low": 1
+      },
+      "findings": [
+        {
+          "id": "P2-CR1",
+          "severity": "medium",
+          "files": [
+            "services/pipecat-worker/worker.py",
+            "services/pipecat-worker/test_local_speech.py"
+          ],
+          "evidenceLevel": "local test",
+          "evidence": "Worker ignored VOICE_STT_API_KEY/VOICE_TTS_API_KEY, unlike gateway; independent synthetic reproduction confirmed missing per-kind resolution.",
+          "requiredAction": "Match per-kind credential precedence and add regression tests.",
+          "disposition": "fixed; test_per_kind_sarvam_credentials_match_gateway_precedence; focused 8/8 and full worker 104, skip 1"
+        },
+        {
+          "id": "P2-CR2",
+          "severity": "medium",
+          "files": [
+            "services/pipecat-worker/worker.py",
+            "services/pipecat-worker/test_local_speech.py"
+          ],
+          "evidenceLevel": "local test",
+          "evidence": "Worker startup ignored tenant profiles; absent profile model inherited deployment model, unlike gateway explicit profile model validation.",
+          "requiredAction": "Validate primary/fallback profile models at startup and prevent environment inheritance.",
+          "disposition": "fixed; test_worker_startup_rejects_missing_profile_models_without_env_inheritance covers absent/empty/whitespace models in both kinds and fallbacks"
+        },
+        {
+          "id": "P2-CR3",
+          "severity": "low",
+          "files": [
+            "scripts/check-migrations.mjs"
+          ],
+          "evidenceLevel": "disposable DB",
+          "evidence": "Elapsed psql runtime could not prove actual overlapping insert lock contention.",
+          "requiredAction": "Observe lock wait before releasing winner transaction.",
+          "disposition": "fixed; readiness handshake, application-named loser, pg_stat_activity Lock plus pg_blocking_pids before commit; observed lock wait, loser unique refusal, exactly one row"
+        }
+      ],
+      "rejectedSuspicions": [
+        {
+          "issue": "callback error.message disclosure",
+          "disposition": "not established; structured logger PRIVATE_FIELDS redacts error key; no weakening or unnecessary fix"
+        }
+      ],
+      "postFix": "separate reviewer approved worker fixes (8 focused tests exit 0) and race harness source; disposable run confirms race"
+    },
+    "initialState": {
+      "task": "P2-INDEPENDENT-REVIEW",
+      "branch": "Phase-2-Security-Hardening",
+      "head": "9b35beed482f269a9b1d2db1ea9b93f639f87cbc",
+      "upstream": null,
+      "cachedOriginMergeBase": "9b35beed482f269a9b1d2db1ea9b93f639f87cbc",
+      "initialTracked": [
+        ".env.example",
+        "docs/DECISIONS.md",
+        "docs/HALO_Architecture.md",
+        "docs/HALO_V1_GAP_ANALYSIS.md",
+        "docs/HALO_V1_IMPLEMENTATION_PLAN.md",
+        "docs/HALO_V1_STATUS.md",
+        "docs/HOSTED_MIGRATION_RUNBOOK.md",
+        "docs/HOSTED_TARGET_PREFLIGHT.md",
+        "docs/LOCAL_RELEASE_READINESS_REPORT.md",
+        "docs/MIGRATION_DEPENDENCY_MAP.md",
+        "docs/PIPECAT_INTEGRATION.md",
+        "docs/VOICE_LATENCY_COST_AUDIT.md",
+        "docs/WORKSTREAM_4_REPORT.md",
+        "docs/WS3_OWNER_ACTIONS.md",
+        "docs/evidence/local-release-verification-ledger.json",
+        "docs/evidence/local-workstream-status.json",
+        "infrastructure/hosted/preflight-readonly.sql",
+        "packages/language/language-pack.ts",
+        "packages/providers/voice-vendors/factory.ts",
+        "packages/providers/voice-vendors/profiles.ts",
+        "packages/providers/voice-vendors/sarvam-stt-provider.ts",
+        "packages/providers/voice-vendors/sarvam-tts-provider.ts",
+        "packages/runtime/agent-runtime.ts",
+        "packages/voice/endpointer.ts",
+        "packages/voice/phone-channel-adapter.ts",
+        "packages/voice/pipecat/protocol.ts",
+        "packages/voice/pipecat/remote-session.ts",
+        "packages/voice/turn-handler.ts",
+        "packages/voice/voice-session.ts",
+        "packages/workflows/supabase-workflow-store.ts",
+        "scripts/check-migrations.mjs",
+        "scripts/check-rls.mjs",
+        "scripts/check-rollout-rehearsal.mjs",
+        "scripts/compare-migration-ledger.mjs",
+        "services/pipecat-worker/halo_client.py",
+        "services/pipecat-worker/halo_serializer.py",
+        "services/pipecat-worker/media_gate.py",
+        "services/pipecat-worker/test_local_speech.py",
+        "services/pipecat-worker/test_speech_minimums.py",
+        "services/pipecat-worker/worker.py",
+        "services/voice-gateway/config.ts",
+        "src/app/api/oauth/google-calendar/callback/route.ts",
+        "tests/contracts/sarvam.contract.test.ts",
+        "tests/integration/speech-outage-recovery.test.ts",
+        "tests/unit/compare-migration-ledger.test.ts",
+        "tests/unit/rank-fusion.test.ts",
+        "tests/unit/voice/pipecat-protocol.test.ts",
+        "tests/unit/voice/profiles.test.ts",
+        "tests/unit/voice/readback-without-confidence.test.ts",
+        "tests/unit/voice/remote-session.test.ts",
+        "tests/unit/voice/sarvam-stt.test.ts",
+        "tests/unit/voice/sarvam-tts.test.ts",
+        "tests/unit/voice/speech-vendor-config.test.ts"
+      ],
+      "initialUntracked": [
+        "docs/PHASE2_COMPLETION_REVIEW.md",
+        "docs/PHASE2_COMPLETION_TASK_CARD.md",
+        "docs/W4_3_VOICE_PIPELINING_TASK.md",
+        "docs/W4_4_5_9_LOCAL_VOICE_TASKS.md",
+        "docs/evidence/phase2-completion-command-summary.txt",
+        "docs/evidence/phase2-completion-results.json",
+        "packages/language/backchannels.ts",
+        "packages/voice/call-context-cache.ts",
+        "packages/voice/ordered-persistence.ts",
+        "scripts/voice-context-benchmark.ts",
+        "scripts/voice-cooldown-benchmark.ts",
+        "scripts/voice-persistence-benchmark.ts",
+        "services/pipecat-worker/benchmark_chunk_pipeline.py",
+        "services/pipecat-worker/benchmark_policy_cache.py",
+        "services/pipecat-worker/policy_audio_cache.py",
+        "services/pipecat-worker/sarvam_wire_tts.py",
+        "services/pipecat-worker/test_chunk_pipeline.py",
+        "services/pipecat-worker/test_policy_audio_cache.py",
+        "supabase/migrations/0037_calendar_business_connection_unique.sql",
+        "tests/integration/calendar-first-connect-race.test.ts",
+        "tests/integration/calendar-reconnection.test.ts",
+        "tests/integration/voice-async-persistence.test.ts",
+        "tests/unit/voice/call-context-cache.test.ts",
+        "tests/unit/voice/ordered-persistence.test.ts",
+        "tests/unit/voice/thinking-interruption.test.ts",
+        "tests/unit/workflow-timer-correlation.test.ts"
+      ],
+      "initialIndex": [],
+      "migrations": [
+        {
+          "path": "supabase/migrations/0001_init.sql",
+          "unchanged": true,
+          "sha256": "76fdd91319ff382699fab00981f632b3e4ab7f9681eace621eb6527579c99cc3"
+        },
+        {
+          "path": "supabase/migrations/0002_function_grants.sql",
+          "unchanged": true,
+          "sha256": "654d1db73f860c91cb13ce4b0d9c40d323aaf1ce13f4ebcda6f2f153a1a18e23"
+        },
+        {
+          "path": "supabase/migrations/0003_atomic_message_count.sql",
+          "unchanged": true,
+          "sha256": "407e0f4c9b426d372837412cc06857f46922ea618fd7a9bd1dcf860125cd743d"
+        },
+        {
+          "path": "supabase/migrations/0004_data_retention.sql",
+          "unchanged": true,
+          "sha256": "d537ed571d2a22dbee66c5c28a537fa3a4550bccfd2780c88a5e4d261ba911f2"
+        },
+        {
+          "path": "supabase/migrations/0005_retrieval_source_attribution.sql",
+          "unchanged": true,
+          "sha256": "8cf167116ef0e6297063b6a51de7749d93ede1d922ce75a2c6e6a6501865ed9f"
+        },
+        {
+          "path": "supabase/migrations/0006_lead_qualification.sql",
+          "unchanged": true,
+          "sha256": "b0b28fb3a7909b646a3871c658d084878ddca6bd3df64e6f2dd7ea06aa926166"
+        },
+        {
+          "path": "supabase/migrations/0007_unanswered_questions.sql",
+          "unchanged": true,
+          "sha256": "bf0b669fa0caf349c1078da593c0320846154dfb5fefda2820e55d9da6d2e6db"
+        },
+        {
+          "path": "supabase/migrations/0008_appointments.sql",
+          "unchanged": true,
+          "sha256": "32a70207d6905e448573e66bf04a110e08e5a302763a83dfe43a02eb8fcb2169"
+        },
+        {
+          "path": "supabase/migrations/0009_workflows.sql",
+          "unchanged": true,
+          "sha256": "cc5f2f9a5da5a499a06ec748a5025d3ace2e0a98fbc8220fa350a13a2949672e"
+        },
+        {
+          "path": "supabase/migrations/0010_customer_lifecycle.sql",
+          "unchanged": true,
+          "sha256": "4963a1c7e1fccb4575aa47c48bde668502856a0b933dc3e26adb82125762a2f6"
+        },
+        {
+          "path": "supabase/migrations/0011_lifecycle_automation.sql",
+          "unchanged": true,
+          "sha256": "162693acbd3822d47aae3af8b8f8599bb9f6704634501887c5929a95bc2696a5"
+        },
+        {
+          "path": "supabase/migrations/0012_booking_drafts.sql",
+          "unchanged": true,
+          "sha256": "da7ecf7569a2bd9d99221b815a0030f3de0ca538a3d56371ab6e3a7eed03d4f3"
+        },
+        {
+          "path": "supabase/migrations/0013_agents.sql",
+          "unchanged": true,
+          "sha256": "dda183d192be46f3f4e0190faaca147712162cadafee2405c3f66c94a8065266"
+        },
+        {
+          "path": "supabase/migrations/0014_agent_backfill.sql",
+          "unchanged": true,
+          "sha256": "6f1b9e262e376b619d588ceaf67d505f1242ada2cfcdd3a3e5020647fdaa6594"
+        },
+        {
+          "path": "supabase/migrations/0015_conversation_agent.sql",
+          "unchanged": true,
+          "sha256": "229f7273b49336c65e93db60dfb3d09bfd8a5c3abf0cd7bbfc547661a088496b"
+        },
+        {
+          "path": "supabase/migrations/0016_messages_tool_role.sql",
+          "unchanged": true,
+          "sha256": "1b1cc409b6c7018d5f92e23ae31578b64c9438a972a03432c6ae3b85d94be670"
+        },
+        {
+          "path": "supabase/migrations/0017_knowledge_collections.sql",
+          "unchanged": true,
+          "sha256": "590087c45b9782ce485d1f5df348957e911de052931d90bdd38e7019ac7e27a8"
+        },
+        {
+          "path": "supabase/migrations/0018_agent_live_version_ownership.sql",
+          "unchanged": true,
+          "sha256": "0b3af537b5efe0b6118f70e875e412d3f91af9035a894c45491035bb8d3f81a7"
+        },
+        {
+          "path": "supabase/migrations/0019_conversation_state.sql",
+          "unchanged": true,
+          "sha256": "06f100fbaeaaada2c118313f1f6b0dec499073aee732573ca70ef2228e14c714"
+        },
+        {
+          "path": "supabase/migrations/0020_voice_calls.sql",
+          "unchanged": true,
+          "sha256": "b9413a105e58bcebcccbb2bdac38ebee181747c4d10b7ecefb4fa79166dcdf67"
+        },
+        {
+          "path": "supabase/migrations/0021_business_creation_provisions_agent.sql",
+          "unchanged": true,
+          "sha256": "5d76ff9653a39c8ed002af5bef65cabbebb578fde7d555cfeff0930b6c5b8c53"
+        },
+        {
+          "path": "supabase/migrations/0022_backfill_agents_created_after_0014.sql",
+          "unchanged": true,
+          "sha256": "5e9fb4b080c64f77d590926e059acc14f02429c0367620014a0da694fe976dc6"
+        },
+        {
+          "path": "supabase/migrations/0023_voice_latency_marks.sql",
+          "unchanged": true,
+          "sha256": "39262e0bef16aee5cf984e0abb0adf6c9ce2f9143c4dbd0ba14910f6b6b151e6"
+        },
+        {
+          "path": "supabase/migrations/0024_lead_lifecycle.sql",
+          "unchanged": true,
+          "sha256": "e7d1e98013a101d1d767bccf06b553da21c7e169a8f9d1e2162d2839cdf32b58"
+        },
+        {
+          "path": "supabase/migrations/0025_campaigns.sql",
+          "unchanged": true,
+          "sha256": "89bfb26e0304041c1ede87361b43d4aa12fbb2086a30263606e209bc1a60ec15"
+        },
+        {
+          "path": "supabase/migrations/0026_runtime_call_events.sql",
+          "unchanged": true,
+          "sha256": "d89199ffa2abba98dc498c99e5e22dda79450cb5fe6bff5bbf0e0c2d2118f90b"
+        },
+        {
+          "path": "supabase/migrations/0027_learning_proposals.sql",
+          "unchanged": true,
+          "sha256": "71e1dc31c876e3d5cb1d44ac608a62175b9d6bd2b8f1ea2fed3f08909e6b7026"
+        },
+        {
+          "path": "supabase/migrations/0028_call_lead_outcomes.sql",
+          "unchanged": true,
+          "sha256": "39abe1d1da387272730c233653e5c37092d8a8ea821b6a51e2f93130bb75ce78"
+        },
+        {
+          "path": "supabase/migrations/0029_campaign_call_binding.sql",
+          "unchanged": true,
+          "sha256": "5def2fa24033d9f88a07cb4c1b18c054463f6e424b424721d7fca7f2aee9ba16"
+        },
+        {
+          "path": "supabase/migrations/0030_production_version_guards.sql",
+          "unchanged": true,
+          "sha256": "6474c792477e14cc0dfc53cf8ffd8e69f12feedbca2b3c713ad415968f2c3cb9"
+        },
+        {
+          "path": "supabase/migrations/0031_conversation_identity_insert_guard.sql",
+          "unchanged": true,
+          "sha256": "aac81206e0697b84ede3234068814b3d9f9e1fbcbe042d29ac7dfd2a1b05a42d"
+        },
+        {
+          "path": "supabase/migrations/0032_tool_executions.sql",
+          "unchanged": true,
+          "sha256": "f08c6503436164dc7717f9ce618175577d32c9e28e6482a5f57201b73328debb"
+        },
+        {
+          "path": "supabase/migrations/0033_knowledge_governance.sql",
+          "unchanged": true,
+          "sha256": "aeeb4c2d248c556507f20bff770867b6f41c6398a93ebcf0ba04c7cc0f6878d2"
+        },
+        {
+          "path": "supabase/migrations/0034_tenant_reference_integrity.sql",
+          "unchanged": true,
+          "sha256": "ec437bbf27c11f26313a15d6d4fb22a4fd9e76fe86f8c190b5ae4dbab2085e6f"
+        },
+        {
+          "path": "supabase/migrations/0035_knowledge_backfill_source_ref_validation.sql",
+          "unchanged": true,
+          "sha256": "a0d5bba58b998970c2a60201aed8826ddea2a973740d585cb4e5d93ccc57e007"
+        },
+        {
+          "path": "supabase/migrations/0036_security_authorization_audit.sql",
+          "unchanged": true,
+          "sha256": "1da7166378719d89ad44f542c2216ded10b19b7aae4d7d4c5f360f6076a52766"
+        }
+      ],
+      "initialContentHashes": {
+        ".env.example": "b1512fd15c3c375c79e106cf9bbb3c33280587b6c6aa7da57a9c0ed7d46f9b01",
+        "docs/DECISIONS.md": "d3d43ef94df2669f48c066aaa61de93f69f0f1f007ab681f5e6d1fbf173ff4e7",
+        "docs/HALO_Architecture.md": "fb4b3bebfa29117598c5019e511b09e8bee32214a425e0d9a32315a4d52c9fa8",
+        "docs/HALO_V1_GAP_ANALYSIS.md": "1d1d25ceb6f820e513cd279bd026c18a5d8fb52735f5c6728df3b18f2c00c823",
+        "docs/HALO_V1_IMPLEMENTATION_PLAN.md": "902aa8e05dd8b1d04eb648a4c150d48c2319df86fb15caf36048ee68c0369d98",
+        "docs/HALO_V1_STATUS.md": "4a149a69deb7356568267ea99e3483d227478fe84f356b89cc7f7680bdc172f6",
+        "docs/HOSTED_MIGRATION_RUNBOOK.md": "2e579126b234f5564f532b7594127038ec0516a348db54a0a59a3d0ecde98814",
+        "docs/HOSTED_TARGET_PREFLIGHT.md": "a401f23859e020d24457d6ef823bda7e540732673b37510da28cf7b5dc9d64ae",
+        "docs/LOCAL_RELEASE_READINESS_REPORT.md": "35d329a223c4b2db811d9dad0ccecb8499a0aa02757ef60b8e6e2e5ad37582c8",
+        "docs/MIGRATION_DEPENDENCY_MAP.md": "ebf6a585b4c11014b91e9f08fba6c2bdd0da0ebebc66f50bc622a67e425e81e7",
+        "docs/PIPECAT_INTEGRATION.md": "8bb38ae7f9438ef188c0525d916c53b4c5259906a97911501558e2ffd97e271d",
+        "docs/VOICE_LATENCY_COST_AUDIT.md": "bcc8242fd1233126fd0943e0feae0e00fd87973eb8b02ef2047a3053a59c1ed1",
+        "docs/WORKSTREAM_4_REPORT.md": "0f6b8906c062c9980f437ea9fa2764fc7f20ec9c40d79d691e6030644614310c",
+        "docs/WS3_OWNER_ACTIONS.md": "236f3dc188e1e2d8a6195424adec14968b6ba2624b7e1a90cef1c060aec7faf0",
+        "docs/evidence/local-release-verification-ledger.json": "ff6f0449a315145333c1797e38afad47498618319a4446e8cbb963a20903f484",
+        "docs/evidence/local-workstream-status.json": "03022b540fbe5f905153ccaa3c5402f97f922f20ef3c3a478cb3850b334b7f7f",
+        "infrastructure/hosted/preflight-readonly.sql": "7baf0a822e9c52c7bc4b420b7766f2825cdd69060c15c9a384869a18f21c2df3",
+        "packages/language/language-pack.ts": "b2ea719393eeb2f5ded472839476b1709ce4c9ff6072d03c6045fd17cb1feba3",
+        "packages/providers/voice-vendors/factory.ts": "9271280f468e18ce4cf8351316a06722bb7afc03e5515ee97279d414ad3b33a6",
+        "packages/providers/voice-vendors/profiles.ts": "499ac37015f64b70a8d6d719e9ba1b7cdb79431347e534c4e044c5c355e44824",
+        "packages/providers/voice-vendors/sarvam-stt-provider.ts": "f3d24da24c5bc1b9be70fb99d95e8008be669aa087c50a835dff3e5bf244df22",
+        "packages/providers/voice-vendors/sarvam-tts-provider.ts": "bcd12f3424b4180b7fd3b53f344431d9ee1aeefe4e40b5b2f5dfc7fa07f7b51a",
+        "packages/runtime/agent-runtime.ts": "8dce4520012dd7fdb6385bb74501aab091d6b26ed98a3a1cebe2034d38872999",
+        "packages/voice/endpointer.ts": "99bdded3661af0db283f1f6d1c56bf402527918335c24aaa6d24881d122952df",
+        "packages/voice/phone-channel-adapter.ts": "4cb38d4249e31b76c87182833248f2829ef639cbdb5e9fcb5c80746fe50fa8f3",
+        "packages/voice/pipecat/protocol.ts": "05d725b97ce1264fb035784ccabe49e159735ab5e3321e77104f7d8041fc719d",
+        "packages/voice/pipecat/remote-session.ts": "70d90d2d23a2bd63d826973d303cb428182a74c03f5047063e4b693a08e22ce5",
+        "packages/voice/turn-handler.ts": "6ff8bbb287db021bd9c7d94f46c53417fcc50b309ed8959c1474d875b7e02daa",
+        "packages/voice/voice-session.ts": "19dd14bb79eca60bb7656234fbe352d4e900815f35118ef640283e8fe4851b54",
+        "packages/workflows/supabase-workflow-store.ts": "a83975925e96ee4bf99601a3a2a1c009a5568e46905b589bab44b6d1c542f9b8",
+        "scripts/check-migrations.mjs": "19342a640e0c05e9d4b3d0c569f6f522629dc91b4c461cda944be938fbdec680",
+        "scripts/check-rls.mjs": "ec1ffd93d984eb8e4f1d4a7591f047b93bd0bc372c2a6c4330a6d7555e8a67a1",
+        "scripts/check-rollout-rehearsal.mjs": "c149e8bfa7b4123762e3e03643893ab6b68e5daa3bd5d27886f12102c3aba9e2",
+        "scripts/compare-migration-ledger.mjs": "79aa38b9dff0055847d8e4af8b01c27d2b03887af251d6f4b3c9be0ec2902650",
+        "services/pipecat-worker/halo_client.py": "88d904106d5cb8d6f56d1d072a09763dc74755733aaf893a82c8eefa70a06b4f",
+        "services/pipecat-worker/halo_serializer.py": "b239ee64ed7b8fcef0d6781172a6dee990b81cc18ccbbb3f7c4575730ee3567b",
+        "services/pipecat-worker/media_gate.py": "76967206005a19b63dde9af7e35a6c05fa49a4ca2af07454740d8a8bdc793ff7",
+        "services/pipecat-worker/test_local_speech.py": "91f8ccd0113660f54443e0db668d78e50ea6d98c2f3850e326e9c3346237e77e",
+        "services/pipecat-worker/test_speech_minimums.py": "db9b8c1fad71a32b6e26985ba3684db10d3fb879b4f4d9f787c9b10fd8f0888e",
+        "services/pipecat-worker/worker.py": "ff038818c4ad06e63dfe39af8f726f54d7a596f19aae5f2742497c78e43c2e24",
+        "services/voice-gateway/config.ts": "63baf8c71591f9adab3b3e4afcb25f595ebfeb2ffbe8f5b658ce8f1459d3df61",
+        "src/app/api/oauth/google-calendar/callback/route.ts": "b60b1898027032bbfec05283515ddd2fe724eea928f298e4e46ee83dd2a077fb",
+        "tests/contracts/sarvam.contract.test.ts": "93706c45505f38daaaa744171681cd1e1832a4769bfc78e9079d1b4e52e2df6a",
+        "tests/integration/speech-outage-recovery.test.ts": "ca7b301a74389f32fe5708751ab33dac5d06fc15f6a2448dc4c7dfc62863f81d",
+        "tests/unit/compare-migration-ledger.test.ts": "19fb541c96fda4869ffe992de1f0dc91cc7be59974002347642e86b965fe2c41",
+        "tests/unit/rank-fusion.test.ts": "4b9e5972a070adaf03e881fd49b4ca19bff1f19ac7b41917f925ba8a1ddfb863",
+        "tests/unit/voice/pipecat-protocol.test.ts": "c32d3f2a6bdd2d8b27ed911678014a7d15e442178aa47de0675c8e1e30354253",
+        "tests/unit/voice/profiles.test.ts": "c7ed1278647f49a4f5b3a2213c006834d07c2dc98fafcf96fc85b6814d3a9ea5",
+        "tests/unit/voice/readback-without-confidence.test.ts": "971fd40af982c151246a02ac18e4c255e18408888a27046332c8117e14f35e5d",
+        "tests/unit/voice/remote-session.test.ts": "1ed85a0446aa744b33ed49616669885589888f2461f3e4ef42b039d886acb68e",
+        "tests/unit/voice/sarvam-stt.test.ts": "ffac58181c8f71f09f341993438f1620ffadc7dd41c5492430f92dafa4a061ba",
+        "tests/unit/voice/sarvam-tts.test.ts": "00dd30b8b85da164cb6151722f30a8fb9669a1e1d7d4ab8692d06d54160d70ea",
+        "tests/unit/voice/speech-vendor-config.test.ts": "0c4d3d3fad77579b206d3b83d785d3bbf042531760714cfb575038a9aab2dc7f",
+        "docs/PHASE2_COMPLETION_REVIEW.md": "d9c0b0a8f844c839b33f44fc1fe85c27003cb75804dc98a359385c4921a76d3e",
+        "docs/PHASE2_COMPLETION_TASK_CARD.md": "0cff6c764c56c498538c2437997437d1ae4d57beb069dcba7e64e62a38e363c7",
+        "docs/W4_3_VOICE_PIPELINING_TASK.md": "dfbdf351becd9f8a8fda230cfaad0d80607da41d9743b0f8807e0ff3f6e33216",
+        "docs/W4_4_5_9_LOCAL_VOICE_TASKS.md": "92f4de026d28de9b92895d9e204fb4975e78d4d7b80dacb9cc48c40e57575202",
+        "docs/evidence/phase2-completion-command-summary.txt": "e7fb080134fc54703640fc05c48aece2bb5de98752ae869a2dcceaf8d08c6e11",
+        "docs/evidence/phase2-completion-results.json": "8ef7ba06dc3bbfbe6c771f525e1336b07f6b5ac64ceee20f54cf5012f27267d6",
+        "packages/language/backchannels.ts": "7b42e5ac3034cbfcafe3efe6bfcab0dc2d2996bb2a5e239ccca57fda2a71b9ac",
+        "packages/voice/call-context-cache.ts": "a4e6895cbff21363a04f7b305966e518c3c828a266e1c78c64926680b53d066c",
+        "packages/voice/ordered-persistence.ts": "61d75c1679f76a83ddcd7eccbe59fd4287361dba981688d8ec18e157121a94d3",
+        "scripts/voice-context-benchmark.ts": "3f630d69c0047a9e61b82e4218d3a9a255f4f456c6322af30e609b926804f513",
+        "scripts/voice-cooldown-benchmark.ts": "1666f249c8200d42d7abea6ea64d572fb8ca89dd3701e81bf0071213f3017bc8",
+        "scripts/voice-persistence-benchmark.ts": "ed59a6837a94591418c1dd4f8685d5d902159b1a1089a53b90fd232daa437e46",
+        "services/pipecat-worker/benchmark_chunk_pipeline.py": "e1d91c07b86039da3d30a36741709a7b08e034beb7bc38d62a825fdf493ba68a",
+        "services/pipecat-worker/benchmark_policy_cache.py": "74e559fc58cce0926654d52f37592761e4455b5d9caaa75b3d739da3356a3ada",
+        "services/pipecat-worker/policy_audio_cache.py": "795d3bb19ca649bad519c4f49c8a924451aa53262d535c93e262ffa63fc2b476",
+        "services/pipecat-worker/sarvam_wire_tts.py": "45c382f49902efc762bb8f8283b4c30efb1b3e1196379cc668dd3e688b8f0edc",
+        "services/pipecat-worker/test_chunk_pipeline.py": "467be7ffc91a9d7db762a6cedce82864d9834fe9fe4348f09bd58619aa7235af",
+        "services/pipecat-worker/test_policy_audio_cache.py": "fb93c210a18fb3e559382b7fd0986d4dcad519d0b567035ffa6974bad8c6b102",
+        "supabase/migrations/0037_calendar_business_connection_unique.sql": "6bcff77bc94f0d5c14189033e808b4418c3493972240b322d61d66a3dd46fa1b",
+        "tests/integration/calendar-first-connect-race.test.ts": "0e7754c9f10c1c8f0da95e97701ece1b65ebb49f826479e8860f92dee70e0550",
+        "tests/integration/calendar-reconnection.test.ts": "ea1685a6c29226617ddb7730469769c031684dd68b5d38d88e666b6f3dea5a7d",
+        "tests/integration/voice-async-persistence.test.ts": "1fb9ac3746c14b564430febfbae54c55e470cac096962aec980db5f2905c4661",
+        "tests/unit/voice/call-context-cache.test.ts": "74803284de7d52d27609808fffeadb9429e4b1684f95ddcd6aeff1358bd9f54b",
+        "tests/unit/voice/ordered-persistence.test.ts": "eb28b7270c77c07c7a1b85a9f27550c9b5a6c9b438bc7e280c029b9a981f8ec1",
+        "tests/unit/voice/thinking-interruption.test.ts": "11c1b003903c3d4c9a980bbed46ff10d28425668e99b8e4f2665a80954bd1968",
+        "tests/unit/workflow-timer-correlation.test.ts": "2cfa86e1a8fce240b01525509a3ceff4aa8390b59ac99059cdade22b914b4b9a"
+      }
+    },
+    "classification": {
+      "reviewedPreExistingPhase2": [
+        ".env.example",
+        "docs/DECISIONS.md",
+        "docs/HALO_Architecture.md",
+        "docs/HALO_V1_GAP_ANALYSIS.md",
+        "docs/HALO_V1_IMPLEMENTATION_PLAN.md",
+        "docs/HALO_V1_STATUS.md",
+        "docs/HOSTED_MIGRATION_RUNBOOK.md",
+        "docs/HOSTED_TARGET_PREFLIGHT.md",
+        "docs/LOCAL_RELEASE_READINESS_REPORT.md",
+        "docs/MIGRATION_DEPENDENCY_MAP.md",
+        "docs/PHASE2_COMPLETION_REVIEW.md",
+        "docs/PHASE2_COMPLETION_TASK_CARD.md",
+        "docs/PIPECAT_INTEGRATION.md",
+        "docs/VOICE_LATENCY_COST_AUDIT.md",
+        "docs/W4_3_VOICE_PIPELINING_TASK.md",
+        "docs/W4_4_5_9_LOCAL_VOICE_TASKS.md",
+        "docs/WORKSTREAM_4_REPORT.md",
+        "docs/WS3_OWNER_ACTIONS.md",
+        "docs/evidence/local-release-verification-ledger.json",
+        "docs/evidence/local-workstream-status.json",
+        "docs/evidence/phase2-completion-command-summary.txt",
+        "docs/evidence/phase2-completion-results.json",
+        "infrastructure/hosted/preflight-readonly.sql",
+        "packages/language/backchannels.ts",
+        "packages/language/language-pack.ts",
+        "packages/providers/voice-vendors/factory.ts",
+        "packages/providers/voice-vendors/profiles.ts",
+        "packages/providers/voice-vendors/sarvam-stt-provider.ts",
+        "packages/providers/voice-vendors/sarvam-tts-provider.ts",
+        "packages/runtime/agent-runtime.ts",
+        "packages/voice/call-context-cache.ts",
+        "packages/voice/endpointer.ts",
+        "packages/voice/ordered-persistence.ts",
+        "packages/voice/phone-channel-adapter.ts",
+        "packages/voice/pipecat/protocol.ts",
+        "packages/voice/pipecat/remote-session.ts",
+        "packages/voice/turn-handler.ts",
+        "packages/voice/voice-session.ts",
+        "packages/workflows/supabase-workflow-store.ts",
+        "scripts/check-migrations.mjs",
+        "scripts/check-rls.mjs",
+        "scripts/check-rollout-rehearsal.mjs",
+        "scripts/compare-migration-ledger.mjs",
+        "scripts/voice-context-benchmark.ts",
+        "scripts/voice-cooldown-benchmark.ts",
+        "scripts/voice-persistence-benchmark.ts",
+        "services/pipecat-worker/benchmark_chunk_pipeline.py",
+        "services/pipecat-worker/benchmark_policy_cache.py",
+        "services/pipecat-worker/halo_client.py",
+        "services/pipecat-worker/halo_serializer.py",
+        "services/pipecat-worker/media_gate.py",
+        "services/pipecat-worker/policy_audio_cache.py",
+        "services/pipecat-worker/sarvam_wire_tts.py",
+        "services/pipecat-worker/test_chunk_pipeline.py",
+        "services/pipecat-worker/test_local_speech.py",
+        "services/pipecat-worker/test_policy_audio_cache.py",
+        "services/pipecat-worker/test_speech_minimums.py",
+        "services/pipecat-worker/worker.py",
+        "services/voice-gateway/config.ts",
+        "src/app/api/oauth/google-calendar/callback/route.ts",
+        "supabase/migrations/0037_calendar_business_connection_unique.sql",
+        "tests/contracts/sarvam.contract.test.ts",
+        "tests/integration/calendar-first-connect-race.test.ts",
+        "tests/integration/calendar-reconnection.test.ts",
+        "tests/integration/speech-outage-recovery.test.ts",
+        "tests/integration/voice-async-persistence.test.ts",
+        "tests/unit/compare-migration-ledger.test.ts",
+        "tests/unit/rank-fusion.test.ts",
+        "tests/unit/voice/call-context-cache.test.ts",
+        "tests/unit/voice/ordered-persistence.test.ts",
+        "tests/unit/voice/pipecat-protocol.test.ts",
+        "tests/unit/voice/profiles.test.ts",
+        "tests/unit/voice/readback-without-confidence.test.ts",
+        "tests/unit/voice/remote-session.test.ts",
+        "tests/unit/voice/sarvam-stt.test.ts",
+        "tests/unit/voice/sarvam-tts.test.ts",
+        "tests/unit/voice/speech-vendor-config.test.ts",
+        "tests/unit/voice/thinking-interruption.test.ts",
+        "tests/unit/workflow-timer-correlation.test.ts"
+      ],
+      "unrelatedOrUnreviewed": [],
+      "sessionModifiedPaths": [
+        "docs/DECISIONS.md",
+        "docs/PHASE2_COMPLETION_REVIEW.md",
+        "docs/PHASE2_COMPLETION_TASK_CARD.md",
+        "docs/evidence/local-release-verification-ledger.json",
+        "docs/evidence/local-workstream-status.json",
+        "docs/evidence/phase2-completion-command-summary.txt",
+        "docs/evidence/phase2-completion-results.json",
+        "scripts/check-migrations.mjs",
+        "services/pipecat-worker/test_local_speech.py",
+        "services/pipecat-worker/worker.py"
+      ],
+      "note": "All 79 pre-existing paths reviewed together; all imports/new source dependencies included; original patch and index/status capture in /tmp/halo-p2-independent-review. Earlier-session provenance is supporting context, not a substitute for current diff review."
+    },
+    "verification": [
+      {
+        "command": "npm run typecheck",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/typecheck-final.log"
+      },
+      {
+        "command": "npm run lint",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/lint-final.log"
+      },
+      {
+        "command": "npm test -- --maxWorkers=2",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/tests-unrestricted.log"
+      },
+      {
+        "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p 'test_*.py'",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/worker-final.log"
+      },
+      {
+        "command": "npm run preflight:ci",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/preflight-final.log"
+      },
+      {
+        "command": "npm run build",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/build-retry.log"
+      },
+      {
+        "command": "node scripts/check-offline-database.mjs",
+        "exit": 0,
+        "evidenceLevel": "disposable DB",
+        "log": "/tmp/halo-p2-independent-review/database-race-final.log"
+      },
+      {
+        "command": "node scripts/check-rollout-rehearsal.mjs",
+        "exit": 0,
+        "evidenceLevel": "disposable DB",
+        "log": "/tmp/halo-p2-independent-review/rehearsal-final.log"
+      },
+      {
+        "command": "npm run check:supabase-image-chain",
+        "exit": 0,
+        "evidenceLevel": "disposable DB",
+        "log": "/tmp/halo-p2-independent-review/image-final.log"
+      },
+      {
+        "command": "VOICE_LOCAL_MODEL_DIR=/home/parzifal/AI_Receptionist/models/voice-local node node_modules/vitest/vitest.mjs run tests/contracts/local.contract.test.ts",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/models-contract.log"
+      },
+      {
+        "command": "VOICE_LOCAL_MODEL_DIR=/home/parzifal/AI_Receptionist/models/voice-local .venv/bin/python -m unittest discover -s services/pipecat-worker -p test_local_speech.py -k RealModelTests",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/models-worker-retry.log"
+      },
+      {
+        "command": ".venv/bin/python -m unittest discover -s services/pipecat-worker -p test_local_speech.py -k ProviderRoutingTests",
+        "exit": 0,
+        "evidenceLevel": "local test",
+        "log": "/tmp/halo-p2-independent-review/routing-final.log"
+      },
+      {
+        "command": "npm run check:architecture",
+        "exit": 0,
+        "evidenceLevel": "source",
+        "log": "/tmp/halo-p2-independent-review/architecture-final.log"
+      },
+      {
+        "command": "npm run check:neutral",
+        "exit": 0,
+        "evidenceLevel": "source",
+        "log": "/tmp/halo-p2-independent-review/neutral-final.log"
+      },
+      {
+        "command": "node scripts/check-rollout-docs.mjs",
+        "exit": 0,
+        "evidenceLevel": "source",
+        "log": "/tmp/halo-p2-independent-review/docs-final.log"
+      },
+      {
+        "command": "git diff --check",
+        "exit": 0,
+        "evidenceLevel": "source",
+        "log": "/tmp/halo-p2-independent-review/whitespace-final.log"
+      },
+      {
+        "command": "git diff --cached --check; compare all 58 staged implementation blobs to final tested tree; architecture/neutrality/rollout-doc checks",
+        "exit": 0,
+        "evidenceLevel": "source",
+        "receipt": "/tmp/halo-p2-independent-review/staged-checks.json"
+      }
+    ],
+    "counts": {
+      "typescript": {
+        "passed": 1827,
+        "skipped": 31,
+        "filesPassed": 183,
+        "filesSkipped": 3
+      },
+      "worker": {
+        "run": 104,
+        "skipped": 1
+      },
+      "rls": {
+        "ok": 674,
+        "fail": 0
+      },
+      "disposableOptIn": {
+        "passed": 26
+      },
+      "recovery": {
+        "passed": 90,
+        "total": 90
+      },
+      "localModelContract": {
+        "passed": 10,
+        "actualModelCases": 5
+      },
+      "localWorkerModel": {
+        "passed": 1
+      }
+    },
+    "skips": [
+      {
+        "general": "26 database opt-in tests",
+        "coverage": "final check-offline-database, 26/26"
+      },
+      {
+        "general": "5 TypeScript installed-model tests",
+        "coverage": "local.contract.test.ts, 10/10 total including 5 actual-model cases"
+      },
+      {
+        "general": "1 worker installed-model test",
+        "coverage": "RealModelTests, 1/1, no skip"
+      },
+      {
+        "check": "TTS normalizer parity",
+        "reason": "Both normalizer twins unchanged"
+      },
+      {
+        "check": "hosted, production, live providers, PSTN and native human Telugu acceptance",
+        "reason": "Not authorized or not supplied; NOT VERIFIED"
+      }
+    ],
+    "failedOrInterruptedRuns": [
+      {
+        "run": "sandbox npm test",
+        "result": "42 failed, 1785 passed, 31 skipped, 12 errors; socket EPERM; superseded by unrestricted 1827 pass run"
+      },
+      {
+        "run": "sandbox preflight/build/database",
+        "result": "tsx IPC EPERM / Google Fonts fetch failure / Docker socket denied; final approved retries exit 0"
+      },
+      {
+        "run": "restricted worker and local-model pipeline runs plus restart-interrupted DB/rehearsal",
+        "result": "Incomplete; not counted as passes; completed unrestricted/fresh disposable runs supersede them"
+      },
+      {
+        "run": "fail-first-focused using system python3",
+        "result": "ModuleNotFoundError pipecat; not a regression result; repeated using .venv python"
+      },
+      {
+        "run": "fail-first-focused-retry",
+        "result": "Two new regression methods with pre-remediation functions restored only in memory: 12 failed subtests and 1 error; no working-tree source swap; focused final 8/8 passes"
+      }
+    ],
+    "migrations": {
+      "0001-0036": "byte-identical to HEAD and captured initial manifest",
+      "0037": {
+        "sha256": "6bcff77bc94f0d5c14189033e808b4418c3493972240b322d61d66a3dd46fa1b",
+        "unchangedThisReview": true,
+        "reviewed": true,
+        "localTested": true,
+        "hostedExecuted": false
+      }
+    },
+    "prompt": {
+      "composerVersionAndSnapshots": "unchanged from HEAD",
+      "W4.8_D24": "closed as deferred; facts-before-policy retained"
+    },
+    "remainingReleaseGates": [
+      "D17 model pair, speaker, fallback and LLM route: speech/provider owner and Telugu reviewer",
+      "Hosted named target authorization and migration approvals; duplicate census/disposition",
+      "Target-specific recovery proof",
+      "Audit retention D23/R8",
+      "Telemetry D19",
+      "Live-provider and native Telugu/PSTN validation"
+    ],
+    "remote": {
+      "name": "origin",
+      "url": "git@github.com:Parzifal25/AI_Receptionist.git",
+      "branch": "Phase-2-Security-Hardening",
+      "initialUpstream": null,
+      "destinationOwnerConfirmed": true,
+      "fetchedHead": "9b35beed482f269a9b1d2db1ea9b93f639f87cbc",
+      "initialDivergence": {
+        "ahead": 0,
+        "behind": 0
+      },
+      "push": "pending"
+    },
+    "commits": [
+      {
+        "hash": "b2610b71a7440482d0d24a032aa71c0af426f824",
+        "scope": "58 reviewed implementation/configuration/migration/harness/test paths",
+        "verified": true
+      }
+    ],
+    "externalActions": {
+      "hostedOrSharedDatabase": false,
+      "deployments": false,
+      "paidApplicationProviderCalls": false,
+      "outbound": false,
+      "spend": 0,
+      "publicFontsFetch": true,
+      "localInstalledModelInference": true
+    },
+    "cleanup": {
+      "disposableContainers": "none remain; only original five supabase_*_AI_Receptionist names observed",
+      "evidenceLevel": "source"
+    }
+  }
+}

@@ -639,7 +639,7 @@ return {
 
 ### 5.4 Unhandled / edge cases
 - **Twilio path never run**; no Indian carrier adapter (Exotel/Plivo) exists.
-- Worker default models (`saarika:v2.5`, `bulbul:v2`) differ from gateway defaults (`saaras:v3-realtime`, `bulbul:v3`); `VOICE_TTS_DEFAULT_VOICE=shubh` is a v3 speaker — running the worker without the README's env overrides likely mismatches.
+- Worker default models (`saarika:v2.5`, `bulbul:v2`) differ from gateway defaults (`saaras:v3-realtime`, `bulbul:v3`); `VOICE_TTS_DEFAULT_VOICE=shubh` is a v3 speaker — running the worker without the README's env overrides likely mismatches. *(Removed by W4.2 on 2026-10-16, owner decision: neither path has a default model and Sarvam without one fails closed; `local test` only.)*
 - No STT confidence ⇒ misheard names/numbers are not read back automatically.
 - No phonetic normalization for Sarvam TTS (`enable_preprocessing=False`, raw digits/codes/`₹` passed through); normalization exists only for local TTS.
 - `vad.minSpeechMs` and `bargeIn.minSpeechMs` are sent to the worker and ignored. *(Applied by W4.1 on 2026-10-15; `local test` only.)*

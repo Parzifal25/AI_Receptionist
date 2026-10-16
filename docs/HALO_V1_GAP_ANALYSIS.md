@@ -506,7 +506,7 @@ See G2.1.
 
 #### G6.5 — Speech-model configuration consistency
 
-- **Current implementation:** worker defaults are `saarika:v2.5`/`bulbul:v2`; gateway defaults are `saaras:v3-realtime`/`bulbul:v3`; the default voice `shubh` is a v3 speaker.
+- **Current implementation:** worker defaults are `saarika:v2.5`/`bulbul:v2`; gateway defaults are `saaras:v3-realtime`/`bulbul:v3`; the default voice `shubh` is a v3 speaker. **Update 2026-10-16 (owner decision, D17 W4.2 sub-question; `local test`):** both defaults are removed, and Sarvam selection without an explicit model fails closed on both engines. The model pair remains D17.
 - **Evidence:** `source`.
 - **Gap / risk:** a mismatched deployment.
 - **Required change:** pin model IDs per agent or profile, and use them on both engines.

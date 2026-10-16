@@ -1,6 +1,6 @@
 # Migration dependency map — WS3
 
-**DOCUMENTED (source):** inventory of `supabase/migrations/`, 0001–0035 (34 historical files plus K1). No migration is changed or authorized by this document. See [rollout sequence](HOSTED_MIGRATION_RUNBOOK.md), [preflight](HOSTED_TARGET_PREFLIGHT.md), and [recovery](DATABASE_RECOVERY_RUNBOOK.md).
+**DOCUMENTED (source):** inventory of `supabase/migrations/`, 0001–0037 (34 historical files plus K1; 0036 added by WS4 and 0037 by the 2026-10-16 Phase 2 blocker loop, both after this inventory was first written). No migration is changed or authorized by this document. See [rollout sequence](HOSTED_MIGRATION_RUNBOOK.md), [preflight](HOSTED_TARGET_PREFLIGHT.md), and [recovery](DATABASE_RECOVERY_RUNBOOK.md).
 
 ## Execution contract
 
@@ -48,6 +48,7 @@ Apply only a contiguous missing suffix after reconciling the ledger AND schema. 
 | [0034_tenant_reference_integrity.sql](../supabase/migrations/0034_tenant_reference_integrity.sql) | All prior table definitions, especially 0029 triggers and 0032/0033 protections | assert_tenant_reference, 16 triggers / 19 column pairs, tenant_reference_census; revokes client TRUNCATE/REFERENCES/TRIGGER/PG17 MAINTAIN, anon sequence rights and authenticated setval; creator-role defaults only. Does not rewrite legacy data or add composite keys. |
 | [0035_knowledge_backfill_source_ref_validation.sql](../supabase/migrations/0035_knowledge_backfill_source_ref_validation.sql) | 0033 function/revision constraints and established service-role ACL; ledger order after 0034 | CREATE OR REPLACE adds shared >500 source_ref quarantine; no source-data, grant, policy, approval or retrieval changes. Transactional and function replacement replay-safe; actual ledger entries must still never be duplicated. |
 | [0036_security_authorization_audit.sql](../supabase/migrations/0036_security_authorization_audit.sql) | 0001 businesses and is_business_member; 0009 workflow_events/workflow_timers; ledger order after 0035. Added by WS4 (D7/D18 local authorization); this row added 2026-10-15 by the local release-readiness audit | Creates audit_logs (closed action/outcome/reason vocabularies, RLS member SELECT, service_role INSERT/SELECT only, no UPDATE/DELETE/TRUNCATE for application roles) and adds nullable telemetry_correlation_id to workflow_events and workflow_timers. New table plus nullable columns: no existing-data transformation. Business deletion cascades audit rows; no purge or retention window (D23/R8). Real application needs target authorization; the D7 general-audit approval is local-only. |
+| [0037_calendar_business_connection_unique.sql](../supabase/migrations/0037_calendar_business_connection_unique.sql) | 0008 calendar_connections; ledger order after 0036. Owner-approved for local and disposable use 2026-10-16 (P2-R1, [D25](DECISIONS.md#d25--calendar-business-level-connection-uniqueness-0037)) | Count-only guard aborts if duplicate business-level (staff_id IS NULL) rows exist, then a partial unique index on (business_id, provider) WHERE staff_id IS NULL. No row, grant, policy or RLS change; 0008's constraint is untouched. Holds SHARE on calendar_connections for the build. Real application needs target authorization and a duplicate census first. |
 
 ## Closeout verification
 
@@ -892,3 +893,25 @@ alter table public.workflow_timers add column telemetry_correlation_id uuid
 Run only after the recorded prefix through 0035 is reconciled, and only under a target authorization; WS4's D7/D18 approval covers local and disposable verification only ([WORKSTREAM_4_REPORT.md](WORKSTREAM_4_REPORT.md)). Apply with its ledger row in one transaction. It creates one table and two nullable columns and transforms no existing data. Verify the table's grants (authenticated SELECT; service_role INSERT/SELECT; nothing else for application roles), RLS enabled with the single membership policy, and both columns present. The application build that writes audit rows and serialized correlation must follow the schema, never precede it: mandatory pre-audit fails closed when the table is missing.
 
 Rolling the application back does not undo 0036, and an older build ignores the table and columns. Do not drop a populated audit_logs table as a rollback: that discards security evidence. Local evidence: the full 0001–0036 chain, 669 real-role RLS assertions and the audit concurrency/HTTP harnesses passed on disposable databases (WS4). No hosted ledger, grant set or backup including audit rows is verified.
+
+### 0037_calendar_business_connection_unique.sql
+
+```sql
+do $$ -- one statement: atomic with or without a runner transaction
+  lock table public.calendar_connections in share mode
+  ... raise exception '0037: % business-level calendar connection group(s) are duplicated; ...'
+  create unique index calendar_connections_business_level_unique on public.calendar_connections (business_id, provider) where staff_id is null
+$$
+```
+
+## 0037 execution and recovery detail
+
+**Added 2026-10-16 by the Phase 2 blocker loop** under the owner's approval for local and disposable use only ([D25](DECISIONS.md#d25--calendar-business-level-connection-uniqueness-0037)). The sections above are unchanged.
+
+**Invariant.** At most one business-level calendar connection (`staff_id IS NULL`) per business and provider. 0008's `unique (business_id, staff_id, provider)` treats NULL staff IDs as distinct, so two concurrent first connects could both insert. The scheduling reader then picked one of them arbitrarily, and the OAuth callback's reconnect lookup failed closed on every later attempt. Staff-level rows were already unique and are unaffected. The callback treats this index's unique violation as a lost race and replaces the winning row like a reconnect.
+
+**Preconditions.** Run only after the recorded prefix through 0036 is reconciled, and only under a target authorization. First run the read-only preflight: section 10 prints `calendar_business_level_duplicate_groups`. A nonzero count means 0037 will abort. Each duplicate group needs an owner-approved disposition, such as keeping the most recently refreshed working credential, before the run. That disposition is a data change that needs its own authorization. The migration never chooses a row.
+
+**Execution.** Apply with its ledger row in one transaction. The guard reports a count only, with no tenant identifier. Building the index holds SHARE on `calendar_connections`, which blocks that table's writes (OAuth connects and token rotations) but not reads; the table has a few rows per business. The lock, guard and build run as one `DO` statement, so they stay atomic even if the runner does not wrap the file in a transaction; a first version with a bare `LOCK TABLE` failed under the non-transactional `check:rls` replay (2026-10-16) and was corrected. The build cannot be `CONCURRENTLY` inside a transaction or function. Verify afterwards: the preflight objects line shows `0037=t`, the duplicate census is 0, and a second business-level insert for one business and provider is refused.
+
+**Recovery.** `drop index public.calendar_connections_business_level_unique` restores 0008 behaviour and transforms no data. The application keeps working without the index; it loses only the race protection. A failed run leaves no index and no ledger row. Local evidence (disposable DB): the guard on a seeded duplicate, two real concurrent sessions (exactly one commits) and real-role assertions in `check:migrations`/`check:rls`; rollout rehearsal section 8 on the Supabase image. No hosted ledger, duplicate census or lock timing is verified.

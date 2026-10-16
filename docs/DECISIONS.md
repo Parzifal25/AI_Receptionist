@@ -21,7 +21,7 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 **Rules**
 
 - Agents never change a state. Only the owner's explicit decision does. Record who decided, the date and the decision text.
-- A new architectural question gets the next free ID (currently **D24**) and starts as PENDING.
+- A new architectural question gets the next free ID (currently **D26**) and starts as PENDING.
 - A **review disposition** (see [below](#review-dispositions--2026-10-15)) is a reviewer's finding, not a state. It never approves anything.
 - "Blueprint §N" means the original blueprint v0.1, preserved verbatim at [archive/HALO_BLUEPRINT_v0.1.md](archive/HALO_BLUEPRINT_v0.1.md). Architecture sections ("Arch §N") refer to [HALO_Architecture.md](HALO_Architecture.md).
 - The original D1–D13 came from **HALO Phase 1 plan §9 (2026-10-14)**. That plan is a proposal and is not stored in the repository. Its step identifiers (S0–S13) appear in the "Blocks" fields. Their meaning is only partly recoverable; [HALO_V1_IMPLEMENTATION_PLAN.md §9](HALO_V1_IMPLEMENTATION_PLAN.md#9-legacy-identifier-crosswalk) maps them where the context allows and flags the rest as unknown.
@@ -60,13 +60,15 @@ The consolidation added new **PENDING** questions (D15–D20) and recorded the s
 | [D14](#d14--layer-1-activation-and-approved-knowledge) | Layer 1 activation and approved knowledge | Implementation authorized and completed locally (migration `0033`, disposable-DB verified); design defaults for items 1–6 await owner ratification | Owner instructions, 2026-10-14 (non-migration subset) and 2026-10-15 (completion) | Ratifying items 1–6; applying `0033` to a real database: R8, D19, D21; pilot knowledge: D11 |
 | [D15](#d15--canonical-tracking-ids-eng-04-versus-eng-12) | Canonical tracking IDs: ENG-04 versus ENG-12 | PENDING | — | Backlog and record naming |
 | [D16](#d16--implementation-owner-naming-astra) | Implementation-owner naming ("Astra") | PENDING | — | Role clarity |
-| [D17](#d17--pilot-speech-and-llm-provider-route) | Pilot speech and LLM provider route | PENDING | — | Voice pilot; S7 |
+| [D17](#d17--pilot-speech-and-llm-provider-route) | Pilot speech and LLM provider route | PENDING (model pair, speaker, fallback, LLM route). W4.2 sub-question APPROVED: no built-in model on either path | Owner, 2026-10-16 (W4.2 only) | Voice pilot; S7 |
 | [D18](#d18--telemetry-export-backend-and-cross-process-correlation) | Telemetry export backend and cross-process correlation | SPLIT — local correlation and disabled/opt-in stdout APPROVED FOR LOCAL WS4; hosted export backend PENDING (owner + operations owner) | Owner instruction (WS4), 2026-10-15, local scope only | Staging observability |
 | [D19](#d19--hosting-topology-and-region) | Hosting topology and region | PENDING | — | Staging (S9) |
 | [D20](#d20--validated-speech-streaming-on-the-phone-path) | Validated speech streaming on the phone path | PENDING | — | Voice latency task W4.10 |
 | [D21](#d21--running-migration-0001-on-hosted-supabase) | Running migration `0001` on hosted Supabase | PENDING | — | Any hosted migration (W1.6, W8.1) |
 | [D22](#d22--migration-0034-tenant-reference-integrity) | Migration `0034`: tenant reference integrity and client privilege hardening | PENDING — implemented and verified on disposable databases under owner instruction; adoption needs owner approval | — | Applying `0034` to a real database: owner approval, R8, D19 |
 | [D23](#d23--retention-coverage-beyond-conversations-and-calls) | Retention coverage beyond conversations and calls | PENDING | — | Pilot personal-data handling (R8) |
+| [D24](#d24--prompt-section-order-w48) | Prompt section order (W4.8) | APPROVED — retain facts-before-policy; stable-prefix reorder deferred | Owner, 2026-10-16 | — |
+| [D25](#d25--calendar-business-level-connection-uniqueness-0037) | Calendar business-level connection uniqueness (`0037`) | APPROVED FOR LOCAL AND DISPOSABLE USE ONLY; any real application PENDING | Owner, 2026-10-16 | Applying `0037` to a real database: target authorization, duplicate census, R8, D19 |
 
 ---
 
@@ -494,7 +496,7 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - **Speech primary, Sarvam (source; self-reported browser-live run):**
     - Sarvam is the configured reference/primary speech provider, and `POA` and [LOCAL_SPEECH.md](LOCAL_SPEECH.md) say "Sarvam remains the primary".
     - There is no owner approval record.
-    - Default models differ between paths. The worker defaults to `saarika:v2.5`/`bulbul:v2`, the gateway to `saaras:v3-realtime`/`bulbul:v3`, and `VOICE_TTS_DEFAULT_VOICE=shubh` is a v3 speaker ([VOICE_LATENCY_COST_AUDIT.md](VOICE_LATENCY_COST_AUDIT.md) §5.4).
+    - Default models differed between paths until 2026-10-16. The worker defaulted to `saarika:v2.5`/`bulbul:v2`, the gateway to `saaras:v3-realtime`/`bulbul:v3`, and `VOICE_TTS_DEFAULT_VOICE=shubh` is a v3 speaker ([VOICE_LATENCY_COST_AUDIT.md](VOICE_LATENCY_COST_AUDIT.md) §5.4). Neither path has a default now (see the W4.2 decision below).
   - **Local speech fallback, sherpa-onnx (local test):**
     - It is wired, but "its suitability as a production fallback for Telugu calls is not accepted".
     - It measured 67% WER against Sarvam's 6% on 11 clips.
@@ -512,6 +514,22 @@ Each entry gives the question, current evidence, options, the recommendation (ne
   - Keep the local fallback off for the pilot until the local-speech review (ENG-11) decides.
   - Choose the LLM route only once D8 provides a budget, and exclude preview models from the pilot chain.
 - **Depends on:** D8, D9, R4, R5.
+
+**Owner decision, 2026-10-16 — W4.2 sub-question only (Phase 2 blocker loop; source/local test).** Asked how to resolve the worker/gateway default mismatch, the owner chose: *"Require explicit models. Remove the silent defaults on BOTH paths: selecting Sarvam without VOICE_STT_MODEL/VOICE_TTS_MODEL fails at startup with a clear error. Picks no vendor policy; D17 itself stays PENDING for the speech owner + Telugu reviewer."*
+
+- **Implemented:**
+  - Neither Sarvam adapter has a built-in model, and each refuses construction without one.
+  - The factory requires `VOICE_STT_MODEL`/`VOICE_TTS_MODEL` (or a profile `model`) whenever Sarvam is the primary or the fallback.
+  - The gateway refuses to boot without them, and a `VOICE_PROFILES_JSON` Sarvam entry without `model` is refused when the profiles are parsed at startup.
+  - The worker refuses to start when its deployment selection (primary or fallback) is Sarvam without `VOICE_STT_MODEL`/`VOICE_TTS_MODEL`. A tenant profile without a model is refused when a session builds it, as profile credentials already are.
+  - The worker no longer reads its older `HALO_STT_MODEL`/`HALO_TTS_MODEL` names; the gateway never read them. A blank or whitespace-only value counts as unset on every path.
+  - These last three points come from the independent review of 2026-10-16 (see [PHASE2_COMPLETION_REVIEW.md](PHASE2_COMPLETION_REVIEW.md#phase-2-blocker-loop--2026-10-16)). The first version refused the worker's call rather than its startup, which fell short of the owner's "fails at startup".
+- **Evidence (local test):** fail-before/pass-after tests in `speech-vendor-config`, `profiles`, `sarvam-stt`, `sarvam-tts` and the worker's `test_local_speech`.
+- **Learned while implementing (source):**
+  - The pinned Pipecat SDK (0.0.108) itself validates model names. It accepts `saaras:v2.5`, `saaras:v3` and `saarika:v2.5`, but rejects `saaras:v3-realtime`, the name the gateway's realtime socket needs; the gateway maps `saaras:v3` to it.
+  - So the pair that runs on both paths must use the SDK names: STT `saaras:v3` (or `saarika:v2.5`), TTS `bulbul:v2`/`v3`/`v3-beta`.
+  - The SDK's v3 speaker list omits `shubh`, even though `shubh` is the SDK's own v3 default speaker. Speaker/model-family checks therefore stay with the vendor at run time, not with a local list.
+- **Still PENDING under D17:** the model pair, the speaker, whether a local fallback is acceptable and the LLM route, with the speech/provider owner and a Telugu reviewer. No vendor call was made.
 
 ### D18 — Telemetry export backend and cross-process correlation
 
@@ -672,6 +690,40 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 - **Recommendation (not approved):** decide before the pilot holds real personal data. Option 2 is the smallest safe change, but which tables count as business records is the privacy owner's call. Never delete DNC suppressions.
 - **Blocks:** pilot data handling (R8; release gate 9). Does not block first hosting with synthetic data.
 
+### D24 — Prompt section order (W4.8)
+
+- **State:** APPROVED — owner decision, 2026-10-16 (Phase 2 blocker loop). Added the same day.
+- **Question:** plan task W4.8 asks to "put the stable prompt prefix first", with "snapshot diff is ordering only" as its acceptance. Should the composer reorder its sections for provider prefix caching? W4.8 is about prompt section order, not knowledge ranking.
+- **Conflict (source):**
+  - `buildSafetyRules` says "Answer ONLY from the business profile, business hours and knowledge base above", and custom instructions defer to "the Rules above".
+  - `prompt-composer.ts` documents facts-before-policy as an injection defence: the policy sits nearest the model's attention, and verified system actions come last.
+  - Moving dynamic facts and knowledge after the Rules either breaks those references or changes their text. Either way the result is not "ordering only", and its effect on model behaviour cannot be measured without paid LLM calls (D8).
+- **Options considered:**
+  1. Retain facts-before-policy and the current text; defer the reorder.
+  2. Stable prefix first, with direction-neutral Rules wording, a composer version bump, reviewed snapshot changes and a model evaluation.
+  3. Another explicit prefix boundary.
+- **Decision (owner):** option 1: *"Keep facts-before-policy and current text; close W4.8 as deferred by owner decision. No prompt change, no version bump."*
+- **Consequence:** `PROMPT_COMPOSER_VERSION` and the golden snapshots are unchanged. A future caching optimisation needs a new task with option 2's acceptance (wording, version bump, snapshot review, paid evaluation under D8).
+- **Retrieval note (source):** knowledge ranking is unaffected and still undecided as a contract. Governed RPCs filter by tenant, approval and collection before ranking. RRF ties keep first-occurrence order in JS, and SQL ties without a secondary key are not promised to be deterministic.
+
+### D25 — Calendar business-level connection uniqueness (`0037`)
+
+- **State:** APPROVED FOR LOCAL AND DISPOSABLE USE ONLY — owner decision, 2026-10-16 (Phase 2 blocker loop). Any real application is PENDING. **Required for real application:** a target authorization (R8, D19), the read-only duplicate census, and a separately authorized disposition of any duplicate.
+- **Question:** close the first-connect race recorded as P2-R1 in [PHASE2_COMPLETION_REVIEW.md](PHASE2_COMPLETION_REVIEW.md)?
+- **Evidence (source):**
+  - `0008`'s `unique (business_id, staff_id, provider)` treats NULL `staff_id` values as distinct.
+  - Two concurrent first Google connects could therefore both insert a business-level row.
+  - After that, `getCalendarConnection` picked one of them arbitrarily (`limit 1` with no tie-break), and the callback's reconnect lookup failed closed on every later attempt.
+- **Decision (owner):** *"Approve 0037, local only. New migration: partial unique index on (business_id, provider) WHERE staff_id IS NULL. Fails closed if duplicates already exist (no cleanup invented). Callback retries a unique-conflict as an update. Verified on a disposable DB only; hosted application stays unauthorized."*
+- **Implemented:**
+  - `0037_calendar_business_connection_unique.sql`: a count-only duplicate guard, then the partial unique index. No row, grant or policy change, and `0008` is untouched.
+  - The OAuth callback treats that index's `23505` as a lost race: it re-reads the winner's row and replaces it once. The last consent therefore wins. Both admins see "connected", but the stored tokens belong to the later consent's Google account, and the earlier account's tokens are not revoked.
+  - The migration takes the SHARE lock before its guard, so no writer can add a duplicate between the guard and the index build. Without that, the index error would name the tenant.
+  - The read-only preflight gains a `0037` object flag and a duplicate census.
+  - Runbook, map and rehearsal entries.
+- **Rejected:** `UNIQUE NULLS NOT DISTINCT`, which needs Postgres 15+ when the target's version is unknown (D19) and would replace `0008`'s constraint; automatic duplicate cleanup.
+- **Recovery:** dropping the index transforms no data and only reopens the race.
+
 ---
 
 ## Change history
@@ -688,3 +740,24 @@ Each entry gives the question, current evidence, options, the recommendation (ne
 | 2026-10-15 | **Phase 2 Workstream 2 (decision review) under owner instruction** ("Close Pending Decisions and Resolve Unknowns"). Every entry received a review disposition ([HALO_DECISION_REVIEW.md](HALO_DECISION_REVIEW.md)). D21 got real-image evidence and a refined recommendation, plus [HOSTED_MIGRATION_RUNBOOK.md](HOSTED_MIGRATION_RUNBOOK.md). D14 items 1–6 were each reviewed; item 5 diverges from the original proposal. D6's retention unknown was resolved by evidence, and D23 was added as PENDING. Evidence corrections in D1, D10, D19 and D22. **No state changed and nothing was approved.** | Owner instruction; Claude Code |
 | 2026-10-15 | **WS4 finalization under explicit owner instruction.** D7 audit storage and D18 local correlation/export policy resolved for local implementation only; additive 0036 and local/disposable evidence recorded. Historical states retained. Hosted export, deployment and unrelated owner decisions are unchanged. | Owner instruction; Codex |
 | 2026-10-15 | **Local release-readiness audit** (owner's autonomous local-completion instruction). Index rows for D7 and D18 reconciled with their entries, which WS4 had updated without updating the index. **No state changed and nothing was approved.** | Owner instruction; Claude Code |
+| 2026-10-16 | **Phase 2 blocker loop under owner decisions given in conversation.** D17: W4.2 sub-question approved (no built-in Sarvam model on either path); the rest of D17 stays PENDING. D24 added and APPROVED (W4.8: retain facts-before-policy, defer the reorder). D25 added, APPROVED FOR LOCAL AND DISPOSABLE USE ONLY (`0037`). Commit was not authorized. No other state changed. | Owner decisions; Claude Code |
+
+
+### Phase 2 independent Codex review — 2026-10-16 (source/local test)
+
+The owner's current P2-INDEPENDENT-REVIEW instruction supersedes earlier refusal
+of commit authorization; review, scoped remediation, documentation, commits and a
+safe push are authorized. This does not authorize hosted migration execution,
+deployment, spending or ratification of pending decisions. Separate read-only Codex
+reviewers found two medium worker configuration defects and one low race-evidence
+defect. Worker per-kind credentials now follow gateway precedence; tenant profile
+Sarvam models are required at startup, including fallbacks. The calendar concurrency
+harness now observes a PostgreSQL lock wait rather than inferring it from elapsed
+time. Findings and final evidence are recorded in
+[PHASE2_COMPLETION_REVIEW.md](PHASE2_COMPLETION_REVIEW.md#p2-independent-review--2026-10-16).
+D17 model pair, speaker, fallback and LLM route remain PENDING for the owner,
+speech/provider owner and Telugu reviewer. D24/W4.8 remains deferred with unchanged
+prompt composer/version/snapshots. D25/0037 remains local/disposable only; hosted
+target authorization, duplicate disposition, migration approval, recovery, audit
+retention (D23/R8) and telemetry (D19) remain separate gates. No decision is ratified
+by this review.
