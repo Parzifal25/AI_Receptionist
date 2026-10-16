@@ -502,3 +502,22 @@ reviewed canonical documentation/evidence set and are committed separately.
 Push is pending; the destination is the owner-confirmed
 `origin/Phase-2-Security-Hardening`. The final transport receipt below and canonical
 JSON record supersede this pending statement after verification.
+
+**Verified primary push receipt (source).** Documentation/evidence commit
+`fef800b854ad733b871e9da58a3c2407b128f428` contains the 21 reviewed documentation paths (+6659/-94). After a fresh
+fetch showed 2 ahead/0 behind, `git push --set-upstream origin
+HEAD:refs/heads/Phase-2-Security-Hardening` exited 0. Independent
+`git ls-remote origin refs/heads/Phase-2-Security-Hardening` returned
+`fef800b854ad733b871e9da58a3c2407b128f428`, matching local HEAD and containing implementation commit `b2610b71a7440482d0d24a032aa71c0af426f824`.
+Upstream is now `origin/Phase-2-Security-Hardening`; the working tree was clean.
+No remote work was overwritten and no force push occurred.
+
+This transport receipt is a separate documentation-only follow-up. Its own hash
+is resolved from Git history and reported in the final audit, rather than embedded
+inside its own contents. JSON parsing, rollout-document validation, architecture,
+neutrality and staged whitespace checks are repeated for that follow-up; executable
+source remains byte-identical to the full verified implementation commit.
+The initial 79 paths were all reviewed and committed in coherent groups; no
+unrelated work was discarded or included. Only the original five Supabase
+containers remained after disposable cleanup. One incomplete restricted model-test
+process was terminated after its unrestricted replacement passed.
